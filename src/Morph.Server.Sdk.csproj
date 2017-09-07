@@ -1,0 +1,76 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{72ECC66F-62FE-463F-AFAD-E1FF5CC19CD9}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>Morph.Server.Sdk</RootNamespace>
+    <AssemblyName>Morph.Server.Sdk</AssemblyName>
+    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.Runtime.Serialization" />
+    <Reference Include="System.Web" />
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="System.Data.DataSetExtensions" />
+    <Reference Include="Microsoft.CSharp" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Net.Http" />
+    <Reference Include="System.Xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Client\IMorphServerApiClient.cs" />
+    <Compile Include="Client\MorphServerApiClient.cs" />
+    <Compile Include="Dto\Commands\ValidateTaskResultDto.cs" />
+    <Compile Include="Dto\Commands\ValidateTasksRequestDto.cs" />
+    <Compile Include="Dto\Error.cs" />
+    <Compile Include="Dto\ErrorResponse.cs" />
+    <Compile Include="Dto\InnerError.cs" />
+    <Compile Include="Dto\ReadableErrorTopCode.cs" />
+    <Compile Include="Dto\RunningTaskStatusDto.cs" />
+    <Compile Include="Dto\ServerStatusDto.cs" />
+    <Compile Include="Dto\SpaceBrowsingResponseDto.cs" />
+    <Compile Include="Events\FileEventArgs.cs" />
+    <Compile Include="Exceptions\MorphClientGeneralException.cs" />
+    <Compile Include="Helper\FileProgress.cs" />
+    <Compile Include="Helper\IFileProgress.cs" />
+    <Compile Include="Helper\JsonSerializationHelper.cs" />
+    <Compile Include="Helper\ProgressStreamContent.cs" />
+    <Compile Include="Helper\QueryBuilder.cs" />
+    <Compile Include="Mappers\FieldErrorsMapper.cs" />
+    <Compile Include="Mappers\SpaceBrowsingMapper.cs" />
+    <Compile Include="Mappers\ValidateTasksErrorMapper.cs" />
+    <Compile Include="Model\DownloadFileInfo.cs" />
+    <Compile Include="Model\Errors\FieldError.cs" />
+    <Compile Include="Model\Errors\ValidateTasksError.cs" />
+    <Compile Include="Model\FileProgressState.cs" />
+    <Compile Include="Model\RunningTaskStatus.cs" />
+    <Compile Include="Model\ServerStatus.cs" />
+    <Compile Include="Model\SpaceBrowsingInfo.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+</Project>
