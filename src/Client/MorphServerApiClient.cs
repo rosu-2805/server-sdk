@@ -16,6 +16,7 @@ using System.Collections.Specialized;
 using Morph.Server.Sdk.Dto.Commands;
 using Morph.Server.Sdk.Model.Errors;
 using Morph.Server.Sdk.Mappers;
+using Morph.Server.Sdk.Model.Commands;
 
 namespace Morph.Server.Sdk.Client
 {
@@ -127,17 +128,17 @@ namespace Morph.Server.Sdk.Client
                         case ReadableErrorTopCode.NotFound: throw new MorphApiNotFoundException(errorResponse.error.message);
                         case ReadableErrorTopCode.Forbidden: throw new MorphApiForbiddenException(errorResponse.error.message);
                         case ReadableErrorTopCode.BadArgument: throw new MorphApiBadArgumentException(FieldErrorsMapper.MapFromDto(errorResponse.error), errorResponse.error.message); 
-                        case ReadableErrorTopCode.CommandFailed:
-                            {
-                                switch (errorResponse.error.innererror.code)
-                                {
-                                    case "ValidateTasksError":
-                                        var validateTasksError = (ValidateTasksErrorDto)errorResponse.error.innererror;
-                                        throw new MorphApiCommandFailedException<ValidateTasksError>(ValidateTasksErrorMapper.MapFromDto(validateTasksError), errorResponse.error.message);                                        
-                                    default: throw new NotImplementedException();
-                                }
+                        //case ReadableErrorTopCode.CommandFailed:
+                        //    {
+                        //        switch (errorResponse.error.innererror.code)
+                        //        {
+                        //            case "ValidateTasksError":
+                        //                var validateTasksError = (ValidateTasksErrorDto)errorResponse.error.innererror;
+                        //                throw new MorphApiCommandFailedException<ValidateTasksError>(ValidateTasksErrorMapper.MapFromDto(validateTasksError), errorResponse.error.message);                                        
+                        //            default: throw new NotImplementedException();
+                        //        }
                                 
-                            }
+                        //    }
 
                     }
 
@@ -469,19 +470,13 @@ namespace Morph.Server.Sdk.Client
 
 
         /// <summary>
-        /// Validate tasks. Checks that there are no excess parameters in the created tasks. Raises <see cref="Morph.Server.Sdk.Exceptions.MorphApiCommandFailedException{Morph.Server.Sdk.Model.Errors.ValidateTasksError}"/> 
-        /// where T is <see cref="Morph.Server.Sdk.Model.Errors.ValidateTasksError"/> in case of validation errors
+        /// Validate tasks. Checks that there are no missing parameters in the tasks. 
         /// </summary>
-        /// <param name="spaceName">space name</param>
-        /// <param name="projectPath">path to the morph project file</param>
-        /// <exception cref="Morph.Server.Sdk.Exceptions.MorphApiCommandFailedException{TDetail}">Thrown when validation fails. See more info in exception Details property</exception>
-        /// <strong>TDetail</strong> may be typed as:
-        /// <para>
-        /// <see cref="Morph.Server.Sdk.Model.Errors.ValidateTasksError"/>
-        /// </para>
-        /// <exception cref="Morph.Server.Sdk.Exceptions.MorphApiBadArgumentException">Thrown when bad arguments were passed</exception>
+        /// <param name="spaceName"></param>
+        /// <param name="projectPath"></param>
+        /// <param name="cancellationToken"></param>
         /// <returns></returns>
-        public async Task ValidateTasksAsync(string spaceName, string projectPath, CancellationToken cancellationToken)
+        public async Task<ValidateTasksResult> ValidateTasksAsync(string spaceName, string projectPath, CancellationToken cancellationToken)
         {
             if (string.IsNullOrWhiteSpace(projectPath))
                 throw new ArgumentException(nameof(projectPath));
@@ -495,8 +490,10 @@ namespace Morph.Server.Sdk.Client
             using (var response = await GetHttpClient().PostAsync(url, new StringContent(JsonSerializationHelper.Serialize(request), Encoding.UTF8, "application/json"), cancellationToken))
             {
 
-                await HandleResponse(response);
-             
+                var dto = await HandleResponse<ValidateTasksResponseDto>(response);
+                var entity = ValidateTasksResponseMapper.MapFromDto(dto);
+                return entity;
+                
             }
         }
     }

@@ -62,10 +62,11 @@
     <Compile Include="Helper\QueryBuilder.cs" />
     <Compile Include="Mappers\FieldErrorsMapper.cs" />
     <Compile Include="Mappers\SpaceBrowsingMapper.cs" />
-    <Compile Include="Mappers\ValidateTasksErrorMapper.cs" />
+    <Compile Include="Mappers\ValidateTasksResponseMapper.cs" />
+    <Compile Include="Model\Commands\FailedTaskInfo.cs" />
     <Compile Include="Model\DownloadFileInfo.cs" />
     <Compile Include="Model\Errors\FieldError.cs" />
-    <Compile Include="Model\Errors\ValidateTasksError.cs" />
+    <Compile Include="Model\Commands\ValidateTasksResult.cs" />
     <Compile Include="Model\FileProgressState.cs" />
     <Compile Include="Model\RunningTaskStatus.cs" />
     <Compile Include="Model\ServerStatus.cs" />

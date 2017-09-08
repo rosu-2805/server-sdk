@@ -1,6 +1,7 @@
 ﻿using Morph.Server.Sdk.Dto;
 using Morph.Server.Sdk.Dto.Commands;
 using Morph.Server.Sdk.Model;
+using Morph.Server.Sdk.Model.Commands;
 using Morph.Server.Sdk.Model.Errors;
 using System;
 using System.Collections.Generic;
@@ -10,13 +11,14 @@ using System.Threading.Tasks;
 
 namespace Morph.Server.Sdk.Mappers
 {
-    internal static class ValidateTasksErrorMapper
+    internal static class ValidateTasksResponseMapper
     {
-        public static ValidateTasksError MapFromDto(ValidateTasksErrorDto dto)
+        public static ValidateTasksResult MapFromDto(ValidateTasksResponseDto dto)
         {
-            return new ValidateTasksError()
+            return new ValidateTasksResult()
             {
-                FailedTasks = dto.FailedTasks?.Select(Map).ToList()
+                FailedTasks = dto.FailedTasks?.Select(Map).ToList(),
+                Message = dto.Message                
             };
         }
 
@@ -26,9 +28,9 @@ namespace Morph.Server.Sdk.Mappers
             {
                 MissingParameters = dto.MissingParameters,
                 TaskId = dto.TaskId,
-                TaskLocation = dto.TaskLocation,
-                TaskSiteUrl = dto.TaskSiteUrl,
-                Text = dto.Text
+                TaskWebUrl = dto.TaskApiUrl,
+                TaskApiUrl = dto.TaskWebUrl,
+                Message = dto.Message
             };
         }
        

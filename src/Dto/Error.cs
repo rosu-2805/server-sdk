@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 namespace Morph.Server.Sdk.Dto
 {
     [DataContract]
-    [KnownType(typeof(ValidateTasksErrorDto))]
+    
     internal class Error
     {
 

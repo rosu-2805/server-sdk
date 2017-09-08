@@ -8,13 +8,15 @@ using System.Threading.Tasks;
 
 namespace Morph.Server.Sdk.Dto.Commands
 {
-    [DataContract(Name = "ValidateTasksError", Namespace = "")]
-    internal class ValidateTasksErrorDto : InnerError
+    [DataContract()]
+    internal class ValidateTasksResponseDto
     {
         [DataMember(Name = "failedTasks")]
         public List<FailedTaskInfoDto> FailedTasks { get; set; }
+        [DataMember(Name = "message")]
+        public string Message { get; set; }
 
-        public ValidateTasksErrorDto()
+        public ValidateTasksResponseDto()
         {
             FailedTasks = new List<FailedTaskInfoDto>();            
         }
@@ -26,12 +28,12 @@ namespace Morph.Server.Sdk.Dto.Commands
         public string TaskId { get; set; }
         [DataMember(Name = "missingParameters")]
         public List<string> MissingParameters { get; set; }
-        [DataMember(Name = "taskSiteUrl")]
-        public string TaskSiteUrl { get; set; }
-        [DataMember(Name = "taskLocation")]
-        public string TaskLocation { get; set; }
-        [DataMember(Name = "text")]
-        public string Text { get; set; }
+        [DataMember(Name = "taskWebUrl")]
+        public string TaskWebUrl { get; set; }
+        [DataMember(Name = "taskApiUrl")]
+        public string TaskApiUrl { get; set; }
+        [DataMember(Name = "message")]
+        public string Message { get; set; }
 
         public FailedTaskInfoDto()
         {

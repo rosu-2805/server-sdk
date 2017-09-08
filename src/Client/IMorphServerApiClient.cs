@@ -1,5 +1,6 @@
 ﻿using Morph.Server.Sdk.Events;
 using Morph.Server.Sdk.Model;
+using Morph.Server.Sdk.Model.Commands;
 using System;
 using System.IO;
 using System.Threading;
@@ -98,20 +99,15 @@ namespace Morph.Server.Sdk.Client
         Task UploadFileAsync(string spaceName, string localFilePath, string destFolderPath, CancellationToken cancellationToken, bool overrideFileifExists = false);
 
 
+
         /// <summary>
-        /// Validate tasks. Checks that there are no excess parameters in the created tasks. Raises <see cref="Morph.Server.Sdk.Exceptions.MorphApiCommandFailedException{Morph.Server.Sdk.Model.Errors.ValidateTasksError}"/> 
-        /// where T is <see cref="Morph.Server.Sdk.Model.Errors.ValidateTasksError"/> in case of validation errors
+        /// Validate tasks. Checks that there are no missing parameters in the tasks. 
         /// </summary>
-        /// <param name="spaceName">space name</param>
-        /// <param name="projectPath">path to the morph project file</param>
-        /// <exception cref="Morph.Server.Sdk.Exceptions.MorphApiCommandFailedException{TDetail}">Thrown when validation fails. See more info in exception Details property</exception>
-        /// <strong>TDetail</strong> may be typed as:
-        /// <para>
-        /// <see cref="Morph.Server.Sdk.Model.Errors.ValidateTasksError"/>
-        /// </para>
-        /// <exception cref="Morph.Server.Sdk.Exceptions.MorphApiBadArgumentException">Thrown when bad arguments were passed</exception>
+        /// <param name="spaceName"></param>
+        /// <param name="projectPath"></param>
+        /// <param name="cancellationToken"></param>
         /// <returns></returns>
-        Task ValidateTasksAsync(string spaceName, string projectPath, CancellationToken cancellationToken);
+        Task<ValidateTasksResult> ValidateTasksAsync(string spaceName, string projectPath, CancellationToken cancellationToken);
 
 
         event EventHandler<FileEventArgs> FileProgress;
