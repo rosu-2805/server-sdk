@@ -1,3 +1,5 @@
 /src/bin/Debug
 /src/obj/Debug
 /src/.vs/Morph.Server.Sdk/v15
+/src/bin/Release
+/src/obj/Release
