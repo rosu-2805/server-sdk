@@ -65,7 +65,7 @@ namespace Morph.Server.Sdk.Client
         /// <param name="fileName"></param>
         /// <param name="cancellationToken"></param>
         /// <returns></returns>
-        Task<bool> IsFileExistsAsync(string spaceName, string serverFolder, string fileName, CancellationToken cancellationToken);
+        Task<bool> FileExistsAsync(string spaceName, string serverFolder, string fileName, CancellationToken cancellationToken);
 
         /// <summary>
         /// Browse server folders 

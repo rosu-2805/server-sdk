@@ -26,7 +26,7 @@ namespace Morph.Server.Sdk.Model
             NavigationChain = new List<SpaceNavigation>();
         }
 
-        public bool IsFileExists(string fileName)
+        public bool FileExists(string fileName)
         {
            return  Files.Any(x => String.Equals(fileName, x.Name, StringComparison.OrdinalIgnoreCase));
         }

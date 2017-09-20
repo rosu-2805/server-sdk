@@ -403,13 +403,13 @@ namespace Morph.Server.Sdk.Client
             }
         }
 
-        public async Task<bool> IsFileExistsAsync(string spaceName, string serverFolder, string fileName, CancellationToken cancellationToken)
+        public async Task<bool> FileExistsAsync(string spaceName, string serverFolder, string fileName, CancellationToken cancellationToken)
         {
             if (string.IsNullOrWhiteSpace(fileName))
                 throw new ArgumentException(nameof(fileName));
             var browseResult = await this.BrowseSpaceAsync(spaceName, serverFolder, cancellationToken);
            
-            return browseResult.IsFileExists(fileName);
+            return browseResult.FileExists(fileName);            
         }
 
 
