@@ -5,13 +5,15 @@ using System.Runtime.Serialization;
 using System.Text;
 using System.Threading.Tasks;
 
+
 namespace Morph.Server.Sdk.Model
 {
     
-    public sealed class SpaceBrowsingInfo
+    public class SpaceBrowsingInfo
     {
         public ulong FreeSpaceBytes { get; set; }
         public string SpaceName { get; set; }
+        public WebFilesAccesMode WebFilesAccesMode { get; set; }
 
         public List<SpaceFolderInfo> Folders { get; set; }        
         public List<SpaceFileInfo> Files { get; set; }
@@ -23,6 +25,27 @@ namespace Morph.Server.Sdk.Model
             Files = new List<SpaceFileInfo>();
             NavigationChain = new List<SpaceNavigation>();
         }
+
+        public bool IsFileExists(string fileName)
+        {
+           return  Files.Any(x => String.Equals(fileName, x.Name, StringComparison.OrdinalIgnoreCase));
+        }
+
+        public bool CanDownloadFiles
+        {
+            get
+            {
+                return WebFilesAccesMode == WebFilesAccesMode.FullAccess || WebFilesAccesMode == WebFilesAccesMode.OnlyDownload;
+            }
+        }
+        public bool CanUploadFiles
+        {
+            get
+            {
+                return WebFilesAccesMode == WebFilesAccesMode.FullAccess || WebFilesAccesMode == WebFilesAccesMode.OnlyUpload;
+            }
+        }
+
     }
 
     

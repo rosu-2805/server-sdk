@@ -18,10 +18,11 @@ namespace Morph.Server.Sdk.Dto
         public List<SpaceNavigationItemDto> NavigationChain { get; set; }
         [DataMember(Name = "freeSpaceBytes")]
         public ulong FreeSpaceBytes { get; set; }
-        [DataMember(Name = "spaceAccess")]
-        public string SpaceAccess { get; set; }
+        [DataMember(Name = "webFilesAccesMode")]
+        public string WebFilesAccesMode { get; set; }
         [DataMember(Name = "spaceName")]
-        public string SpaceName { get; set; }        
+        public string SpaceName { get; set; }
+        
 
 
         public SpaceBrowsingResponseDto()

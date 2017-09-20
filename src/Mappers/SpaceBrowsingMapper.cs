@@ -18,9 +18,21 @@ namespace Morph.Server.Sdk.Mappers
                 Folders = dto.Folders?.Select(Map).ToList(),
                 NavigationChain = dto.NavigationChain?.Select(Map).ToList(),
                 FreeSpaceBytes = dto.FreeSpaceBytes,
-                SpaceName = dto.SpaceName
-
+                SpaceName = dto.SpaceName,
+                WebFilesAccesMode = Parse(dto.WebFilesAccesMode)
             };
+        }
+
+        private static WebFilesAccesMode Parse(string value)
+        {            
+            if (value == null)
+                return WebFilesAccesMode.Unknown;
+            WebFilesAccesMode webFilesAccesMode;
+            if(Enum.TryParse(value, out webFilesAccesMode))
+            {
+                return webFilesAccesMode;
+            }
+            return WebFilesAccesMode.Unknown;
         }
 
         private static SpaceFileInfo Map(SpaceFileItemDto dto)

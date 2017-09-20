@@ -17,6 +17,7 @@ using Morph.Server.Sdk.Dto.Commands;
 using Morph.Server.Sdk.Model.Errors;
 using Morph.Server.Sdk.Mappers;
 using Morph.Server.Sdk.Model.Commands;
+using System.Linq;
 
 namespace Morph.Server.Sdk.Client
 {
@@ -404,26 +405,11 @@ namespace Morph.Server.Sdk.Client
 
         public async Task<bool> IsFileExistsAsync(string spaceName, string serverFolder, string fileName, CancellationToken cancellationToken)
         {
-            spaceName = PrepareSpaceName(spaceName);
-            var url = JoinUrl("space", spaceName, "files", serverFolder, fileName);
-            try
-            {
-                using (var requestMessage = new HttpRequestMessage()
-                {
-                    Method = HttpMethod.Head,
-                    RequestUri = new Uri(url, UriKind.Relative)
-                })
-                using (HttpResponseMessage response = await GetHttpClient().SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, cancellationToken))
-                {
-                    await HandleResponse(response);
-                }
-            }
-            catch (MorphApiNotFoundException)
-            {
-                return false;
-            }
-
-            return true;
+            if (string.IsNullOrWhiteSpace(fileName))
+                throw new ArgumentException(nameof(fileName));
+            var browseResult = await this.BrowseSpaceAsync(spaceName, serverFolder, cancellationToken);
+           
+            return browseResult.IsFileExists(fileName);
         }
 
 
