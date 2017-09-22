@@ -90,6 +90,8 @@ namespace Morph.Server.Sdk.Client
             {
                 var content = await response.Content.ReadAsStringAsync();
                 var result = JsonSerializationHelper.Deserialize<T>(content);
+                if (result == null)
+                    throw new MorphClientCommunicationException("Unable to parse server response :" + content.Substring(0, Math.Min(content.Length, 100)));
                 return result;
             }
             else
@@ -118,9 +120,9 @@ namespace Morph.Server.Sdk.Client
             {
                 var errorResponse = JsonSerializationHelper.Deserialize<ErrorResponse>(content);
                 if (errorResponse == null)
-                    throw new MorphClientCommunicationException("An error occurred while deserializing the response");
+                    throw new MorphClientCommunicationException("An error occurred while deserializing the response " + content.Substring(0, Math.Min(content.Length, 100)));
 
-                var serializer = new DataContractJsonSerializer(typeof(ErrorResponse));
+                
                 if (errorResponse.error != null)
                 {
                     switch (errorResponse.error.code)
@@ -145,7 +147,7 @@ namespace Morph.Server.Sdk.Client
 
                     throw new MorphClientGeneralException(errorResponse.error.code, errorResponse.error.message);
                 }
-                else throw new MorphClientCommunicationException("An error occurred while deserializing the response");
+                else throw new MorphClientCommunicationException("An error occurred while deserializing the response " + content.Substring(0, Math.Min(content.Length, 100) ));
             }
 
             else
