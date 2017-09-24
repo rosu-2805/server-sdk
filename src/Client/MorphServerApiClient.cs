@@ -89,9 +89,7 @@ namespace Morph.Server.Sdk.Client
             if (response.IsSuccessStatusCode)
             {
                 var content = await response.Content.ReadAsStringAsync();
-                var result = JsonSerializationHelper.Deserialize<T>(content);
-                if (result == null)
-                    throw new MorphClientCommunicationException("Unable to parse server response :" + content.Substring(0, Math.Min(content.Length, 100)));
+                var result = JsonSerializationHelper.Deserialize<T>(content);                
                 return result;
             }
             else
@@ -119,47 +117,29 @@ namespace Morph.Server.Sdk.Client
             if (!string.IsNullOrWhiteSpace(content))
             {
                 var errorResponse = JsonSerializationHelper.Deserialize<ErrorResponse>(content);
-                if (errorResponse == null)
-                    throw new MorphClientCommunicationException("An error occurred while deserializing the response " + content.Substring(0, Math.Min(content.Length, 100)));
+                if (errorResponse.error == null)
+                    throw new ParseResponseException("An error occurred while deserializing the response", content);
 
-                
-                if (errorResponse.error != null)
+                switch (errorResponse.error.code)
                 {
-                    switch (errorResponse.error.code)
-                    {
-                        case ReadableErrorTopCode.Conflict: throw new MorphApiConflictException(errorResponse.error.message);
-                        case ReadableErrorTopCode.NotFound: throw new MorphApiNotFoundException(errorResponse.error.message);
-                        case ReadableErrorTopCode.Forbidden: throw new MorphApiForbiddenException(errorResponse.error.message);
-                        case ReadableErrorTopCode.BadArgument: throw new MorphApiBadArgumentException(FieldErrorsMapper.MapFromDto(errorResponse.error), errorResponse.error.message); 
-                        //case ReadableErrorTopCode.CommandFailed:
-                        //    {
-                        //        switch (errorResponse.error.innererror.code)
-                        //        {
-                        //            case "ValidateTasksError":
-                        //                var validateTasksError = (ValidateTasksErrorDto)errorResponse.error.innererror;
-                        //                throw new MorphApiCommandFailedException<ValidateTasksError>(ValidateTasksErrorMapper.MapFromDto(validateTasksError), errorResponse.error.message);                                        
-                        //            default: throw new NotImplementedException();
-                        //        }
-                                
-                        //    }
-
-                    }
-
-                    throw new MorphClientGeneralException(errorResponse.error.code, errorResponse.error.message);
+                    case ReadableErrorTopCode.Conflict: throw new MorphApiConflictException(errorResponse.error.message);
+                    case ReadableErrorTopCode.NotFound: throw new MorphApiNotFoundException(errorResponse.error.message);
+                    case ReadableErrorTopCode.Forbidden: throw new MorphApiForbiddenException(errorResponse.error.message);
+                    case ReadableErrorTopCode.BadArgument: throw new MorphApiBadArgumentException(FieldErrorsMapper.MapFromDto(errorResponse.error), errorResponse.error.message);
+                    default: throw new MorphClientGeneralException(errorResponse.error.code, errorResponse.error.message);
                 }
-                else throw new MorphClientCommunicationException("An error occurred while deserializing the response " + content.Substring(0, Math.Min(content.Length, 100) ));
             }
 
             else
-            {
-                //todo: analize response.StatusCode
+            {                
                 switch (response.StatusCode)
                 {
                     case HttpStatusCode.Conflict: throw new MorphApiConflictException(response.ReasonPhrase ?? "Conflict");
                     case HttpStatusCode.NotFound: throw new MorphApiNotFoundException(response.ReasonPhrase ?? "Not found");
-                    case HttpStatusCode.Forbidden: throw new MorphApiForbiddenException(response.ReasonPhrase ?? "Forbidden");
+                    case HttpStatusCode.Forbidden: throw new MorphApiForbiddenException(response.ReasonPhrase ?? "Forbidden");                    
+                    default: throw new ParseResponseException(response.ReasonPhrase, null);
                 }
-                throw new MorphClientCommunicationException(response.ReasonPhrase);
+                
             }
         }
 
@@ -240,12 +220,8 @@ namespace Morph.Server.Sdk.Client
             using (var response = await GetHttpClient().GetAsync(url, cancellationToken))
             {
                 var dto = await HandleResponse<ServerStatusDto>(response);
-                return new ServerStatus
-                {
-                    StatusCode = dto.StatusCode,
-                    StatusMessage = dto.StatusMessage,
-                    Version = Version.Parse(dto.Version)
-                };
+                var result = ServerStatusMapper.MapFromDto(dto);
+                return result;
 
             }
         }
@@ -410,8 +386,8 @@ namespace Morph.Server.Sdk.Client
             if (string.IsNullOrWhiteSpace(fileName))
                 throw new ArgumentException(nameof(fileName));
             var browseResult = await this.BrowseSpaceAsync(spaceName, serverFolder, cancellationToken);
-           
-            return browseResult.FileExists(fileName);            
+
+            return browseResult.FileExists(fileName);
         }
 
 
@@ -481,7 +457,7 @@ namespace Morph.Server.Sdk.Client
                 var dto = await HandleResponse<ValidateTasksResponseDto>(response);
                 var entity = ValidateTasksResponseMapper.MapFromDto(dto);
                 return entity;
-                
+
             }
         }
     }

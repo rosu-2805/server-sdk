@@ -31,7 +31,12 @@
     <WarningLevel>4</WarningLevel>
     <DocumentationFile>bin\Release\Morph.Server.Sdk.xml</DocumentationFile>
   </PropertyGroup>
- 
+  <PropertyGroup>
+    <SignAssembly>true</SignAssembly>
+  </PropertyGroup>
+  <PropertyGroup>
+    <AssemblyOriginatorKeyFile>Morph.Server.Sdk.snk</AssemblyOriginatorKeyFile>
+  </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
     <Reference Include="System.Runtime.Serialization, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089, processorArchitecture=MSIL">
@@ -61,6 +66,7 @@
     <Compile Include="Helper\ProgressStreamContent.cs" />
     <Compile Include="Helper\QueryBuilder.cs" />
     <Compile Include="Mappers\FieldErrorsMapper.cs" />
+    <Compile Include="Mappers\ServerStatusMapper.cs" />
     <Compile Include="Mappers\SpaceBrowsingMapper.cs" />
     <Compile Include="Mappers\ValidateTasksResponseMapper.cs" />
     <Compile Include="Model\Commands\FailedTaskInfo.cs" />
@@ -74,6 +80,8 @@
     <Compile Include="Model\SpaceBrowsingInfo.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
-
+  <ItemGroup>
+    <None Include="Morph.Server.Sdk.snk" />
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

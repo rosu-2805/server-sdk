@@ -1,4 +1,5 @@
 ﻿using Morph.Server.Sdk.Dto.Commands;
+using Morph.Server.Sdk.Exceptions;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -23,10 +24,9 @@ namespace Morph.Server.Sdk.Helper
                     return data;
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-               
-                return default(T);
+                throw new ParseResponseException("An error occurred while deserializing the response: "+ ex.Message, input);                
             }
         }
         public static string Serialize<T>(T obj)

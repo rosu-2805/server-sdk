@@ -14,14 +14,18 @@ namespace Morph.Server.Sdk.Exceptions
 
         }
     }
-    public class MorphClientCommunicationException : MorphClientBaseException
+    public class ParseResponseException : MorphClientBaseException
     {
+        public string ServerResponseString { get; private set; }
 
-        public MorphClientCommunicationException(string message) : base(message)
+        public ParseResponseException(string message, string serverResponse) : base(message)
         {
-
+            ServerResponseString = serverResponse;
         }
     }
+
+
+   
 
 
     public class MorphClientGeneralException : MorphClientBaseException
