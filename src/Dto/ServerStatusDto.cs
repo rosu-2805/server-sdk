@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 namespace Morph.Server.Sdk.Dto
 {
     [DataContract]
-    public class ServerStatusDto
+    internal class ServerStatusDto
     {
         [DataMember(Name = "statusCode")]
         public string StatusCode { get; set; }

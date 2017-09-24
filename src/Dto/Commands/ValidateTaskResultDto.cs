@@ -22,7 +22,7 @@ namespace Morph.Server.Sdk.Dto.Commands
         }
     }
     [DataContract]
-    public class FailedTaskInfoDto
+    internal class FailedTaskInfoDto
     {
         [DataMember(Name = "taskId")]
         public string TaskId { get; set; }

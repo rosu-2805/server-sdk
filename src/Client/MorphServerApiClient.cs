@@ -18,6 +18,7 @@ using Morph.Server.Sdk.Model.Errors;
 using Morph.Server.Sdk.Mappers;
 using Morph.Server.Sdk.Model.Commands;
 using System.Linq;
+using Morph.Server.Sdk.Dto.Errors;
 
 namespace Morph.Server.Sdk.Client
 {

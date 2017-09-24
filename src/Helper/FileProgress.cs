@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 namespace Morph.Server.Sdk.Helper
 {
 
-    public class FileProgress : IFileProgress
+    internal class FileProgress : IFileProgress
     {
         public event EventHandler<FileEventArgs> StateChanged;
 

@@ -6,7 +6,7 @@ using System.Runtime.Serialization;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Morph.Server.Sdk.Dto
+namespace Morph.Server.Sdk.Dto.Errors
 {
     [DataContract]
     internal class InnerError

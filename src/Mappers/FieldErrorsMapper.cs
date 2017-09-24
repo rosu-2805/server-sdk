@@ -1,5 +1,6 @@
 ﻿using Morph.Server.Sdk.Dto;
 using Morph.Server.Sdk.Dto.Commands;
+using Morph.Server.Sdk.Dto.Errors;
 using Morph.Server.Sdk.Model;
 using Morph.Server.Sdk.Model.Errors;
 using System;

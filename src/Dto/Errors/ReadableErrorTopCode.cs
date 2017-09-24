@@ -1,4 +1,4 @@
-﻿namespace Morph.Server.Sdk.Dto
+﻿namespace Morph.Server.Sdk.Dto.Errors
 {
     internal static class ReadableErrorTopCode
     {

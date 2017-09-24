@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace Morph.Server.Sdk.Helper
 {
-    public interface IFileProgress
+    internal interface IFileProgress
     {
         event EventHandler<FileEventArgs> StateChanged;
         FileProgressState State { get; }

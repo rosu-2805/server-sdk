@@ -1,4 +1,5 @@
 ﻿using Morph.Server.Sdk.Dto;
+using Morph.Server.Sdk.Dto.Errors;
 using Morph.Server.Sdk.Model.Errors;
 using System;
 using System.Collections.Generic;
