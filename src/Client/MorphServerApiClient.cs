@@ -22,7 +22,9 @@ using Morph.Server.Sdk.Dto.Errors;
 
 namespace Morph.Server.Sdk.Client
 {
-
+    /// <summary>
+    /// Morph Server api client V1
+    /// </summary>
     public class MorphServerApiClient : IMorphServerApiClient
     {
         protected readonly Uri _apiHost;
@@ -31,6 +33,10 @@ namespace Morph.Server.Sdk.Client
         protected readonly string _api_v1 = "api/v1/";
         protected readonly string _defaultSpaceName = "default";
 
+        /// <summary>
+        /// Construct Api client
+        /// </summary>
+        /// <param name="apiHost">Server url</param>
         public MorphServerApiClient(string apiHost)
         {
             if (!apiHost.EndsWith("/"))
@@ -172,7 +178,8 @@ namespace Morph.Server.Sdk.Client
         /// </summary>
         /// <param name="spaceName">space name</param>
         /// <param name="taskId">task guid</param>
-        /// <returns></returns>
+        /// <param name="cancellationToken">cancellation token</param>
+        /// <returns>Returns task status</returns>
         public async Task<RunningTaskStatus> GetRunningTaskStatusAsync(string spaceName, Guid taskId, CancellationToken cancellationToken)
         {
             spaceName = PrepareSpaceName(spaceName);
@@ -197,6 +204,7 @@ namespace Morph.Server.Sdk.Client
         /// </summary>
         /// <param name="spaceName"></param>
         /// <param name="taskId"></param>
+        /// <param name="cancellationToken">cancellation token</param>
         /// <returns></returns>
         public async Task StopTaskAsync(string spaceName, Guid taskId, CancellationToken cancellationToken)
         {
@@ -209,7 +217,7 @@ namespace Morph.Server.Sdk.Client
         }
 
         /// <summary>
-        /// Resturns the server status
+        /// Returns server status. May raise exception if server is unreachable
         /// </summary>
         /// <returns></returns>
         public async Task<ServerStatus> GetServerStatusAsync(CancellationToken cancellationToken)
@@ -227,19 +235,35 @@ namespace Morph.Server.Sdk.Client
             }
         }
 
-        public async Task<DownloadFileInfo> DownloadFileAsync(string spaceName, string remoteFolderPath, Stream streamToWriteTo, CancellationToken cancellationToken)
+        /// <summary>
+        /// Download file from server
+        /// </summary>
+        /// <param name="spaceName">space name</param>
+        /// <param name="remoteFilePath">Path to the remote file. Like /some/folder/file.txt </param>
+        /// <param name="streamToWriteTo">stream for writing. You should dispose the stream by yourself</param>
+        /// <param name="cancellationToken">cancellation token</param>
+        /// <returns>returns file info</returns>
+        public async Task<DownloadFileInfo> DownloadFileAsync(string spaceName, string remoteFilePath, Stream streamToWriteTo, CancellationToken cancellationToken)
         {
             DownloadFileInfo fileInfo = null;
-            await DownloadFileAsync(spaceName, remoteFolderPath, (fi) => { fileInfo = fi; return true; }, streamToWriteTo, cancellationToken);
+            await DownloadFileAsync(spaceName, remoteFilePath, (fi) => { fileInfo = fi; return true; }, streamToWriteTo, cancellationToken);
             return fileInfo;
         }
-
-        public async Task DownloadFileAsync(string spaceName, string remoteFolderPath, Func<DownloadFileInfo, bool> handleFile, Stream streamToWriteTo, CancellationToken cancellationToken)
+        /// <summary>
+        /// Download file from server
+        /// </summary>
+        /// <param name="spaceName">space name</param>
+        /// <param name="remoteFilePath"> Path to the remote file. Like /some/folder/file.txt </param>
+        /// <param name="handleFile">delegate to check file info before accessing to the file stream</param>
+        /// <param name="streamToWriteTo">stream for writing. Writing will be executed only if handleFile delegate returns true</param>
+        /// <param name="cancellationToken"></param>
+        /// <returns></returns>
+        public async Task DownloadFileAsync(string spaceName, string remoteFilePath, Func<DownloadFileInfo, bool> handleFile, Stream streamToWriteTo, CancellationToken cancellationToken)
         {
             spaceName = PrepareSpaceName(spaceName);
             var nvc = new NameValueCollection();
             nvc.Add("_", DateTime.Now.Ticks.ToString());
-            var url = JoinUrl("space", spaceName, "files", remoteFolderPath) + nvc.ToQueryString();
+            var url = JoinUrl("space", spaceName, "files", remoteFilePath) + nvc.ToQueryString();
             // it's necessary to add HttpCompletionOption.ResponseHeadersRead to disable caching
             using (HttpResponseMessage response = await GetHttpClient().GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken))
                 if (response.IsSuccessStatusCode)
@@ -300,8 +324,16 @@ namespace Morph.Server.Sdk.Client
 
         }
 
-
-        public async Task UploadFileAsync(string spaceName, string localFilePath, string destFolderPath, CancellationToken cancellationToken, bool overrideFileifExists = false)
+        /// <summary>
+        /// Uploads file to the server 
+        /// </summary>
+        /// <param name="spaceName">space name</param>
+        /// <param name="localFilePath">path to the local file</param>
+        /// <param name="destFolderPath">detination folder like /path/to/folder </param>
+        /// <param name="cancellationToken">cancellation token</param>
+        /// <param name="overwriteFileifExists">overwrite file</param>
+        /// <returns></returns>
+        public async Task UploadFileAsync(string spaceName, string localFilePath, string destFolderPath, CancellationToken cancellationToken, bool overwriteFileifExists = false)
         {
             if (!File.Exists(localFilePath))
                 throw new FileNotFoundException(string.Format("File '{0}' not found", localFilePath));
@@ -309,13 +341,23 @@ namespace Morph.Server.Sdk.Client
             var fileName = Path.GetFileName(localFilePath);
             using (var fsSource = new FileStream(localFilePath, FileMode.Open, FileAccess.Read))
             {
-                await UploadFileAsync(spaceName, fsSource, fileName, fileSize, destFolderPath, cancellationToken, overrideFileifExists);
+                await UploadFileAsync(spaceName, fsSource, fileName, fileSize, destFolderPath, cancellationToken, overwriteFileifExists);
                 return;
             }
 
         }
-
-        public async Task UploadFileAsync(string spaceName, Stream inputStream, string fileName, long fileSize, string destFolderPath, CancellationToken cancellationToken, bool overrideFileifExists = false)
+        /// <summary>
+        /// Upload file stream to the server
+        /// </summary>
+        /// <param name="spaceName">space name</param>
+        /// <param name="inputStream">stream for read from</param>
+        /// <param name="fileName">file name</param>
+        /// <param name="fileSize">file size in bytes</param>
+        /// <param name="destFolderPath">destination folder like /path/to/folder </param>
+        /// <param name="cancellationToken">cancellation tokern</param>
+        /// <param name="overwriteFileifExists"></param>
+        /// <returns></returns>
+        public async Task UploadFileAsync(string spaceName, Stream inputStream, string fileName, long fileSize, string destFolderPath, CancellationToken cancellationToken, bool overwriteFileifExists = false)
         {
             try
             {
@@ -333,7 +375,7 @@ namespace Morph.Server.Sdk.Client
                         var requestMessage = new HttpRequestMessage()
                         {
                             Content = content,
-                            Method = overrideFileifExists ? HttpMethod.Put : HttpMethod.Post,
+                            Method = overwriteFileifExists ? HttpMethod.Put : HttpMethod.Post,
                             RequestUri = new Uri(url, UriKind.Relative)
                         };
                         using (requestMessage)
@@ -367,6 +409,13 @@ namespace Morph.Server.Sdk.Client
 
         }
 
+        /// <summary>
+        /// Prerforms browsing the Space
+        /// </summary>
+        /// <param name="spaceName">space name</param>
+        /// <param name="folderPath">folder path like /path/to/folder</param>
+        /// <param name="cancellationToken"></param>
+        /// <returns></returns>
         public async Task<SpaceBrowsingInfo> BrowseSpaceAsync(string spaceName, string folderPath, CancellationToken cancellationToken)
         {
             spaceName = PrepareSpaceName(spaceName);
@@ -382,6 +431,14 @@ namespace Morph.Server.Sdk.Client
             }
         }
 
+        /// <summary>
+        /// Checks if file exists
+        /// </summary>
+        /// <param name="spaceName">space name</param>
+        /// <param name="serverFolder">server folder like /path/to/folder</param>
+        /// <param name="fileName">file name </param>
+        /// <param name="cancellationToken"></param>
+        /// <returns>Returns true if file exists.</returns>
         public async Task<bool> FileExistsAsync(string spaceName, string serverFolder, string fileName, CancellationToken cancellationToken)
         {
             if (string.IsNullOrWhiteSpace(fileName))
@@ -420,6 +477,14 @@ namespace Morph.Server.Sdk.Client
             return result;
         }
 
+        /// <summary>
+        /// Performs file deletion
+        /// </summary>
+        /// <param name="spaceName">space name</param>
+        /// <param name="serverFolder">Path to server folder like /path/to/folder</param>
+        /// <param name="fileName">file name</param>
+        /// <param name="cancellationToken"></param>
+        /// <returns></returns>
         public async Task DeleteFileAsync(string spaceName, string serverFolder, string fileName, CancellationToken cancellationToken)
         {
 
@@ -437,8 +502,8 @@ namespace Morph.Server.Sdk.Client
         /// <summary>
         /// Validate tasks. Checks that there are no missing parameters in the tasks. 
         /// </summary>
-        /// <param name="spaceName"></param>
-        /// <param name="projectPath"></param>
+        /// <param name="spaceName">space name</param>
+        /// <param name="projectPath">project path like /path/to/project.morph </param>
         /// <param name="cancellationToken"></param>
         /// <returns></returns>
         public async Task<ValidateTasksResult> ValidateTasksAsync(string spaceName, string projectPath, CancellationToken cancellationToken)

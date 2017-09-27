@@ -8,6 +8,9 @@ namespace Morph.Server.Sdk.Model
 {
     public class DownloadFileInfo
     {
+        /// <summary>
+        /// File name
+        /// </summary>
         public string FileName { get; set; }
 
     }

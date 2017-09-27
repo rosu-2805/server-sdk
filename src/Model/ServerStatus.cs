@@ -7,14 +7,18 @@ using System.Threading.Tasks;
 
 namespace Morph.Server.Sdk.Model
 {
-    
+    /// <summary>
+    /// Server status
+    /// </summary>
     public class ServerStatus
-    {
-    
+    {    
         public ServerStatusCode StatusCode { get; set; }
     
         public string StatusMessage { get; set; }
     
+        /// <summary>
+        /// Server version
+        /// </summary>
         public Version Version { get; set; }
     }
 
