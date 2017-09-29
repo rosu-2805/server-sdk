@@ -134,6 +134,12 @@ Please consider that currently such kind of errors (file already exists, folder 
 It will be a good practice to check if file/folder exists and you have appropriate permissions before sending huge files over a slow intertet connection. To so this, use `SpaceBrowseAsync`, `FileExistsAsync`.
 
 
+##### Files download
+For showing progress state changes while large files are uploading/downloading, you might subscribe to `FileProgress` event.
+
+
+
+
 
 
 
