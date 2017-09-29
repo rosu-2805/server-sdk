@@ -29,7 +29,9 @@ All commands are async.
 Every command  may raise an exception. You must take care to handle exceptions in a right way. EasyMorph Server SDK also has own exceptions, they are described in corresponding section.
 
 **Spaces**. System workspace splited into several Spaces. Each space has it's own security restrictions. Space contains Tasks and Files.
-There is at least one predefined space named `Default`. It's a public.
+There is at least one predefined space named `Default`. It's a public. 
+
+Space names are case-insensitive.
 
 
 
@@ -76,7 +78,7 @@ try {
 
 #### Files API
 
-EasyMorph Server allows you to access to Space files remotely via HTTP. 
+EasyMorph Server allows you to access to Space files remotely. 
 
 
 ##### Browsing files
@@ -102,7 +104,9 @@ public async Task<SpaceBrowsingInfo> BrowseSpaceAsync(string spaceName, string f
 
 ```
 
-`Folder` and `Files` contains content for requested `folderPath` in Space `spaceName`.
+* `Folder` and `Files` contains content for requested `folderPath` in Space `spaceName`.
+* `WebFilesAccesMode` shows restrictions for files in the Space. You can check it before trying to upload or download files.
+
 
 
 Consider, that there is Folder 1 in space Default. *Folder 1* has nested Folder 2.
@@ -111,6 +115,34 @@ So to browse Folder 2 you can call:
 ``` C#
   var listing = await client.BrowseSpaceAsync("Default", "Folder 1/Folder 2",cancellationToken);
 ```
+
+
+##### Files upload
+For showing progress state changes while large files are uploading/downloading, you might subscribe to `FileProgress` event.
+
+To upload file, call `UploadFileAsync`. It's consumes data directly from stream. There is also overloaded version, which takes file name.
+
+```
+await _apiClient.UploadFileAsync("Default", @"D:\data\file.xml", @"\folder 2", cancellationToken, overwriteFileifExists:false);
+```
+
+By default, this method WILL NOT overwrite file if it is already exists. In such case, exception will be raised.
+
+
+Please consider that currently such kind of errors (file already exists, folder not found) are generated only AFTER entire request was sent to server. 
+
+It will be a good practice to check if file/folder exists and you have appropriate permissions before sending huge files over a slow intertet connection. To so this, use `SpaceBrowseAsync`, `FileExistsAsync`.
+
+
+
+
+
+
+
+
+
+
+
 
 
 
