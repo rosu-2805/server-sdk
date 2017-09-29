@@ -1,13 +1,14 @@
 ## EasyMorph Sever SDK
 
 This library allows you to interact with EasyMorph Server.
-EasyMorph Server runs on schedule projects created using desktop editions of EasyMorph (including the free edition). Project schedule and parameters are setted up via Task properties. Every Task is placed into Space. Currently there is only one Space, which is named 'Default'.
 
 
+**EasyMorph Server** runs on schedule projects created using desktop editions of EasyMorph (including the **free edition**). Project schedule and parameters are setted up via Task properties. Every Task is placed into Space. Currently there is only one Space, which is named `Default`.
 
-This document describes API v1. 
-Api url for version 1 is http://[host:port]/api/v1/
-Most commands are REST compilant, except some cases. 
+
+This document describes SDK which cover part of REST API v1 ( `http://[host:port]/api/v1/`). 
+
+
 
 
 ### EasyMorph Server API client
@@ -15,9 +16,9 @@ Most commands are REST compilant, except some cases.
 * .NET framework version 4.5 or higher
 * That's all
 
-#### Initialization
+#### Introduction
 
-To create Api client, you have to pass url to EasyMorph Server. 
+To create Api client, you have to pass server host 
 ``` C#
   using Morph.Server.Sdk.Client;
   ...
@@ -27,13 +28,18 @@ To create Api client, you have to pass url to EasyMorph Server.
 All commands are async.
 Every command  may raise an exception. You must take care to handle exceptions in a right way. EasyMorph Server SDK also has own exceptions, they are described in corresponding section.
 
+**Spaces**. System workspace splited into several Spaces. Each space has it's own security restrictions. Space contains Tasks and Files.
+There is at least one predefined space named `Default`. It's a public.
+
+
+
 
 #### Tasks
-Assume that you have already created the task in Space 'Default'. For these samples task id is 691ea42e-9e6b-438e-84d6-b743841c970e.
+Assume that you have already created the task in Space 'Default'. For these samples task id is `691ea42e-9e6b-438e-84d6-b743841c970e`.
 
 ##### Starting the Task
 
-To run the task, just call:
+To run the task:
 
 ``` C#
   await client.StartTaskAsync("Default", "691ea42e-9e6b-438e-84d6-b743841c970e", cancellationToken );
@@ -50,7 +56,7 @@ To stop the task
 ``` C#
   await client.StopTaskAsync("Default", "691ea42e-9e6b-438e-84d6-b743841c970e", cancellationToken )
 ```
-Caller gets control back immediately after the task is marked to stop. If task is not running no exception is generated.
+Caller gets control back immediately after the task is marked to stop.
 
 #### Task status
 
@@ -69,51 +75,42 @@ try {
 ```
 
 #### Files API
+
+EasyMorph Server allows you to access to Space files remotely via HTTP. 
+
+
 ##### Browsing files
+To browse files and folders in Space, call BrowseSpaceAsync.
+
 
 ``` C#
-public async Task<SpaceBrowsingInfo> BrowseSpaceAsync(string spaceName, string folderPath, CancellationToken cancellationToken);
-
 public sealed class SpaceBrowsingInfo
   {
-      public ulong FreeSpaceBytes { get; set; }
-      public string SpaceName { get; set; }
+        public ulong FreeSpaceBytes { get; set; }
+        public string SpaceName { get; set; }
+        public WebFilesAccesMode WebFilesAccesMode { get; set; }
 
-      public List<SpaceFolderInfo> Folders { get; set; }        
-      public List<SpaceFileInfo> Files { get; set; }
-      public List<SpaceNavigation> NavigationChain { get; set; }
-
-      public SpaceBrowsingInfo()
-      {
-          Folders = new List<SpaceFolderInfo>();
-          Files = new List<SpaceFileInfo>();
-          NavigationChain = new List<SpaceNavigation>();
-      }
+        public List<SpaceFolderInfo> Folders { get; set; }        
+        public List<SpaceFileInfo> Files { get; set; }
+        public List<SpaceNavigation> NavigationChain { get; set; }
+        
+        ...
   }
+
+public async Task<SpaceBrowsingInfo> BrowseSpaceAsync(string spaceName, string folderPath, CancellationToken cancellationToken);
+
 
 ```
 
+`Folder` and `Files` contains content for requested `folderPath` in Space `spaceName`.
 
-To browse files and directories in Space, call BrowseSpaceAsync.
+
 Consider, that there is Folder 1 in space Default. *Folder 1* has nested Folder 2.
 So to browse Folder 2 you can call:
 
 ``` C#
-  var listing = await client.BrowseSpaceAsync("Default", "Folder 1/Folder 2");
+  var listing = await client.BrowseSpaceAsync("Default", "Folder 1/Folder 2",cancellationToken);
 ```
-
-Or 
-``` C#
-  var listing = await client.BrowseSpaceAsync("Default", "Folder 1\Folder 2");
-```
-
-
-
-
-
-
-
-
 
 
 
