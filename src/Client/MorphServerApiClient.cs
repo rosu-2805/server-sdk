@@ -276,7 +276,8 @@ namespace Morph.Server.Sdk.Client
                         {
                             dfi = new DownloadFileInfo
                             {
-                                FileName = contentDisposition.FileName
+                                //need to fix double quotes, that may come from server response
+                                FileName = contentDisposition.FileName.TrimStart('\"').TrimEnd('\"') 
                             };
                         }
                         var contentLength = response.Content.Headers.ContentLength;
