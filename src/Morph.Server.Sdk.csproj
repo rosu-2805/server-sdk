@@ -58,6 +58,7 @@
     <Compile Include="Dto\RunningTaskStatusDto.cs" />
     <Compile Include="Dto\ServerStatusDto.cs" />
     <Compile Include="Dto\SpaceBrowsingResponseDto.cs" />
+    <Compile Include="Dto\TaskStatusDto.cs" />
     <Compile Include="Events\FileEventArgs.cs" />
     <Compile Include="Exceptions\Exceptions.cs" />
     <Compile Include="Helper\FileProgress.cs" />
@@ -66,6 +67,7 @@
     <Compile Include="Helper\ProgressStreamContent.cs" />
     <Compile Include="Helper\QueryBuilder.cs" />
     <Compile Include="Mappers\FieldErrorsMapper.cs" />
+    <Compile Include="Mappers\TaskStatusMapper.cs" />
     <Compile Include="Mappers\ServerStatusMapper.cs" />
     <Compile Include="Mappers\SpaceBrowsingMapper.cs" />
     <Compile Include="Mappers\ValidateTasksResponseMapper.cs" />
@@ -73,6 +75,7 @@
     <Compile Include="Model\DownloadFileInfo.cs" />
     <Compile Include="Model\Errors\FieldError.cs" />
     <Compile Include="Model\Commands\ValidateTasksResult.cs" />
+    <Compile Include="Model\TaskStatus.cs" />
     <Compile Include="Model\WebFilesAccesMode.cs" />
     <Compile Include="Model\FileProgressState.cs" />
     <Compile Include="Model\RunningTaskStatus.cs" />
