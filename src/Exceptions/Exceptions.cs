@@ -23,6 +23,10 @@ namespace Morph.Server.Sdk.Exceptions
         {
             ServerResponseString = serverResponse;
         }
+        public ParseResponseException(string message) : base(message)
+        {
+            
+        }
     }
 
 

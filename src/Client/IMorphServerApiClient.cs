@@ -15,10 +15,10 @@ namespace Morph.Server.Sdk.Client
         
         Task DownloadFileAsync(string spaceName, string remoteFilePath, Func<DownloadFileInfo, bool> handleFile, Stream streamToWriteTo, CancellationToken cancellationToken);
 
-        
+        Task<Model.TaskStatus> GetTaskStatusAsync(Guid taskId, CancellationToken cancellationToken);
         Task<DownloadFileInfo> DownloadFileAsync(string spaceName, string remoteFilePath, Stream streamToWriteTo, CancellationToken cancellationToken);
         
-        Task<RunningTaskStatus> GetRunningTaskStatusAsync(string spaceName, Guid taskId, CancellationToken cancellationToken);
+        //Task<RunningTaskStatus> GetRunningTaskStatusAsync(string spaceName, Guid taskId, CancellationToken cancellationToken);
         
         Task<ServerStatus> GetServerStatusAsync(CancellationToken cancellationToken);
         
@@ -39,6 +39,8 @@ namespace Morph.Server.Sdk.Client
 
         
         Task<ValidateTasksResult> ValidateTasksAsync(string spaceName, string projectPath, CancellationToken cancellationToken);
+
+        
 
 
         event EventHandler<FileEventArgs> FileProgress;

@@ -180,7 +180,7 @@ namespace Morph.Server.Sdk.Client
         /// <param name="taskId">task guid</param>
         /// <param name="cancellationToken">cancellation token</param>
         /// <returns>Returns task status</returns>
-        public async Task<RunningTaskStatus> GetRunningTaskStatusAsync(string spaceName, Guid taskId, CancellationToken cancellationToken)
+        private async Task<RunningTaskStatus> GetRunningTaskStatusAsync(string spaceName, Guid taskId, CancellationToken cancellationToken)
         {
             spaceName = PrepareSpaceName(spaceName);
             var nvc = new NameValueCollection();
@@ -196,6 +196,29 @@ namespace Morph.Server.Sdk.Client
                     IsRunning = info.IsRunning,
                     ProjectName = info.ProjectName
                 };
+            }
+        }
+
+
+        /// <summary>
+        /// Gets status of the task
+        /// </summary>
+        /// <param name="spaceName">space name</param>
+        /// <param name="taskId">task guid</param>
+        /// <param name="cancellationToken">cancellation token</param>
+        /// <returns>Returns task status</returns>
+        public async Task<Model.TaskStatus> GetTaskStatusAsync(/*string spaceName,*/ Guid taskId, CancellationToken cancellationToken)
+        {
+            //spaceName = PrepareSpaceName(spaceName);
+            var nvc = new NameValueCollection();
+            nvc.Add("_", DateTime.Now.Ticks.ToString());
+            var url = JoinUrl("tasks", taskId.ToString("D")) + nvc.ToQueryString();
+
+            using (var response = await GetHttpClient().GetAsync(url, cancellationToken))
+            {
+                var dto = await HandleResponse<TaskStatusDto>(response);
+                var data = TaskStatusMapper.MapFromDto(dto);
+                return data;                
             }
         }
 
@@ -276,7 +299,8 @@ namespace Morph.Server.Sdk.Client
                         {
                             dfi = new DownloadFileInfo
                             {
-                                FileName = contentDisposition.FileName
+                                //need to fix double quotes, that may come from server response
+                                FileName = contentDisposition.FileName.TrimStart('\"').TrimEnd('\"') 
                             };
                         }
                         var contentLength = response.Content.Headers.ContentLength;

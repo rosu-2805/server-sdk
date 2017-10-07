@@ -7,17 +7,18 @@ using System.Threading.Tasks;
 
 namespace Morph.Server.Sdk.Dto
 {
+
     [DataContract]
-    internal class RunningTaskStatusDto
+    internal class TaskStatusDto
     {
-        [DataMember(Name = "id")]
-        public string Id { get; set; }
+        [DataMember(Name = "status")]
+        public string Status { get; set; }
+        [DataMember(Name = "name")]
+        public string TaskName { get; set; }
+        [DataMember(Name = "statusText")]
+        public string StatusText { get; set; }
         [DataMember(Name = "isRunning")]
         public bool IsRunning { get; set; }
-        [DataMember(Name = "projectName")]
-        public string ProjectName { get; set; }
     }
 
-
-    
 }
