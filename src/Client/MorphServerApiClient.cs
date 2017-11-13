@@ -19,6 +19,7 @@ using Morph.Server.Sdk.Mappers;
 using Morph.Server.Sdk.Model.Commands;
 using System.Linq;
 using Morph.Server.Sdk.Dto.Errors;
+using System.Collections.Generic;
 
 namespace Morph.Server.Sdk.Client
 {
@@ -96,7 +97,7 @@ namespace Morph.Server.Sdk.Client
             if (response.IsSuccessStatusCode)
             {
                 var content = await response.Content.ReadAsStringAsync();
-                var result = JsonSerializationHelper.Deserialize<T>(content);                
+                var result = JsonSerializationHelper.Deserialize<T>(content);
                 return result;
             }
             else
@@ -138,15 +139,15 @@ namespace Morph.Server.Sdk.Client
             }
 
             else
-            {                
+            {
                 switch (response.StatusCode)
                 {
                     case HttpStatusCode.Conflict: throw new MorphApiConflictException(response.ReasonPhrase ?? "Conflict");
                     case HttpStatusCode.NotFound: throw new MorphApiNotFoundException(response.ReasonPhrase ?? "Not found");
-                    case HttpStatusCode.Forbidden: throw new MorphApiForbiddenException(response.ReasonPhrase ?? "Forbidden");                    
+                    case HttpStatusCode.Forbidden: throw new MorphApiForbiddenException(response.ReasonPhrase ?? "Forbidden");
                     default: throw new ParseResponseException(response.ReasonPhrase, null);
                 }
-                
+
             }
         }
 
@@ -156,11 +157,17 @@ namespace Morph.Server.Sdk.Client
         /// <param name="spaceName">space name</param>
         /// <param name="taskId">tast guid</param>
         /// <returns></returns>
-        public async Task<RunningTaskStatus> StartTaskAsync(string spaceName, Guid taskId, CancellationToken cancellationToken)
+        public async Task<RunningTaskStatus> StartTaskAsync(string spaceName, Guid taskId, CancellationToken cancellationToken, IEnumerable<TaskBaseParameter> taskParameters = null)
         {
             spaceName = PrepareSpaceName(spaceName);
-            var url = "runningtasks/" + taskId.ToString("D");
-            using (var response = await GetHttpClient().PostAsync(url, null, cancellationToken))
+            var url = JoinUrl("space", spaceName, "runningtasks", taskId.ToString("D"));
+            var dto = new TaskStartRequestDto();
+            if (taskParameters != null)
+            {
+                dto.TaskParameters = taskParameters.Select(TaskParameterMapper.Parse).ToList();
+            }
+            var request = JsonSerializationHelper.SerializeAsStringContent(dto);
+            using (var response = await GetHttpClient().PostAsync(url, request , cancellationToken))
             {
                 var info = await HandleResponse<RunningTaskStatusDto>(response);
                 return new RunningTaskStatus
@@ -185,7 +192,7 @@ namespace Morph.Server.Sdk.Client
             spaceName = PrepareSpaceName(spaceName);
             var nvc = new NameValueCollection();
             nvc.Add("_", DateTime.Now.Ticks.ToString());
-            var url = string.Format("runningtasks/{0}{1}", taskId.ToString("D"), nvc.ToQueryString());
+            var url = JoinUrl("space", spaceName, "runningtasks", taskId.ToString("D")) + nvc.ToQueryString();            
 
             using (var response = await GetHttpClient().GetAsync(url, cancellationToken))
             {
@@ -207,18 +214,18 @@ namespace Morph.Server.Sdk.Client
         /// <param name="taskId">task guid</param>
         /// <param name="cancellationToken">cancellation token</param>
         /// <returns>Returns task status</returns>
-        public async Task<Model.TaskStatus> GetTaskStatusAsync(/*string spaceName,*/ Guid taskId, CancellationToken cancellationToken)
+        public async Task<Model.TaskStatus> GetTaskStatusAsync(string spaceName, Guid taskId, CancellationToken cancellationToken)
         {
             //spaceName = PrepareSpaceName(spaceName);
             var nvc = new NameValueCollection();
             nvc.Add("_", DateTime.Now.Ticks.ToString());
-            var url = JoinUrl("tasks", taskId.ToString("D")) + nvc.ToQueryString();
+            var url = JoinUrl("space", spaceName, "tasks", taskId.ToString("D")) + nvc.ToQueryString();            
 
             using (var response = await GetHttpClient().GetAsync(url, cancellationToken))
             {
                 var dto = await HandleResponse<TaskStatusDto>(response);
                 var data = TaskStatusMapper.MapFromDto(dto);
-                return data;                
+                return data;
             }
         }
 
@@ -232,7 +239,7 @@ namespace Morph.Server.Sdk.Client
         public async Task StopTaskAsync(string spaceName, Guid taskId, CancellationToken cancellationToken)
         {
             spaceName = PrepareSpaceName(spaceName);
-            var url = "runningtasks/" + taskId.ToString("D");
+            var url = JoinUrl("space", spaceName, "runningtasks", taskId.ToString("D"));            
             using (var response = await GetHttpClient().DeleteAsync(url, cancellationToken))
             {
                 await HandleResponse(response);
@@ -300,7 +307,7 @@ namespace Morph.Server.Sdk.Client
                             dfi = new DownloadFileInfo
                             {
                                 //need to fix double quotes, that may come from server response
-                                FileName = contentDisposition.FileName.TrimStart('\"').TrimEnd('\"') 
+                                FileName = contentDisposition.FileName.TrimStart('\"').TrimEnd('\"')
                             };
                         }
                         var contentLength = response.Content.Headers.ContentLength;
@@ -541,7 +548,7 @@ namespace Morph.Server.Sdk.Client
                 SpaceName = spaceName,
                 ProjectPath = projectPath
             };
-            using (var response = await GetHttpClient().PostAsync(url, new StringContent(JsonSerializationHelper.Serialize(request), Encoding.UTF8, "application/json"), cancellationToken))
+            using (var response = await GetHttpClient().PostAsync(url, JsonSerializationHelper.SerializeAsStringContent(request), cancellationToken))
             {
 
                 var dto = await HandleResponse<ValidateTasksResponseDto>(response);
