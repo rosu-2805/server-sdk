@@ -498,6 +498,21 @@ namespace Morph.Server.Sdk.Client
 
         }
 
+
+        public async Task<SpacesList> GetSpacesListAsync(CancellationToken cancellationToken)
+        {
+            
+            var nvc = new NameValueCollection();
+            nvc.Add("_", DateTime.Now.Ticks.ToString());
+            var url = "spaces/list" + nvc.ToQueryString();
+            using (var response = await GetHttpClient().GetAsync(url, cancellationToken))
+            {
+                var dto = await HandleResponse<SpacesListDto>(response);
+                return SpacesListMapper.MapFromDto(dto);
+            }
+        }
+
+
         /// <summary>
         /// Prerforms browsing the Space
         /// </summary>
