@@ -55,6 +55,10 @@
     <Compile Include="Dto\Errors\ErrorResponse.cs" />
     <Compile Include="Dto\Errors\InnerError.cs" />
     <Compile Include="Dto\Errors\ReadableErrorTopCode.cs" />
+    <Compile Include="Dto\GenerateNonceRequestDto.cs" />
+    <Compile Include="Dto\GenerateNonceResponseDto.cs" />
+    <Compile Include="Dto\LoginRequestDto.cs" />
+    <Compile Include="Dto\LoginResponseDto.cs" />
     <Compile Include="Dto\RunningTaskStatusDto.cs" />
     <Compile Include="Dto\ServerStatusDto.cs" />
     <Compile Include="Dto\SpaceBrowsingResponseDto.cs" />
@@ -63,6 +67,9 @@
     <Compile Include="Dto\TaskStatusDto.cs" />
     <Compile Include="Events\FileEventArgs.cs" />
     <Compile Include="Exceptions\Exceptions.cs" />
+    <Compile Include="Helper\ConvertHelper.cs" />
+    <Compile Include="Helper\CryptographyAlgorithms.cs" />
+    <Compile Include="Helper\CryptographyHelper.cs" />
     <Compile Include="Helper\FileProgress.cs" />
     <Compile Include="Helper\IFileProgress.cs" />
     <Compile Include="Helper\JsonSerializationHelper.cs" />
@@ -74,6 +81,7 @@
     <Compile Include="Mappers\ServerStatusMapper.cs" />
     <Compile Include="Mappers\SpaceBrowsingMapper.cs" />
     <Compile Include="Mappers\ValidateTasksResponseMapper.cs" />
+    <Compile Include="Model\ApiSession.cs" />
     <Compile Include="Model\Commands\FailedTaskInfo.cs" />
     <Compile Include="Model\DownloadFileInfo.cs" />
     <Compile Include="Model\Errors\FieldError.cs" />
