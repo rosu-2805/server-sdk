@@ -20,8 +20,7 @@ namespace Morph.Server.Sdk.Client
         Task<DownloadFileInfo> DownloadFileAsync(ApiSession apiSession, string remoteFilePath, Stream streamToWriteTo, CancellationToken cancellationToken);
         Task<bool> FileExistsAsync(ApiSession apiSession, string serverFolder, string fileName, CancellationToken cancellationToken);
         Task<ServerStatus> GetServerStatusAsync(CancellationToken cancellationToken);
-        Task<Model.TaskStatus> GetTaskStatusAsync(ApiSession apiSession, Guid taskId, CancellationToken cancellationToken);
-        Task<ApiSession> OpenSessionAnonymousAsync(string spaceName, CancellationToken cancellationToken);
+        Task<Model.TaskStatus> GetTaskStatusAsync(ApiSession apiSession, Guid taskId, CancellationToken cancellationToken);        
         Task<ApiSession> OpenSessionAsync(string spaceName, string password, CancellationToken cancellationToken);
         Task<RunningTaskStatus> StartTaskAsync(ApiSession apiSession, Guid taskId, CancellationToken cancellationToken, IEnumerable<TaskBaseParameter> taskParameters = null);
         Task StopTaskAsync(ApiSession apiSession, Guid taskId, CancellationToken cancellationToken);

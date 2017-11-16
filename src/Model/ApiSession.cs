@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace Morph.Server.Sdk.Model
 {
-    
+
 
     public class ApiSession : IDisposable
     {
@@ -24,6 +24,26 @@ namespace Morph.Server.Sdk.Model
             IsAnonymous = false;
 
         }
+
+
+        public static ApiSession Anonymous(string spaceName)
+        {
+
+            if (string.IsNullOrWhiteSpace(spaceName))
+            {
+                throw new ArgumentException("Value is empty {0}", nameof(spaceName));
+            }
+
+            return new ApiSession(null)
+            {
+                IsAnonymous = true,
+                IsClosed = false,
+                SpaceName = spaceName
+            };
+
+        }
+
+
 
         public void Dispose()
         {

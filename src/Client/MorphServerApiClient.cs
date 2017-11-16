@@ -683,20 +683,7 @@ namespace Morph.Server.Sdk.Client
             }
         }
 
-        public async Task<ApiSession> OpenSessionAnonymousAsync(string spaceName, CancellationToken cancellationToken)
-        {
-            if (string.IsNullOrWhiteSpace(spaceName))
-            {
-                throw new ArgumentException("Value is empty {0}", nameof(spaceName));
-            }
-
-            return new ApiSession(this)
-            {
-                IsAnonymous = true,
-                IsClosed = false,
-                SpaceName = spaceName
-            };            
-        }
+       
 
         public async Task<ApiSession> OpenSessionAsync( string spaceName, string password, CancellationToken cancellationToken)
         {           
