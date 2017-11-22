@@ -62,6 +62,7 @@
     <Compile Include="Dto\RunningTaskStatusDto.cs" />
     <Compile Include="Dto\ServerStatusDto.cs" />
     <Compile Include="Dto\SpaceBrowsingResponseDto.cs" />
+    <Compile Include="Dto\SpaceStatusDto.cs" />
     <Compile Include="Dto\SpaceListItemDto.cs" />
     <Compile Include="Dto\SpacesListDto.cs" />
     <Compile Include="Dto\TaskParameterDto.cs" />
@@ -78,6 +79,7 @@
     <Compile Include="Helper\ProgressStreamContent.cs" />
     <Compile Include="Helper\QueryBuilder.cs" />
     <Compile Include="Mappers\FieldErrorsMapper.cs" />
+    <Compile Include="Mappers\SpaceStatusMapper.cs" />
     <Compile Include="Mappers\SpacesListMapper.cs" />
     <Compile Include="Mappers\TaskParameterMapper.cs" />
     <Compile Include="Mappers\TaskStatusMapper.cs" />
@@ -90,6 +92,7 @@
     <Compile Include="Model\Errors\FieldError.cs" />
     <Compile Include="Model\Commands\ValidateTasksResult.cs" />
     <Compile Include="Model\SpacesList.cs" />
+    <Compile Include="Model\SpaceStatus.cs" />
     <Compile Include="Model\TaskParameter.cs" />
     <Compile Include="Model\TaskStatus.cs" />
     <Compile Include="Model\WebFilesAccesMode.cs" />

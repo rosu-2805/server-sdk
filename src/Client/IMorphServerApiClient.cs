@@ -28,5 +28,6 @@ namespace Morph.Server.Sdk.Client
         Task UploadFileAsync(ApiSession apiSession, string localFilePath, string destFolderPath, CancellationToken cancellationToken, bool overwriteFileifExists = false);
         Task<ValidateTasksResult> ValidateTasksAsync(ApiSession apiSession, string projectPath, CancellationToken cancellationToken);
         Task<SpacesList> GetSpacesListAsync(CancellationToken cancellationToken);
+        Task<SpaceStatus> GetSpaceStatusAsync(ApiSession apiSession, CancellationToken cancellationToken);
     }
 }

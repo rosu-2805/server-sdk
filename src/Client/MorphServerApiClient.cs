@@ -612,9 +612,34 @@ namespace Morph.Server.Sdk.Client
             var spaceName = PrepareSpaceName(apiSession.SpaceName);
             var url = JoinUrl("space", spaceName, "files", serverFolder, fileName);
 
-            using (HttpResponseMessage response = await GetHttpClient().DeleteAsync(url, cancellationToken))
+            using (HttpResponseMessage response = await GetHttpClient().SendAsync(BuildHttpRequestMessage(HttpMethod.Delete, url, null, apiSession), cancellationToken))
             {
                 await HandleResponse(response);
+            }
+
+        }
+
+
+        /// <summary>
+        /// Retrieves space status
+        /// </summary>
+        /// <param name="spaceName">space name</param>        
+        /// <returns></returns>
+        public async Task<SpaceStatus> GetSpaceStatusAsync(ApiSession apiSession, CancellationToken cancellationToken)
+        {
+            if (apiSession == null)
+            {
+                throw new ArgumentNullException(nameof(apiSession));
+            }
+
+            var spaceName = PrepareSpaceName(apiSession.SpaceName);
+            var url = JoinUrl("spaces", spaceName, "status");
+
+            using (HttpResponseMessage response = await GetHttpClient().SendAsync(BuildHttpRequestMessage(HttpMethod.Get, url, null, apiSession), cancellationToken))
+            {
+                var dto = await HandleResponse<SpaceStatusDto>(response);
+                var entity = SpaceStatusMapper.MapFromDto(dto);
+                return entity;
             }
 
         }
