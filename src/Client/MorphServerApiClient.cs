@@ -137,7 +137,8 @@ namespace Morph.Server.Sdk.Client
                     case ReadableErrorTopCode.Conflict: throw new MorphApiConflictException(errorResponse.error.message);
                     case ReadableErrorTopCode.NotFound: throw new MorphApiNotFoundException(errorResponse.error.message);
                     case ReadableErrorTopCode.Forbidden: throw new MorphApiForbiddenException(errorResponse.error.message);
-                    case ReadableErrorTopCode.BadArgument: throw new MorphApiBadArgumentException(FieldErrorsMapper.MapFromDto(errorResponse.error), errorResponse.error.message);
+                    case ReadableErrorTopCode.Unauthorized: throw new MorphApiUnauthorizedException(errorResponse.error.message);
+                    case ReadableErrorTopCode.BadArgument: throw new MorphApiBadArgumentException(FieldErrorsMapper.MapFromDto(errorResponse.error), errorResponse.error.message);                    
                     default: throw new MorphClientGeneralException(errorResponse.error.code, errorResponse.error.message);
                 }
             }
@@ -149,6 +150,8 @@ namespace Morph.Server.Sdk.Client
                     case HttpStatusCode.Conflict: throw new MorphApiConflictException(response.ReasonPhrase ?? "Conflict");
                     case HttpStatusCode.NotFound: throw new MorphApiNotFoundException(response.ReasonPhrase ?? "Not found");
                     case HttpStatusCode.Forbidden: throw new MorphApiForbiddenException(response.ReasonPhrase ?? "Forbidden");
+                    case HttpStatusCode.Unauthorized: throw new MorphApiUnauthorizedException(response.ReasonPhrase ?? "Unauthorized");
+                    case HttpStatusCode.BadRequest: throw new MorphClientGeneralException("Unknown",response.ReasonPhrase ?? "Unknown error");
                     default: throw new ParseResponseException(response.ReasonPhrase, null);
                 }
 
