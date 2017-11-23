@@ -14,7 +14,7 @@ namespace Morph.Server.Sdk.Client
         event EventHandler<FileEventArgs> FileProgress;
 
         Task<SpaceBrowsingInfo> BrowseSpaceAsync(ApiSession apiSession, string folderPath, CancellationToken cancellationToken);
-        Task CloseSession(ApiSession apiSession, CancellationToken cancellationToken);
+        Task CloseSessionAsync(ApiSession apiSession, CancellationToken cancellationToken);
         Task DeleteFileAsync(ApiSession apiSession, string serverFolder, string fileName, CancellationToken cancellationToken);
         Task DownloadFileAsync(ApiSession apiSession, string remoteFilePath, Func<DownloadFileInfo, bool> handleFile, Stream streamToWriteTo, CancellationToken cancellationToken);
         Task<DownloadFileInfo> DownloadFileAsync(ApiSession apiSession, string remoteFilePath, Stream streamToWriteTo, CancellationToken cancellationToken);

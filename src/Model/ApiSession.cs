@@ -54,7 +54,7 @@ namespace Morph.Server.Sdk.Model
                     Task.Run(async () =>
                     {
                         var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(5));
-                        await target.CloseSession(this, cts.Token);
+                        await target.CloseSessionAsync(this, cts.Token);
                     }
 
                         ).Wait(TimeSpan.FromSeconds(5));

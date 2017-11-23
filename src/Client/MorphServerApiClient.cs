@@ -743,7 +743,7 @@ namespace Morph.Server.Sdk.Client
             };
         }
 
-        public async Task CloseSession(ApiSession apiSession, CancellationToken cancellationToken)
+        public async Task CloseSessionAsync(ApiSession apiSession, CancellationToken cancellationToken)
         {
             if (apiSession == null)
             {
