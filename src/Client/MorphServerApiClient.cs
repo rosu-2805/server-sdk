@@ -35,8 +35,8 @@ namespace Morph.Server.Sdk.Client
         protected readonly string _defaultSpaceName = "default";
         protected readonly string _authHeaderName = "X-EasyMorph-Auth";
 
-        
-        
+
+
         /// <summary>
         /// Construct Api client
         /// </summary>
@@ -78,7 +78,7 @@ namespace Morph.Server.Sdk.Client
                 });
             client.DefaultRequestHeaders.Add("User-Agent", UserAgent);
             client.DefaultRequestHeaders.Add("X-Client-Type", "EMS-CMD");
-            
+
             client.MaxResponseContentBufferSize = 100 * 1024;
             client.DefaultRequestHeaders.CacheControl = new CacheControlHeaderValue
             {
@@ -138,7 +138,7 @@ namespace Morph.Server.Sdk.Client
                     case ReadableErrorTopCode.NotFound: throw new MorphApiNotFoundException(errorResponse.error.message);
                     case ReadableErrorTopCode.Forbidden: throw new MorphApiForbiddenException(errorResponse.error.message);
                     case ReadableErrorTopCode.Unauthorized: throw new MorphApiUnauthorizedException(errorResponse.error.message);
-                    case ReadableErrorTopCode.BadArgument: throw new MorphApiBadArgumentException(FieldErrorsMapper.MapFromDto(errorResponse.error), errorResponse.error.message);                    
+                    case ReadableErrorTopCode.BadArgument: throw new MorphApiBadArgumentException(FieldErrorsMapper.MapFromDto(errorResponse.error), errorResponse.error.message);
                     default: throw new MorphClientGeneralException(errorResponse.error.code, errorResponse.error.message);
                 }
             }
@@ -151,7 +151,7 @@ namespace Morph.Server.Sdk.Client
                     case HttpStatusCode.NotFound: throw new MorphApiNotFoundException(response.ReasonPhrase ?? "Not found");
                     case HttpStatusCode.Forbidden: throw new MorphApiForbiddenException(response.ReasonPhrase ?? "Forbidden");
                     case HttpStatusCode.Unauthorized: throw new MorphApiUnauthorizedException(response.ReasonPhrase ?? "Unauthorized");
-                    case HttpStatusCode.BadRequest: throw new MorphClientGeneralException("Unknown",response.ReasonPhrase ?? "Unknown error");
+                    case HttpStatusCode.BadRequest: throw new MorphClientGeneralException("Unknown", response.ReasonPhrase ?? "Unknown error");
                     default: throw new ParseResponseException(response.ReasonPhrase, null);
                 }
 
@@ -172,7 +172,7 @@ namespace Morph.Server.Sdk.Client
             }
 
             var spaceName = PrepareSpaceName(apiSession.SpaceName);
-            var url = JoinUrl("space", spaceName, "runningtasks", taskId.ToString("D"));
+            var url = JoinUrl("space", spaceName, "runningtasks", taskId.ToString("D"), "payload");
             var dto = new TaskStartRequestDto();
             if (taskParameters != null)
             {
@@ -504,7 +504,7 @@ namespace Morph.Server.Sdk.Client
 
         public async Task<SpacesList> GetSpacesListAsync(CancellationToken cancellationToken)
         {
-            
+
             var nvc = new NameValueCollection();
             nvc.Add("_", DateTime.Now.Ticks.ToString());
             var url = "spaces/list" + nvc.ToQueryString();
@@ -693,7 +693,7 @@ namespace Morph.Server.Sdk.Client
         }
 
         protected async Task<string> InternalAuthLoginAsync(string clientNonce, string serverNonce, string spaceName, string passwordHash, CancellationToken cancellationToken)
-        {            
+        {
             var url = "auth/login";
             var requestDto = new LoginRequestDto
             {
@@ -711,10 +711,10 @@ namespace Morph.Server.Sdk.Client
             }
         }
 
-       
 
-        public async Task<ApiSession> OpenSessionAsync( string spaceName, string password, CancellationToken cancellationToken)
-        {           
+
+        public async Task<ApiSession> OpenSessionAsync(string spaceName, string password, CancellationToken cancellationToken)
+        {
             if (string.IsNullOrEmpty(spaceName))
             {
                 throw new ArgumentException("Wrong parameter {0}", nameof(spaceName));
@@ -728,7 +728,7 @@ namespace Morph.Server.Sdk.Client
             var passwordHash = CryptographyHelper.CalculateSha256HEX(password);
             var serverNonce = await InternalGetAuthNonceAsync(cancellationToken);
             var clientNonce = ConvertHelper.ByteArrayToHexString(CryptographyHelper.GenerateRandomSequence(16));
-            var  all = passwordHash + serverNonce + clientNonce;
+            var all = passwordHash + serverNonce + clientNonce;
             var allHash = CryptographyHelper.CalculateSha256HEX(all);
 
 
@@ -740,7 +740,7 @@ namespace Morph.Server.Sdk.Client
                 IsAnonymous = false,
                 IsClosed = false,
                 SpaceName = spaceName
-            };            
+            };
         }
 
         public async Task CloseSession(ApiSession apiSession, CancellationToken cancellationToken)
@@ -754,13 +754,13 @@ namespace Morph.Server.Sdk.Client
             if (apiSession.IsAnonymous)
                 return;
 
-            
+
             var url = "auth/logout";
-            
+
             using (var response = await GetHttpClient().SendAsync(BuildHttpRequestMessage(HttpMethod.Post, url, null, apiSession), cancellationToken))
             {
 
-                await HandleResponse(response);               
+                await HandleResponse(response);
 
             }
 
