@@ -161,8 +161,10 @@ namespace Morph.Server.Sdk.Client
         /// <summary>
         /// Start Task like "fire and forget"
         /// </summary>
-        /// <param name="spaceName">space name</param>
+        /// <param name="apiSession">api session</param>
         /// <param name="taskId">tast guid</param>
+        /// <param name="cancellationToken"></param>
+        /// <param name="taskParameters"></param>
         /// <returns></returns>
         public async Task<RunningTaskStatus> StartTaskAsync(ApiSession apiSession, Guid taskId, CancellationToken cancellationToken, IEnumerable<TaskBaseParameter> taskParameters = null)
         {
@@ -195,7 +197,7 @@ namespace Morph.Server.Sdk.Client
         /// <summary>
         /// Gets status of the task (Running/Not running) and payload
         /// </summary>
-        /// <param name="spaceName">space name</param>
+        /// <param name="apiSession">api session</param>
         /// <param name="taskId">task guid</param>
         /// <param name="cancellationToken">cancellation token</param>
         /// <returns>Returns task status</returns>
@@ -227,7 +229,7 @@ namespace Morph.Server.Sdk.Client
         /// <summary>
         /// Gets status of the task
         /// </summary>
-        /// <param name="spaceName">space name</param>
+        /// <param name="apiSession">api session</param>
         /// <param name="taskId">task guid</param>
         /// <param name="cancellationToken">cancellation token</param>
         /// <returns>Returns task status</returns>
@@ -253,7 +255,7 @@ namespace Morph.Server.Sdk.Client
         /// <summary>
         /// Stops the Task
         /// </summary>
-        /// <param name="spaceName"></param>
+        /// <param name="apiSession">api session</param>
         /// <param name="taskId"></param>
         /// <param name="cancellationToken">cancellation token</param>
         /// <returns></returns>
@@ -294,7 +296,7 @@ namespace Morph.Server.Sdk.Client
         /// <summary>
         /// Download file from server
         /// </summary>
-        /// <param name="spaceName">space name</param>
+        /// <param name="apiSession">api session</param>
         /// <param name="remoteFilePath">Path to the remote file. Like /some/folder/file.txt </param>
         /// <param name="streamToWriteTo">stream for writing. You should dispose the stream by yourself</param>
         /// <param name="cancellationToken">cancellation token</param>
@@ -313,7 +315,7 @@ namespace Morph.Server.Sdk.Client
         /// <summary>
         /// Download file from server
         /// </summary>
-        /// <param name="spaceName">space name</param>
+        /// <param name="apiSession">api session</param>
         /// <param name="remoteFilePath"> Path to the remote file. Like /some/folder/file.txt </param>
         /// <param name="handleFile">delegate to check file info before accessing to the file stream</param>
         /// <param name="streamToWriteTo">stream for writing. Writing will be executed only if handleFile delegate returns true</param>
@@ -395,7 +397,7 @@ namespace Morph.Server.Sdk.Client
         /// <summary>
         /// Uploads file to the server 
         /// </summary>
-        /// <param name="spaceName">space name</param>
+        /// <param name="apiSession">api session</param>
         /// <param name="localFilePath">path to the local file</param>
         /// <param name="destFolderPath">detination folder like /path/to/folder </param>
         /// <param name="cancellationToken">cancellation token</param>
@@ -440,7 +442,7 @@ namespace Morph.Server.Sdk.Client
         /// <summary>
         /// Upload file stream to the server
         /// </summary>
-        /// <param name="spaceName">space name</param>
+        /// <param name="apiSession">api session</param>
         /// <param name="inputStream">stream for read from</param>
         /// <param name="fileName">file name</param>
         /// <param name="fileSize">file size in bytes</param>
@@ -519,7 +521,7 @@ namespace Morph.Server.Sdk.Client
         /// <summary>
         /// Prerforms browsing the Space
         /// </summary>
-        /// <param name="spaceName">space name</param>
+        /// <param name="apiSession">api session</param>
         /// <param name="folderPath">folder path like /path/to/folder</param>
         /// <param name="cancellationToken"></param>
         /// <returns></returns>
@@ -546,7 +548,7 @@ namespace Morph.Server.Sdk.Client
         /// <summary>
         /// Checks if file exists
         /// </summary>
-        /// <param name="spaceName">space name</param>
+        /// <param name="apiSession">api session</param>
         /// <param name="serverFolder">server folder like /path/to/folder</param>
         /// <param name="fileName">file name </param>
         /// <param name="cancellationToken"></param>
@@ -572,24 +574,26 @@ namespace Morph.Server.Sdk.Client
             return string.IsNullOrWhiteSpace(spaceName) ? _defaultSpaceName : spaceName.ToLower();
         }
 
-        private string JoinUrl(params string[] urls)
+        private string JoinUrl(params string[] urlParts)
         {
             var result = string.Empty;
-            for (var i = 0; i < urls.Length; i++)
+            for (var i = 0; i < urlParts.Length; i++)
             {
-                var p = urls[i];
+                var p = urlParts[i];
                 if (p == null)
                     continue;
-
+                
                 p = p.Replace('\\', '/');
                 p = p.Trim(new[] { '/' });
                 if (string.IsNullOrWhiteSpace(p))
                     continue;
-
-                if (result != string.Empty)
-                    result += "/";
-                result += p;
-
+                var t = p.Split(new[] { '/' }, StringSplitOptions.RemoveEmptyEntries);
+                foreach(var u in t)
+                {
+                    if (result != string.Empty)
+                        result += "/";
+                    result +=  Uri.EscapeDataString(u);                    
+                }
             }
             return result;
         }
@@ -597,7 +601,7 @@ namespace Morph.Server.Sdk.Client
         /// <summary>
         /// Performs file deletion
         /// </summary>
-        /// <param name="spaceName">space name</param>
+        /// <param name="apiSession">api session</param>
         /// <param name="serverFolder">Path to server folder like /path/to/folder</param>
         /// <param name="fileName">file name</param>
         /// <param name="cancellationToken"></param>
@@ -623,7 +627,8 @@ namespace Morph.Server.Sdk.Client
         /// <summary>
         /// Retrieves space status
         /// </summary>
-        /// <param name="spaceName">space name</param>        
+        /// <param name="apiSession">api session</param>
+        /// <param name="cancellationToken"></param>
         /// <returns></returns>
         public async Task<SpaceStatus> GetSpaceStatusAsync(ApiSession apiSession, CancellationToken cancellationToken)
         {
@@ -648,7 +653,7 @@ namespace Morph.Server.Sdk.Client
         /// <summary>
         /// Validate tasks. Checks that there are no missing parameters in the tasks. 
         /// </summary>
-        /// <param name="spaceName">space name</param>
+        /// <param name="apiSession">api session</param>
         /// <param name="projectPath">project path like /path/to/project.morph </param>
         /// <param name="cancellationToken"></param>
         /// <returns></returns>
@@ -681,7 +686,7 @@ namespace Morph.Server.Sdk.Client
 
 
 
-        protected async Task<string> InternalGetAuthNonceAsync(CancellationToken cancellationToken)
+        protected async Task<string> internalGetAuthNonceAsync(CancellationToken cancellationToken)
         {
             var url = "auth/nonce";
             using (var response = await GetHttpClient().PostAsync(url, JsonSerializationHelper.SerializeAsStringContent(new GenerateNonceRequestDto()), cancellationToken))
@@ -692,7 +697,7 @@ namespace Morph.Server.Sdk.Client
             }
         }
 
-        protected async Task<string> InternalAuthLoginAsync(string clientNonce, string serverNonce, string spaceName, string passwordHash, CancellationToken cancellationToken)
+        protected async Task<string> internalAuthLoginAsync(string clientNonce, string serverNonce, string spaceName, string passwordHash, CancellationToken cancellationToken)
         {
             var url = "auth/login";
             var requestDto = new LoginRequestDto
@@ -712,7 +717,13 @@ namespace Morph.Server.Sdk.Client
         }
 
 
-
+        /// <summary>
+        /// Open a new authenticated session
+        /// </summary>
+        /// <param name="spaceName">space name</param>
+        /// <param name="password">space password</param>
+        /// <param name="cancellationToken"></param>
+        /// <returns></returns>
         public async Task<ApiSession> OpenSessionAsync(string spaceName, string password, CancellationToken cancellationToken)
         {
             if (string.IsNullOrEmpty(spaceName))
@@ -726,13 +737,13 @@ namespace Morph.Server.Sdk.Client
             }
 
             var passwordHash = CryptographyHelper.CalculateSha256HEX(password);
-            var serverNonce = await InternalGetAuthNonceAsync(cancellationToken);
+            var serverNonce = await internalGetAuthNonceAsync(cancellationToken);
             var clientNonce = ConvertHelper.ByteArrayToHexString(CryptographyHelper.GenerateRandomSequence(16));
             var all = passwordHash + serverNonce + clientNonce;
             var allHash = CryptographyHelper.CalculateSha256HEX(all);
 
 
-            var token = await InternalAuthLoginAsync(clientNonce, serverNonce, spaceName, allHash, cancellationToken);
+            var token = await internalAuthLoginAsync(clientNonce, serverNonce, spaceName, allHash, cancellationToken);
 
             return new ApiSession(this)
             {
@@ -743,6 +754,12 @@ namespace Morph.Server.Sdk.Client
             };
         }
 
+        /// <summary>
+        /// Close opened session
+        /// </summary>
+        /// <param name="apiSession">api session</param>
+        /// <param name="cancellationToken"></param>
+        /// <returns></returns>
         public async Task CloseSessionAsync(ApiSession apiSession, CancellationToken cancellationToken)
         {
             if (apiSession == null)
