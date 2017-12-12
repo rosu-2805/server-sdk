@@ -25,12 +25,12 @@ namespace Morph.Server.Sdk.Exceptions
         }
         public ParseResponseException(string message) : base(message)
         {
-            
+
         }
     }
 
 
-   
+
 
 
     public class MorphClientGeneralException : MorphClientBaseException
@@ -59,6 +59,16 @@ namespace Morph.Server.Sdk.Exceptions
 
         }
     }
+
+    public class MorphApiUnauthorizedException : MorphClientGeneralException
+    {
+
+        public MorphApiUnauthorizedException(string message) : base(ReadableErrorTopCode.Unauthorized, message)
+        {
+
+        }
+    }
+
     public class MorphApiForbiddenException : MorphClientGeneralException
     {
 
@@ -91,7 +101,7 @@ namespace Morph.Server.Sdk.Exceptions
 
     public class MorphApiBadArgumentException : MorphClientGeneralException
     {
-        public  List<FieldError> Details { get; private set; }
+        public List<FieldError> Details { get; private set; }
         public MorphApiBadArgumentException(List<FieldError> details, string message) : base(ReadableErrorTopCode.BadArgument, message)
         {
             Details = details;

@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net.Http;
 using System.Runtime.Serialization.Json;
 using System.Text;
 using System.Threading.Tasks;
@@ -40,6 +41,13 @@ namespace Morph.Server.Sdk.Helper
                 return Encoding.UTF8.GetString(json, 0, json.Length);
             }            
 
+        }
+
+        public static StringContent SerializeAsStringContent<T>(T obj)
+        {
+            var serialized = Serialize(obj);
+            var result = new StringContent(serialized, Encoding.UTF8, "application/json");
+            return result;
         }
     }
 }
