@@ -49,6 +49,7 @@
   <ItemGroup>
     <Compile Include="Client\IMorphServerApiClient.cs" />
     <Compile Include="Client\MorphServerApiClient.cs" />
+    <Compile Include="Client\UrlHelper.cs" />
     <Compile Include="Dto\Commands\ValidateTaskResultDto.cs" />
     <Compile Include="Dto\Commands\ValidateTasksRequestDto.cs" />
     <Compile Include="Dto\Errors\Error.cs" />
@@ -65,6 +66,8 @@
     <Compile Include="Dto\SpaceStatusDto.cs" />
     <Compile Include="Dto\SpaceListItemDto.cs" />
     <Compile Include="Dto\SpacesListDto.cs" />
+    <Compile Include="Dto\SpaceTasksListDto.cs" />
+    <Compile Include="Dto\SpaceTasksListItemDto.cs" />
     <Compile Include="Dto\TaskParameterDto.cs" />
     <Compile Include="Dto\TaskStartRequestDto.cs" />
     <Compile Include="Dto\TaskStatusDto.cs" />
@@ -91,8 +94,11 @@
     <Compile Include="Model\DownloadFileInfo.cs" />
     <Compile Include="Model\Errors\FieldError.cs" />
     <Compile Include="Model\Commands\ValidateTasksResult.cs" />
+    <Compile Include="Model\SpaceListItem.cs" />
     <Compile Include="Model\SpacesList.cs" />
     <Compile Include="Model\SpaceStatus.cs" />
+    <Compile Include="Model\SpaceTaskListItem.cs" />
+    <Compile Include="Model\SpaceTasksList.cs" />
     <Compile Include="Model\TaskParameter.cs" />
     <Compile Include="Model\TaskStatus.cs" />
     <Compile Include="Model\WebFilesAccesMode.cs" />

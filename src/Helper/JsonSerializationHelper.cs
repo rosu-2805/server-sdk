@@ -27,7 +27,7 @@ namespace Morph.Server.Sdk.Helper
             }
             catch (Exception ex)
             {
-                throw new ParseResponseException("An error occurred while deserializing the response: "+ ex.Message, input);                
+                throw new ResponseParseException("An error occurred while deserializing the response: "+ ex.Message, input);                
             }
         }
         public static string Serialize<T>(T obj)

@@ -12,7 +12,7 @@ namespace Morph.Server.Sdk.Mappers
 
     internal static class TaskParameterMapper
     {
-        public static TaskParameterDto Parse(TaskBaseParameter value)
+        public static TaskParameterDto Parse(TaskParameterBase value)
         {
             if (value == null)
             {
@@ -28,7 +28,7 @@ namespace Morph.Server.Sdk.Mappers
                 case TaskStringParameter str:
                     result.Value = str.Value as string;
                     break;
-                case TaskDateParamter st:
+                case TaskDateParameter st:
                     DateTime dt = Convert.ToDateTime(st.Value);
                     result.Value = dt.ToString("yyyy-MM-dd");
                     break;

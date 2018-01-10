@@ -11,12 +11,19 @@ namespace Morph.Server.Sdk.Model
 
     public class ApiSession : IDisposable
     {
+        protected readonly string _defaultSpaceName = "default";
+        internal const string AuthHeaderName = "X-EasyMorph-Auth";
+
         internal bool IsClosed { get; set; }
-        public string SpaceName { get; internal set; }
+        public string SpaceName { get => 
+                string.IsNullOrWhiteSpace(_spaceName) ? _defaultSpaceName : _spaceName.ToLower();
+                internal set => _spaceName = value; }
         internal string AuthToken { get; set; }
         internal bool IsAnonymous { get; set; }
 
         WeakReference<MorphServerApiClient> _client;
+        private string _spaceName;
+
         internal ApiSession(MorphServerApiClient client)
         {
             _client = new WeakReference<MorphServerApiClient>(client);

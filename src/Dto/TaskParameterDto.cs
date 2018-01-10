@@ -14,11 +14,17 @@ namespace Morph.Server.Sdk.Dto
         public string Name { get; set; }
         [DataMember(Name = "value")]
         public string Value { get; set; }
+        [DataMember(Name = "parameterType")]
+        public string ParameterType { get; set; }
+        [DataMember(Name = "note")]
+        public string Note { get; set; }
+
         public TaskParameterDto()
         {
-
             Name = string.Empty;
             Value = string.Empty;
+            ParameterType = string.Empty;
+            Note = string.Empty;
         }
     }
 }

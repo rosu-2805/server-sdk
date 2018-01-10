@@ -1,5 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -11,9 +11,19 @@ namespace Morph.Server.Sdk.Model
         public List<SpaceListItem> Items { get; internal set; } = new List<SpaceListItem>();
     }
 
-    public class SpaceListItem
+    public enum TaskParameterType
     {
-        public string SpaceName { get; internal set; }
-        public bool IsPublic { get; internal set; }
+        [Description("Text or number")]
+        Text,
+        [Description("File name")]
+        FilePath,
+        [Description("Date")]
+        Date,
+        [Description("Calculated")]
+        Calculated
     }
+
+
+    
+
 }
