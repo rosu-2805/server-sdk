@@ -93,6 +93,18 @@ Accessing to tasks require a valid api session.
 Assume that you have already created the task in Space 'Default'. For these samples task id is `691ea42e-9e6b-438e-84d6-b743841c970e`.
 Also assume, that you have read Sessions section and know how to open a session.
 
+##### Tasks list
+
+``` C#
+  var apiSession = ApiSession.Anonymous("Default");
+
+  var tasks = await client.GetTasksListAsync(apiSession, cancellationToken );
+  foreach(var task in tasks){
+  // do somethig with task
+  }
+```
+If you want to get more details about task (e.g. task parameters) use `GetTaskAsync` method.
+
 ##### Starting the Task
 
 To run the task:
@@ -114,6 +126,22 @@ To stop the task
   await client.StopTaskAsync(apiSession, "691ea42e-9e6b-438e-84d6-b743841c970e", cancellationToken )
 ```
 Caller gets control back immediately after the task is marked to stop.
+
+#### Retrieving task info
+``` C#
+try {
+  var apiSession = ApiSession.Anonymous("Default");
+  var taskGuid = Guid.Parse("691ea42e-9e6b-438e-84d6-b743841c970e");
+  var status = await client.GetTaskAsync(apiSession, taskGuid, cancellationToken );
+  
+  Console.WriteLine(string.Format("Task name is {0}", status.TaskName));
+ 
+}catch(MorphApiNotFoundException notFound){
+  Console.WriteLine("Task not found");
+}
+
+```
+
 
 #### Retrieving task status 
 

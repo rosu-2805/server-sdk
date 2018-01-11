@@ -6,7 +6,7 @@ namespace Morph.Server.Sdk.Model
     public class SpaceTasksListItem
     {
         public Guid Id { get; internal set; }
-        public string Name { get; internal set; } = string.Empty;
+        public string TaskName { get; internal set; } = string.Empty;
         public string ProjectPath { get; internal set; } = string.Empty;
         public string Note { get; internal set; } = string.Empty;
         //public List<TaskParameter> TaskParameters { get; internal set; } = new List<TaskParameter>();
