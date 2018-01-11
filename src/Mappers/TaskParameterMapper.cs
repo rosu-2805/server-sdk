@@ -41,7 +41,11 @@ namespace Morph.Server.Sdk.Mappers
 
         private static TaskParameterType ParseParameterType(string value)
         {
-                return (TaskParameterType)Enum.Parse(typeof(TaskParameterType), value, true);
+            //fallback to text
+            if (string.IsNullOrWhiteSpace(value))
+                return TaskParameterType.Text;
+
+            return (TaskParameterType)Enum.Parse(typeof(TaskParameterType), value, true);
         }
 
         public static TaskParameterRequestDto ToDto(TaskParameterBase value)
