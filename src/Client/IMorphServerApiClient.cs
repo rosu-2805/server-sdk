@@ -30,5 +30,6 @@ namespace Morph.Server.Sdk.Client
         Task<SpacesList> GetSpacesListAsync(CancellationToken cancellationToken);
         Task<SpaceStatus> GetSpaceStatusAsync(ApiSession apiSession, CancellationToken cancellationToken);
         Task<SpaceTasksList> GetTasksListAsync(ApiSession apiSession, CancellationToken cancellationToken);
+        Task<SpaceTask> GetTaskAsync(ApiSession apiSession, Guid taskId, CancellationToken cancellationToken);
     }
 }

@@ -66,6 +66,7 @@
     <Compile Include="Dto\SpaceStatusDto.cs" />
     <Compile Include="Dto\SpaceListItemDto.cs" />
     <Compile Include="Dto\SpacesListDto.cs" />
+    <Compile Include="Dto\SpaceTaskDto.cs" />
     <Compile Include="Dto\SpaceTasksListDto.cs" />
     <Compile Include="Dto\SpaceTasksListItemDto.cs" />
     <Compile Include="Dto\TaskParameterDto.cs" />
@@ -84,6 +85,7 @@
     <Compile Include="Mappers\FieldErrorsMapper.cs" />
     <Compile Include="Mappers\SpaceStatusMapper.cs" />
     <Compile Include="Mappers\SpacesListMapper.cs" />
+    <Compile Include="Mappers\SpaceTaskMapper.cs" />
     <Compile Include="Mappers\TaskParameterMapper.cs" />
     <Compile Include="Mappers\TaskStatusMapper.cs" />
     <Compile Include="Mappers\ServerStatusMapper.cs" />

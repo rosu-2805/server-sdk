@@ -184,7 +184,7 @@ namespace Morph.Server.Sdk.Client
             var dto = new TaskStartRequestDto();
             if (taskParameters != null)
             {
-                dto.TaskParameters = taskParameters.Select(TaskParameterMapper.Parse).ToList();
+                dto.TaskParameters = taskParameters.Select(TaskParameterMapper.ToDto).ToList();
             }
             var request = JsonSerializationHelper.SerializeAsStringContent(dto);
             using (var response = await GetHttpClient().SendAsync(BuildHttpRequestMessage(HttpMethod.Post, url, request, apiSession), cancellationToken))
@@ -774,6 +774,17 @@ namespace Morph.Server.Sdk.Client
             }
         }
 
+        public async Task<SpaceTask> GetTaskAsync(ApiSession apiSession, Guid taskId, CancellationToken cancellationToken)
+        {
+            var nvc = new NameValueCollection();
+            nvc.Add("_", DateTime.Now.Ticks.ToString());
+            var url = UrlHelper.JoinUrl("space", apiSession.SpaceName, "tasks", taskId.ToString("D"));
+            using (var response = await GetHttpClient().GetAsync(url, cancellationToken))
+            {
+                var dto = await HandleResponse<SpaceTaskDto>(response);
+                return SpaceTaskMapper.MapFull(dto);
+            }
+        }
     }
 
 

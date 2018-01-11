@@ -4,7 +4,7 @@ using System.Runtime.Serialization;
 namespace Morph.Server.Sdk.Dto
 {
     [DataContract]
-    internal class SpaceTasksListItemDto
+    internal class SpaceTaskDto
     {
         [DataMember(Name = "jobId")]
         public string JobId { get; set; }

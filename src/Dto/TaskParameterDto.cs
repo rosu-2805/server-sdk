@@ -8,7 +8,23 @@ using System.Threading.Tasks;
 namespace Morph.Server.Sdk.Dto
 {
     [DataContract]
-    internal class TaskParameterDto
+    internal class TaskParameterRequestDto
+    {
+        [DataMember(Name = "name")]
+        public string Name { get; set; }
+        [DataMember(Name = "value")]
+        public string Value { get; set; }
+        
+
+        public TaskParameterRequestDto()
+        {
+            Name = string.Empty;
+            Value = string.Empty;
+        
+        }
+    }
+    [DataContract]
+    internal class TaskParameterResponseDto
     {
         [DataMember(Name = "name")]
         public string Name { get; set; }
@@ -19,7 +35,7 @@ namespace Morph.Server.Sdk.Dto
         [DataMember(Name = "note")]
         public string Note { get; set; }
 
-        public TaskParameterDto()
+        public TaskParameterResponseDto()
         {
             Name = string.Empty;
             Value = string.Empty;

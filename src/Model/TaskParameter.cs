@@ -10,13 +10,48 @@ namespace Morph.Server.Sdk.Model
     
     public class TaskParameterBase
     {
-        protected const string dateFormat = "yyyy-MM-dd";
+        internal const string dateFormat = "yyyy-MM-dd";
 
         public string Name { get; set; } = string.Empty;
         public string Value { get; set; } = string.Empty;
         public TaskParameterType ParameterType { get;  set; } = TaskParameterType.Text;
         public string Note { get; set; }
-        
+
+        public DateTime? DateValue
+        {
+            get
+            {
+                if (ParameterType == TaskParameterType.Date)
+                {
+                    DateTime dt;
+                    bool res = DateTime.TryParseExact(Value, dateFormat, CultureInfo.InvariantCulture, DateTimeStyles.None, out dt);
+                    if (res)
+                        return dt;
+                }
+
+                return null;
+            }
+
+            set
+            {
+                if(ParameterType == TaskParameterType.Date)
+                {
+                    if(value != null)
+                    {
+                        Value = value.Value.ToString(dateFormat);
+                    }
+                    else
+                    {
+                        Value = string.Empty;
+                    }
+                }
+                else
+                {
+                    throw new NotImplementedException("This parameter is not a Date type");
+                }
+            }
+        }
+
     }
 
 
@@ -63,7 +98,7 @@ namespace Morph.Server.Sdk.Model
         {
 
         }
-        public TaskDateParameter(string name, DateTime value) : this()
+        public TaskDateParameter(string name, DateTime? value) : this()
         {
             if (string.IsNullOrWhiteSpace(name))
             {
@@ -71,24 +106,19 @@ namespace Morph.Server.Sdk.Model
             }
 
             this.Name = name;
-            this.Value = value.ToString(dateFormat);
-            this.ParameterType = TaskParameterType.FilePath;
-        }
-
-        public DateTime? DateValue
-        {
-            get
+            if (value.HasValue)
             {
-                if (ParameterType == TaskParameterType.Date)
-                {
-                    DateTime dt;
-                    bool res = DateTime.TryParseExact(Value, dateFormat, CultureInfo.InvariantCulture, DateTimeStyles.None, out dt);
-                    if (res)
-                        return dt;
-                }
-
-                return null;
+                this.Value = value.Value.ToString(dateFormat);
             }
+            else
+            {
+                this.Value = string.Empty;
+            }
+            this.ParameterType = TaskParameterType.Date;
         }
+
+        
+
+       
     }
 }
