@@ -128,13 +128,29 @@ To stop the task
 Caller gets control back immediately after the task is marked to stop.
 
 #### Retrieving task info
+Allow you to get task info (incl info about task parameters)
 ``` C#
 try {
-  var apiSession = ApiSession.Anonymous("Default");
-  var taskGuid = Guid.Parse("691ea42e-9e6b-438e-84d6-b743841c970e");
-  var status = await client.GetTaskAsync(apiSession, taskGuid, cancellationToken );
+    var apiSession = ApiSession.Anonymous("Default");
+    var taskGuid = Guid.Parse("691ea42e-9e6b-438e-84d6-b743841c970e");
+    var status = await client.GetTaskAsync(apiSession, taskGuid, cancellationToken );
   
-  Console.WriteLine(string.Format("Task name is {0}", status.TaskName));
+    var task = await _apiClient.GetTaskAsync(apiSession, parameters.TaskId.Value, _cancellationTokenSource.Token);
+    Console.WriteLine("Info about task:");
+    Console.WriteLine(string.Format("Id:'{0}'", task.Id));
+    Console.WriteLine(string.Format("Name:'{0}'", task.TaskName));
+    Console.WriteLine(string.Format("IsRunning:'{0}'", task.IsRunning));                
+    Console.WriteLine(string.Format("Enabled:'{0}'", task.Enabled));
+    Console.WriteLine(string.Format("Note:'{0}'", task.Note));
+    Console.WriteLine(string.Format("ProjectPath:'{0}'", task.ProjectPath));
+    Console.WriteLine(string.Format("StatusText:'{0}'", task.StatusText));
+    Console.WriteLine(string.Format("TaskState:'{0}'", task.TaskState));
+    Console.WriteLine("Task Parameters:");
+    foreach (var parameter in task.TaskParameters)
+    {
+        Console.WriteLine($"Parameter '{parameter.Name}' = '{parameter.Value}' [{parameter.ParameterType}] (Note: {parameter.Note})");
+    }
+    Console.WriteLine("Done");
  
 }catch(MorphApiNotFoundException notFound){
   Console.WriteLine("Task not found");
