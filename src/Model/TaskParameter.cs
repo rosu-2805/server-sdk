@@ -74,13 +74,13 @@ namespace Morph.Server.Sdk.Model
         }
     }
 
-    public sealed class TaskFileParameter : TaskParameterBase
+    public sealed class TaskFilePathParameter : TaskParameterBase
     {
-        public TaskFileParameter() : base()
+        public TaskFilePathParameter() : base()
         {
 
         }
-        public TaskFileParameter(string name, string value) : this()
+        public TaskFilePathParameter(string name, string value) : this()
         {
             if (string.IsNullOrWhiteSpace(name))
             {
@@ -89,6 +89,23 @@ namespace Morph.Server.Sdk.Model
             this.Name = name;
             this.Value = value;
             this.ParameterType = TaskParameterType.FilePath;
+        }
+    }
+    public sealed class TaskFolderPathParameter : TaskParameterBase
+    {
+        public TaskFolderPathParameter() : base()
+        {
+
+        }
+        public TaskFolderPathParameter(string name, string value) : this()
+        {
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                throw new ArgumentException("Parameter name is empty", nameof(name));
+            }
+            this.Name = name;
+            this.Value = value;
+            this.ParameterType = TaskParameterType.FolderPath;
         }
     }
 

@@ -20,7 +20,9 @@ namespace Morph.Server.Sdk.Model
         [Description("Date")]
         Date,
         [Description("Calculated")]
-        Calculated
+        Calculated,
+        [Description("Folder path")]
+        FolderPath,
     }
 
 

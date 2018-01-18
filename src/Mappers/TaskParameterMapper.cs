@@ -32,7 +32,9 @@ namespace Morph.Server.Sdk.Mappers
                         dtn = dt;
                     return new TaskDateParameter(dto.Name, dtn) { Note = dto.Note };
                 case TaskParameterType.FilePath:
-                    return new TaskFileParameter(dto.Name, dto.Value) { Note = dto.Note };
+                    return new TaskFilePathParameter(dto.Name, dto.Value) { Note = dto.Note };
+                case TaskParameterType.FolderPath:
+                    return new TaskFolderPathParameter(dto.Name, dto.Value) { Note = dto.Note };
                 default: throw new NotImplementedException("Specified parameter type is not implemented yet");
             }
 
