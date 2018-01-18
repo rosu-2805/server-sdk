@@ -767,7 +767,7 @@ namespace Morph.Server.Sdk.Client
             var nvc = new NameValueCollection();
             nvc.Add("_", DateTime.Now.Ticks.ToString());
             var url = UrlHelper.JoinUrl("space", apiSession.SpaceName, "tasks");
-            using (var response = await GetHttpClient().GetAsync(url, cancellationToken))
+            using (var response = await GetHttpClient().SendAsync(BuildHttpRequestMessage(HttpMethod.Get, url, null, apiSession), cancellationToken))
             {
                 var dto = await HandleResponse<SpaceTasksListDto>(response);
                 return SpaceTasksListsMapper.MapFromDto(dto);
@@ -779,7 +779,7 @@ namespace Morph.Server.Sdk.Client
             var nvc = new NameValueCollection();
             nvc.Add("_", DateTime.Now.Ticks.ToString());
             var url = UrlHelper.JoinUrl("space", apiSession.SpaceName, "tasks", taskId.ToString("D"));
-            using (var response = await GetHttpClient().GetAsync(url, cancellationToken))
+            using (var response = await GetHttpClient().SendAsync(BuildHttpRequestMessage(HttpMethod.Get, url, null, apiSession), cancellationToken))
             {
                 var dto = await HandleResponse<SpaceTaskDto>(response);
                 return SpaceTaskMapper.MapFull(dto);
