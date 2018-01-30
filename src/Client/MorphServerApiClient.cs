@@ -190,12 +190,7 @@ namespace Morph.Server.Sdk.Client
             using (var response = await GetHttpClient().SendAsync(BuildHttpRequestMessage(HttpMethod.Post, url, request, apiSession), cancellationToken))
             {
                 var info = await HandleResponse<RunningTaskStatusDto>(response);
-                return new RunningTaskStatus
-                {
-                    Id = Guid.Parse(info.Id),
-                    IsRunning = info.IsRunning,
-                    ProjectName = info.ProjectName
-                };
+                return RunningTaskStatusMapper.RunningTaskStatusFromDto(info);                
             }
 
         }
@@ -222,12 +217,7 @@ namespace Morph.Server.Sdk.Client
             using (var response = await GetHttpClient().SendAsync(BuildHttpRequestMessage(HttpMethod.Get, url, null, apiSession), cancellationToken))
             {
                 var info = await HandleResponse<RunningTaskStatusDto>(response);
-                return new RunningTaskStatus
-                {
-                    Id = Guid.Parse(info.Id),
-                    IsRunning = info.IsRunning,
-                    ProjectName = info.ProjectName
-                };
+                return RunningTaskStatusMapper.RunningTaskStatusFromDto(info);
             }
         }
 
