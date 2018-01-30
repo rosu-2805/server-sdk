@@ -11,6 +11,6 @@ namespace Morph.Server.Sdk.Dto
     internal class TaskStartRequestDto
     {
         [DataMember(Name = "taskParameters")]
-        public IList<TaskParameterDto> TaskParameters { get; set; } = new List<TaskParameterDto>();
+        public IList<TaskParameterRequestDto> TaskParameters { get; set; } = new List<TaskParameterRequestDto>();
     }
 }

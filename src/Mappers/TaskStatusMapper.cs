@@ -16,19 +16,19 @@ namespace Morph.Server.Sdk.Mappers
             {
                 TaskName = dto.TaskName,
                 StatusText = dto.StatusText,
-                TaskState = Parse(dto.Status),
+                TaskState = ParseTaskState(dto.Status),
                 IsRunning = dto.IsRunning
             };
         }
 
-        private static TaskState Parse(string value)
+        internal static TaskState ParseTaskState(string value)
         {            
             TaskState status;
             if(value != null &&  Enum.TryParse(value, true, out status))
             {
                 return status;
             }
-            throw new Exceptions.ParseResponseException("Unable to parse " + value + " as valid TaskState");
+            throw new Exceptions.ResponseParseException("Unable to parse " + value + " as valid TaskState");
         }
         
     }

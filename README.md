@@ -93,6 +93,18 @@ Accessing to tasks require a valid api session.
 Assume that you have already created the task in Space 'Default'. For these samples task id is `691ea42e-9e6b-438e-84d6-b743841c970e`.
 Also assume, that you have read Sessions section and know how to open a session.
 
+##### Tasks list
+
+``` C#
+  var apiSession = ApiSession.Anonymous("Default");
+
+  var tasks = await client.GetTasksListAsync(apiSession, cancellationToken );
+  foreach(var task in tasks){
+  // do somethig with task
+  }
+```
+If you want to get more details about task (e.g. task parameters) use `GetTaskAsync` method.
+
 ##### Starting the Task
 
 To run the task:
@@ -114,6 +126,38 @@ To stop the task
   await client.StopTaskAsync(apiSession, "691ea42e-9e6b-438e-84d6-b743841c970e", cancellationToken )
 ```
 Caller gets control back immediately after the task is marked to stop.
+
+#### Retrieving task info
+Allow you to get task info (incl info about task parameters)
+``` C#
+try {
+    var apiSession = ApiSession.Anonymous("Default");
+    var taskGuid = Guid.Parse("691ea42e-9e6b-438e-84d6-b743841c970e");
+    var status = await client.GetTaskAsync(apiSession, taskGuid, cancellationToken );
+  
+    var task = await _apiClient.GetTaskAsync(apiSession, parameters.TaskId.Value, _cancellationTokenSource.Token);
+    Console.WriteLine("Info about task:");
+    Console.WriteLine(string.Format("Id:'{0}'", task.Id));
+    Console.WriteLine(string.Format("Name:'{0}'", task.TaskName));
+    Console.WriteLine(string.Format("IsRunning:'{0}'", task.IsRunning));                
+    Console.WriteLine(string.Format("Enabled:'{0}'", task.Enabled));
+    Console.WriteLine(string.Format("Note:'{0}'", task.Note));
+    Console.WriteLine(string.Format("ProjectPath:'{0}'", task.ProjectPath));
+    Console.WriteLine(string.Format("StatusText:'{0}'", task.StatusText));
+    Console.WriteLine(string.Format("TaskState:'{0}'", task.TaskState));
+    Console.WriteLine("Task Parameters:");
+    foreach (var parameter in task.TaskParameters)
+    {
+        Console.WriteLine($"Parameter '{parameter.Name}' = '{parameter.Value}' [{parameter.ParameterType}] (Note: {parameter.Note})");
+    }
+    Console.WriteLine("Done");
+ 
+}catch(MorphApiNotFoundException notFound){
+  Console.WriteLine("Task not found");
+}
+
+```
+
 
 #### Retrieving task status 
 

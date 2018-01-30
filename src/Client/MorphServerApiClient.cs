@@ -29,11 +29,9 @@ namespace Morph.Server.Sdk.Client
     public class MorphServerApiClient : IMorphServerApiClient
     {
         protected readonly Uri _apiHost;
-        protected readonly string UserAgent = "MorphServerApiClient/1.3";
+        protected readonly string UserAgent = "MorphServerApiClient/1.3.1";
         protected HttpClient _httpClient;
         protected readonly string _api_v1 = "api/v1/";
-        protected readonly string _defaultSpaceName = "default";
-        protected readonly string _authHeaderName = "X-EasyMorph-Auth";
 
 
 
@@ -128,9 +126,17 @@ namespace Morph.Server.Sdk.Client
             var content = await response.Content.ReadAsStringAsync();
             if (!string.IsNullOrWhiteSpace(content))
             {
-                var errorResponse = JsonSerializationHelper.Deserialize<ErrorResponse>(content);
+                ErrorResponse errorResponse = null;
+                try
+                {
+                    errorResponse = JsonSerializationHelper.Deserialize<ErrorResponse>(content);
+                }
+                catch (Exception)
+                {
+                    throw new ResponseParseException("An error occurred while deserializing the response", content);
+                }
                 if (errorResponse.error == null)
-                    throw new ParseResponseException("An error occurred while deserializing the response", content);
+                    throw new ResponseParseException("An error occurred while deserializing the response", content);
 
                 switch (errorResponse.error.code)
                 {
@@ -152,7 +158,7 @@ namespace Morph.Server.Sdk.Client
                     case HttpStatusCode.Forbidden: throw new MorphApiForbiddenException(response.ReasonPhrase ?? "Forbidden");
                     case HttpStatusCode.Unauthorized: throw new MorphApiUnauthorizedException(response.ReasonPhrase ?? "Unauthorized");
                     case HttpStatusCode.BadRequest: throw new MorphClientGeneralException("Unknown", response.ReasonPhrase ?? "Unknown error");
-                    default: throw new ParseResponseException(response.ReasonPhrase, null);
+                    default: throw new ResponseParseException(response.ReasonPhrase, null);
                 }
 
             }
@@ -166,19 +172,19 @@ namespace Morph.Server.Sdk.Client
         /// <param name="cancellationToken"></param>
         /// <param name="taskParameters"></param>
         /// <returns></returns>
-        public async Task<RunningTaskStatus> StartTaskAsync(ApiSession apiSession, Guid taskId, CancellationToken cancellationToken, IEnumerable<TaskBaseParameter> taskParameters = null)
+        public async Task<RunningTaskStatus> StartTaskAsync(ApiSession apiSession, Guid taskId, CancellationToken cancellationToken, IEnumerable<TaskParameterBase> taskParameters = null)
         {
             if (apiSession == null)
             {
                 throw new ArgumentNullException(nameof(apiSession));
             }
 
-            var spaceName = PrepareSpaceName(apiSession.SpaceName);
-            var url = JoinUrl("space", spaceName, "runningtasks", taskId.ToString("D"), "payload");
+            var spaceName = apiSession.SpaceName;
+            var url = UrlHelper.JoinUrl("space", spaceName, "runningtasks", taskId.ToString("D"), "payload");
             var dto = new TaskStartRequestDto();
             if (taskParameters != null)
             {
-                dto.TaskParameters = taskParameters.Select(TaskParameterMapper.Parse).ToList();
+                dto.TaskParameters = taskParameters.Select(TaskParameterMapper.ToDto).ToList();
             }
             var request = JsonSerializationHelper.SerializeAsStringContent(dto);
             using (var response = await GetHttpClient().SendAsync(BuildHttpRequestMessage(HttpMethod.Post, url, request, apiSession), cancellationToken))
@@ -208,10 +214,10 @@ namespace Morph.Server.Sdk.Client
                 throw new ArgumentNullException(nameof(apiSession));
             }
 
-            var spaceName = PrepareSpaceName(apiSession.SpaceName);
+            var spaceName = apiSession.SpaceName;
             var nvc = new NameValueCollection();
             nvc.Add("_", DateTime.Now.Ticks.ToString());
-            var url = JoinUrl("space", spaceName, "runningtasks", taskId.ToString("D")) + nvc.ToQueryString();
+            var url = UrlHelper.JoinUrl("space", spaceName, "runningtasks", taskId.ToString("D")) + nvc.ToQueryString();
 
             using (var response = await GetHttpClient().SendAsync(BuildHttpRequestMessage(HttpMethod.Get, url, null, apiSession), cancellationToken))
             {
@@ -239,10 +245,10 @@ namespace Morph.Server.Sdk.Client
             {
                 throw new ArgumentNullException(nameof(apiSession));
             }
-            var spaceName = PrepareSpaceName(apiSession.SpaceName);
+            var spaceName = apiSession.SpaceName;
             var nvc = new NameValueCollection();
             nvc.Add("_", DateTime.Now.Ticks.ToString());
-            var url = JoinUrl("space", spaceName, "tasks", taskId.ToString("D")) + nvc.ToQueryString();
+            var url = UrlHelper.JoinUrl("space", spaceName, "tasks", taskId.ToString("D")) + nvc.ToQueryString();
 
             using (var response = await GetHttpClient().SendAsync(BuildHttpRequestMessage(HttpMethod.Get, url, null, apiSession), cancellationToken))
             {
@@ -266,8 +272,8 @@ namespace Morph.Server.Sdk.Client
                 throw new ArgumentNullException(nameof(apiSession));
             }
 
-            var spaceName = PrepareSpaceName(apiSession.SpaceName);
-            var url = JoinUrl("space", spaceName, "runningtasks", taskId.ToString("D"));
+            var spaceName = apiSession.SpaceName;
+            var url = UrlHelper.JoinUrl("space", spaceName, "runningtasks", taskId.ToString("D"));
             using (var response = await GetHttpClient().SendAsync(BuildHttpRequestMessage(HttpMethod.Delete, url, null, apiSession), cancellationToken))
             {
                 await HandleResponse(response);
@@ -328,10 +334,10 @@ namespace Morph.Server.Sdk.Client
                 throw new ArgumentNullException(nameof(apiSession));
             }
 
-            var spaceName = PrepareSpaceName(apiSession.SpaceName);
+            var spaceName = apiSession.SpaceName;
             var nvc = new NameValueCollection();
             nvc.Add("_", DateTime.Now.Ticks.ToString());
-            var url = JoinUrl("space", spaceName, "files", remoteFilePath) + nvc.ToQueryString();
+            var url = UrlHelper.JoinUrl("space", spaceName, "files", remoteFilePath) + nvc.ToQueryString();
             // it's necessary to add HttpCompletionOption.ResponseHeadersRead to disable caching
             using (HttpResponseMessage response = await GetHttpClient()
                 .SendAsync(BuildHttpRequestMessage(HttpMethod.Get, url, null, apiSession), HttpCompletionOption.ResponseHeadersRead, cancellationToken))
@@ -433,7 +439,7 @@ namespace Morph.Server.Sdk.Client
             };
             if (apiSession != null && !apiSession.IsAnonymous && !apiSession.IsClosed)
             {
-                requestMessage.Headers.Add(_authHeaderName, apiSession.AuthToken);
+                requestMessage.Headers.Add(ApiSession.AuthHeaderName, apiSession.AuthToken);
             }
             return requestMessage;
         }
@@ -459,9 +465,9 @@ namespace Morph.Server.Sdk.Client
 
             try
             {
-                var spaceName = PrepareSpaceName(apiSession.SpaceName);
+                var spaceName = apiSession.SpaceName;
                 string boundary = "EasyMorphCommandClient--------" + Guid.NewGuid().ToString("N");
-                string url = JoinUrl("space", spaceName, "files", destFolderPath);
+                string url = UrlHelper.JoinUrl("space", spaceName, "files", destFolderPath);
 
                 using (var content = new MultipartFormDataContent(boundary))
                 {
@@ -506,7 +512,6 @@ namespace Morph.Server.Sdk.Client
 
         public async Task<SpacesList> GetSpacesListAsync(CancellationToken cancellationToken)
         {
-
             var nvc = new NameValueCollection();
             nvc.Add("_", DateTime.Now.Ticks.ToString());
             var url = "spaces/list" + nvc.ToQueryString();
@@ -532,11 +537,11 @@ namespace Morph.Server.Sdk.Client
                 throw new ArgumentNullException(nameof(apiSession));
             }
 
-            var spaceName = PrepareSpaceName(apiSession.SpaceName);
+            var spaceName = apiSession.SpaceName;
             var nvc = new NameValueCollection();
             nvc.Add("_", DateTime.Now.Ticks.ToString());
 
-            var url = JoinUrl("space", spaceName, "browse", folderPath) + nvc.ToQueryString();
+            var url = UrlHelper.JoinUrl("space", spaceName, "browse", folderPath) + nvc.ToQueryString();
             using (var response = await GetHttpClient().SendAsync(BuildHttpRequestMessage(HttpMethod.Get, url, null, apiSession), cancellationToken))
             {
                 var dto = await HandleResponse<SpaceBrowsingResponseDto>(response);
@@ -569,34 +574,7 @@ namespace Morph.Server.Sdk.Client
 
 
 
-        private string PrepareSpaceName(string spaceName)
-        {
-            return string.IsNullOrWhiteSpace(spaceName) ? _defaultSpaceName : spaceName.ToLower();
-        }
 
-        private string JoinUrl(params string[] urlParts)
-        {
-            var result = string.Empty;
-            for (var i = 0; i < urlParts.Length; i++)
-            {
-                var p = urlParts[i];
-                if (p == null)
-                    continue;
-                
-                p = p.Replace('\\', '/');
-                p = p.Trim(new[] { '/' });
-                if (string.IsNullOrWhiteSpace(p))
-                    continue;
-                var t = p.Split(new[] { '/' }, StringSplitOptions.RemoveEmptyEntries);
-                foreach(var u in t)
-                {
-                    if (result != string.Empty)
-                        result += "/";
-                    result +=  Uri.EscapeDataString(u);                    
-                }
-            }
-            return result;
-        }
 
         /// <summary>
         /// Performs file deletion
@@ -613,8 +591,8 @@ namespace Morph.Server.Sdk.Client
                 throw new ArgumentNullException(nameof(apiSession));
             }
 
-            var spaceName = PrepareSpaceName(apiSession.SpaceName);
-            var url = JoinUrl("space", spaceName, "files", serverFolder, fileName);
+            var spaceName = apiSession.SpaceName;
+            var url = UrlHelper.JoinUrl("space", spaceName, "files", serverFolder, fileName);
 
             using (HttpResponseMessage response = await GetHttpClient().SendAsync(BuildHttpRequestMessage(HttpMethod.Delete, url, null, apiSession), cancellationToken))
             {
@@ -637,8 +615,8 @@ namespace Morph.Server.Sdk.Client
                 throw new ArgumentNullException(nameof(apiSession));
             }
 
-            var spaceName = PrepareSpaceName(apiSession.SpaceName);
-            var url = JoinUrl("spaces", spaceName, "status");
+            var spaceName = apiSession.SpaceName;
+            var url = UrlHelper.JoinUrl("spaces", spaceName, "status");
 
             using (HttpResponseMessage response = await GetHttpClient().SendAsync(BuildHttpRequestMessage(HttpMethod.Get, url, null, apiSession), cancellationToken))
             {
@@ -666,7 +644,7 @@ namespace Morph.Server.Sdk.Client
 
             if (string.IsNullOrWhiteSpace(projectPath))
                 throw new ArgumentException(nameof(projectPath));
-            var spaceName = PrepareSpaceName(apiSession.SpaceName);
+            var spaceName = apiSession.SpaceName;
             var url = "commands/validatetasks";
             var request = new ValidateTasksRequestDto
             {
@@ -784,6 +762,29 @@ namespace Morph.Server.Sdk.Client
 
         }
 
+        public async Task<SpaceTasksList> GetTasksListAsync(ApiSession apiSession, CancellationToken cancellationToken)
+        {
+            var nvc = new NameValueCollection();
+            nvc.Add("_", DateTime.Now.Ticks.ToString());
+            var url = UrlHelper.JoinUrl("space", apiSession.SpaceName, "tasks");
+            using (var response = await GetHttpClient().SendAsync(BuildHttpRequestMessage(HttpMethod.Get, url, null, apiSession), cancellationToken))
+            {
+                var dto = await HandleResponse<SpaceTasksListDto>(response);
+                return SpaceTasksListsMapper.MapFromDto(dto);
+            }
+        }
+
+        public async Task<SpaceTask> GetTaskAsync(ApiSession apiSession, Guid taskId, CancellationToken cancellationToken)
+        {
+            var nvc = new NameValueCollection();
+            nvc.Add("_", DateTime.Now.Ticks.ToString());
+            var url = UrlHelper.JoinUrl("space", apiSession.SpaceName, "tasks", taskId.ToString("D"));
+            using (var response = await GetHttpClient().SendAsync(BuildHttpRequestMessage(HttpMethod.Get, url, null, apiSession), cancellationToken))
+            {
+                var dto = await HandleResponse<SpaceTaskDto>(response);
+                return SpaceTaskMapper.MapFull(dto);
+            }
+        }
     }
 
 
