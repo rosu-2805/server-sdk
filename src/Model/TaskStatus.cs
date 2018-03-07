@@ -16,6 +16,7 @@ namespace Morph.Server.Sdk.Model
         public string TaskName { get; set; }
         public string StatusText { get; set; }        
         public bool IsRunning { get; set; }
+        public List<ErrorInfo> Errors { get; set; } = new List<ErrorInfo>();
 
     }
 

@@ -190,12 +190,7 @@ namespace Morph.Server.Sdk.Client
             using (var response = await GetHttpClient().SendAsync(BuildHttpRequestMessage(HttpMethod.Post, url, request, apiSession), cancellationToken))
             {
                 var info = await HandleResponse<RunningTaskStatusDto>(response);
-                return new RunningTaskStatus
-                {
-                    Id = Guid.Parse(info.Id),
-                    IsRunning = info.IsRunning,
-                    ProjectName = info.ProjectName
-                };
+                return RunningTaskStatusMapper.RunningTaskStatusFromDto(info);                
             }
 
         }
@@ -222,12 +217,7 @@ namespace Morph.Server.Sdk.Client
             using (var response = await GetHttpClient().SendAsync(BuildHttpRequestMessage(HttpMethod.Get, url, null, apiSession), cancellationToken))
             {
                 var info = await HandleResponse<RunningTaskStatusDto>(response);
-                return new RunningTaskStatus
-                {
-                    Id = Guid.Parse(info.Id),
-                    IsRunning = info.IsRunning,
-                    ProjectName = info.ProjectName
-                };
+                return RunningTaskStatusMapper.RunningTaskStatusFromDto(info);
             }
         }
 
@@ -351,8 +341,9 @@ namespace Morph.Server.Sdk.Client
                         {
                             dfi = new DownloadFileInfo
                             {
-                                //need to fix double quotes, that may come from server response
-                                FileName = contentDisposition.FileName.TrimStart('\"').TrimEnd('\"')
+                                // need to fix double quotes, that may come from server response
+                                // FileNameStar contains file name encoded in UTF8
+                                FileName = (contentDisposition.FileNameStar ?? contentDisposition.FileName).TrimStart('\"').TrimEnd('\"')
                             };
                         }
                         var contentLength = response.Content.Headers.ContentLength;

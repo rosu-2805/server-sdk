@@ -19,6 +19,8 @@ namespace Morph.Server.Sdk.Dto
         public string StatusText { get; set; }
         [DataMember(Name = "isRunning")]
         public bool IsRunning { get; set; }
+        [DataMember(Name = "errors")]
+        public List<RunningTaskErrorInfoDto> Errors { get; set; } = new List<RunningTaskErrorInfoDto>();
     }
 
 }

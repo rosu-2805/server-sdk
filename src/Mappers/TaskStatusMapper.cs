@@ -17,7 +17,8 @@ namespace Morph.Server.Sdk.Mappers
                 TaskName = dto.TaskName,
                 StatusText = dto.StatusText,
                 TaskState = ParseTaskState(dto.Status),
-                IsRunning = dto.IsRunning
+                IsRunning = dto.IsRunning,
+                Errors = dto.Errors?.Select(SpaceTaskMapper.MapFromRunningTaskErrorInfoDto)?.ToList() ?? new List<ErrorInfo>()
             };
         }
 

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 
 namespace Morph.Server.Sdk.Client
 {
@@ -22,6 +23,13 @@ namespace Morph.Server.Sdk.Client
                 {
                     if (result != string.Empty)
                         result += "/";
+
+                    // url path can't contains '.' because in will break url 
+                    if (u.All(x => x == '.'))
+                    {
+                        throw new Exception("Wrong characters sequence. You can't use only '.' in the path segment.");
+                    }
+
                     result += Uri.EscapeDataString(u);
                 }
             }

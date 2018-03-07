@@ -16,6 +16,19 @@ namespace Morph.Server.Sdk.Dto
         public bool IsRunning { get; set; }
         [DataMember(Name = "projectName")]
         public string ProjectName { get; set; }
+        [DataMember(Name = "jobExecutionId")]
+        public string JobExecutionId { get; set; }
+        [DataMember(Name = "errors")]
+        public List<RunningTaskErrorInfoDto> Errors { get; set; } = new List<RunningTaskErrorInfoDto>();
+    }
+
+    [DataContract]
+    internal class RunningTaskErrorInfoDto
+    {
+        [DataMember(Name = "description")]
+        public string Description { get; set; }
+        [DataMember(Name = "location")]
+        public string Location { get; set; }
     }
 
 
