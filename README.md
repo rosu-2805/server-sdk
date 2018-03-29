@@ -310,7 +310,7 @@ In such case you should to setup a validation callback:  https://msdn.microsoft.
 
 One of the possible solutions can be found at the stackoverflow:  https://stackoverflow.com/a/526803/692329
 
-**disclaimer:**  using any kind of the self-signed certificates and security policy suppression are at your own risk. We highly DO NOT RECOMMEND you doing this.
+**disclaimer:**  using any kind of the self-signed certificates and security policy suppression are at your own risk. We highly DO NOT RECOMMEND you to do this.
 
 
 
