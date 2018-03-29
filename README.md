@@ -301,6 +301,20 @@ if(result.FailedTasks.Count !=0 ){
 Morph.Server.SDK may raise own exceptions like `MorphApiNotFoundException` if resource not found, or `ParseResponseException` if it is not possible to parse server response.
 Full list of exceptions can be found in `Morph.Server.Sdk.Exceptions` namespace.
 
+### SSL
+We advise you to use SSL with EasyMorph Server with a trusted SSL certificate.  
+
+If you want to use self-signed certificate, you need to handle this situation in your code. 
+
+In such case you should to setup a validation callback:  https://msdn.microsoft.com/en-us/library/system.net.servicepointmanager.servercertificatevalidationcallback
+
+One of the possible solutions can be found at the stackoverflow:  https://stackoverflow.com/a/526803/692329
+
+**disclaimer:**  using any kind of the self-signed certificates and security policy suppression are at your own risk. We highly DO NOT RECOMMEND you to do this.
+
+
+
+
 
 ## License 
 
