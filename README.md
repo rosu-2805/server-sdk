@@ -1,25 +1,25 @@
-## EasyMorph Sever SDK
+## EasyMorph Sever .NET SDK
 
-This library allows you to interact with EasyMorph Server.
-
-
-**EasyMorph Server** runs on schedule projects created using desktop editions of EasyMorph (including the **free edition**). Project schedule and parameters are setted up via Task properties. Every Task is placed into Space. Currently there is only one Space, which is named `Default`.
+This library allows you to interact with EasyMorph Server from a .NET application.
 
 
-This document describes SDK which cover part of REST API v1 ( `http://[host:port]/api/v1/`). 
+**EasyMorph Server** runs on schedule projects created using desktop editions of EasyMorph (including the **free edition**). Project schedule and parameters are set up via Task properties. Every Task belongs to a Space. The Server has at least one Space named `Default`.
+
+
+This document describes SDK which covers part of REST API v1 ( `http://[host:port]/api/v1/`). 
 
 
 ### EasyMorph Server API client
-#### Depencencies:
+#### Dependencies:
 * .NET framework version 4.5 or higher
 * That's all
 
 #### Download
-Feel free to download it from [ nuget EasyMorph.Server.SDK](https://www.nuget.org/packages/EasyMorph.Server.SDK)
+The .NET SDK can be installed as a Nuget package from [ nuget EasyMorph.Server.SDK](https://www.nuget.org/packages/EasyMorph.Server.SDK)
 
 #### Introduction
 
-To create Api client, you have to pass server host 
+To create an Api client, you have to provide the server host to the constructor:
 ``` C#
   using Morph.Server.Sdk.Client;
   ...
@@ -27,9 +27,9 @@ To create Api client, you have to pass server host
 ```
 
 All commands are async.
-Every command  may raise an exception. You must take care to handle exceptions in a right way. EasyMorph Server SDK also has own exceptions, they are described in corresponding section.
+Every command  may raise an exception. You must take care to handle exceptions in a right way. EasyMorph Server SDK also has own exceptions, they are described in corresponding sections.
 
-**Spaces**. Workspace is splitted into several Spaces. Each space has it's own security restrictions. Space contains Tasks and Files.
+**Spaces**. Workspace is splitted into several Spaces. Each space has its own security restrictions. Space contains Tasks and Files.
 There is at least one predefined space named `Default`. 
 
 Space names are case-insensitive.
@@ -41,8 +41,8 @@ Anonymous session is valid to access spaces with no protection.
 ``` C#
 var anonSession = ApiSession.Anonymous("some space");
 ```
-* *Real session* - This session type is really created at server when user sent a valid credentials. 
-It is automatically renewed each time when you're accessing the server with it.
+* *Real session* - This session type is actually created at the Server when a user sends valid credentials. 
+It is automatically renewed each time when you're accessing the Server with it.
 Session is valid for a limited period of time and may be closed by inactivity or manually.
 
 
@@ -59,21 +59,20 @@ await apiClient.CloseSessionAsync(apiSession,cancellationToken);
 }
 ```
 
-another way:
+Another way:
 ```C#
 using(var apiSession = await apiClient.OpenSessionAsync("space name", "password", cancellationToken)){
 // do somethig...
 
 }
 ```
-Session opening requires some handshake with server, so multiple requests are using.
-
+Session opening requires some handshaking with the Server which is performed by a series of requests to the Server.
 
 Passing wrong credentials will throw `MorphApiUnauthorizedException`. 
 
 #### Spaces
 ##### List of all spaces
-This anonymous method returns entire list of all Spaces at server. 
+This anonymous method returns entire list of all spaces in a Server. 
 ``` C#
 var spaces = await apiClient.GetSpacesListAsync(cancellationToken);
 foreach(space in spaces){
@@ -81,16 +80,16 @@ foreach(space in spaces){
 }
 ```
 ##### Space status
-Returns status of the Space with permissions.
+Returns the current status of a space with permissions.
 ``` C#
 var apiSession = ApiSession.Anonymous("Default");
 var spaceStaus = await apiClient.GetSpaceStatusAsync(apiSession, cancellationToken);
 ```
 
 #### Tasks
-Accessing to tasks require a valid api session.
+Accessing tasks requires a valid API session.
 
-Assume that you have already created the task in Space 'Default'. For these samples task id is `691ea42e-9e6b-438e-84d6-b743841c970e`.
+Assume that you have already created the task in space 'Default'. For these samples task id is `691ea42e-9e6b-438e-84d6-b743841c970e`.
 Also assume, that you have read Sessions section and know how to open a session.
 
 ##### Tasks list
@@ -103,7 +102,7 @@ Also assume, that you have read Sessions section and know how to open a session.
   // do somethig with task
   }
 ```
-If you want to get more details about task (e.g. task parameters) use `GetTaskAsync` method.
+If you want to get more details about a task (e.g. task parameters) use `GetTaskAsync` method.
 
 ##### Starting the Task
 
@@ -114,7 +113,7 @@ To run the task:
   var taskGuid = Guid.Parse("691ea42e-9e6b-438e-84d6-b743841c970e");
   await client.StartTaskAsync(apiSession, taskGuid , cancellationToken );
 ```
-Caller gets control back immediately after the task initialized to start. If task is already running no exception is generated.
+Caller gets control back immediately after the task initialized to start. If the task is already running, no exception is generated.
 
 
 ##### Stopping the Task
@@ -179,7 +178,7 @@ try {
 
 #### Files API
 
-EasyMorph Server allows you to access Space files remotely. 
+EasyMorph Server allows accessing files of a space remotely. 
 
 
 ##### Browsing files
@@ -205,7 +204,7 @@ public async Task<SpaceBrowsingInfo> BrowseSpaceAsync(string spaceName, string f
 
 ```
 
-* `Folder` and `Files` contains content for requested `folderPath` in Space `spaceName`.
+* `Folder` and `Files` contain the content for requested `folderPath` in Space `spaceName`.
 * `WebFilesAccesMode` shows restrictions for files in Space. You can check permissions before trying to upload or download files.
 
 
@@ -220,25 +219,25 @@ So to browse Folder 2 you can call:
 
 
 ##### Upload file
-For showing progress state changes while large files are uploading/downloading, you might subscribe to `FileProgress` event.
+For showing progress state changes while large files that are uploading/downloading, you might want to subscribe to the `FileProgress` event.
 
-To upload file, call `UploadFileAsync`. It's consumes data directly from stream. There is also overloaded version, which takes file name.
+To upload a file call `UploadFileAsync`. It consumes data directly from the stream. There is also an overloaded version, which requires a file name.
 
 ``` C#
 var apiSession = ApiSession.Anonymous("Default");  
 await _apiClient.UploadFileAsync(apiSession, @"D:\data\file.xml", @"\folder 2", cancellationToken, overwriteFileifExists:false);
 ```
 
-By default, this method WILL NOT overwrite file if it is already exists. In such case, exception will be raised.
+By default, this method WILL NOT overwrite file if it already exists. In such case, an exception will be raised.
 
 
 Please consider that currently such kind of errors (file already exists, folder not found) are generated only AFTER entire request was sent to server. 
 
-It will be a good practice to check if file/folder exists and you have appropriate permissions before sending huge files over a slow Internet connection. To so this, use `SpaceBrowseAsync`, `FileExistsAsync`.
+It will be a good approach to check if a file/folder exists and you have appropriate permissions before sending huge files over a slow Internet connection. To do this, use `SpaceBrowseAsync`, `FileExistsAsync`.
 
 
 ##### Download file
-For showing progress state changes while large files are uploading/downloading, you might subscribe to `FileProgress` event.
+For showing progress state changes while a large file is uploading/downloading, you might want to subscribe to `FileProgress` event.
 Download file:
 
 ``` C#
@@ -251,9 +250,9 @@ using (Stream streamToWriteTo = File.Open(tempFile, FileMode.Create))
                   
                     
 ```
-##### Check the existence of the file
+##### Check the existence of file
 
-You can check that file exists by using `BrowseSpaceAsync`:
+You can check that a file exists by using `BrowseSpaceAsync`:
 ``` C#
   var apiSession = ApiSession.Anonymous("Default"); 
   var listing = await client.BrowseSpaceAsync(apiSession, "Folder 1/Folder 2",cancellationToken);
@@ -280,10 +279,10 @@ await DeleteFileAsync(apiSession, @"\server\folder", "file.xml", cancellationTok
 #### Commands
 
 ##### Task Validation
-Now you can check tasks for missing parameters. 
-E.g Task has parameters that Project doesn't contain. It is useful to call this method right after the Project has been uploaded to the server.
+You can check tasks for missing parameters. 
+E.g a task has parameters that the project (used by the task) doesn't contain. It is useful to call this method right after the project has been uploaded to the Server.
 
-For now, there is no way to validate Project *before* upload.
+For now, there is no way to validate a project *before* upload.
 
 ``` C# 
 var apiSession = ApiSession.Anonymous("Default"); 
@@ -298,19 +297,19 @@ if(result.FailedTasks.Count !=0 ){
 ```
 
 ### Exceptions
-Morph.Server.SDK may raise own exceptions like `MorphApiNotFoundException` if resource not found, or `ParseResponseException` if it is not possible to parse server response.
-Full list of exceptions can be found in `Morph.Server.Sdk.Exceptions` namespace.
+Morph.Server.SDK may raise own exceptions like `MorphApiNotFoundException` if a resource not found, or `ParseResponseException` if it is not possible to parse server response.
+A full list of exceptions can be found in `Morph.Server.Sdk.Exceptions` namespace.
 
 ### SSL
 We advise you to use SSL with EasyMorph Server with a trusted SSL certificate.  
 
-If you want to use self-signed certificate, you need to handle this situation in your code. 
+If you want to use a self-signed certificate, you need to handle this situation in your code. 
 
 In such case you should to setup a validation callback:  https://msdn.microsoft.com/en-us/library/system.net.servicepointmanager.servercertificatevalidationcallback
 
 One of the possible solutions can be found at the stackoverflow:  https://stackoverflow.com/a/526803/692329
 
-**disclaimer:**  using any kind of the self-signed certificates and security policy suppression are at your own risk. We highly DO NOT RECOMMEND you to do this.
+**disclaimer:**  use any kind of the self-signed certificates and security policy suppression are at your own risk. We highly DO NOT RECOMMEND doing this.
 
 
 
