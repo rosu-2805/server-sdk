@@ -10,6 +10,7 @@ namespace Morph.Server.Sdk.Model
     {
         Starting,
         Processing,
-        Finishing
+        Finishing,
+        Cancelled
     }
 }

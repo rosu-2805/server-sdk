@@ -190,7 +190,7 @@ namespace Morph.Server.Sdk.Client
             using (var response = await GetHttpClient().SendAsync(BuildHttpRequestMessage(HttpMethod.Post, url, request, apiSession), cancellationToken))
             {
                 var info = await HandleResponse<RunningTaskStatusDto>(response);
-                return RunningTaskStatusMapper.RunningTaskStatusFromDto(info);                
+                return RunningTaskStatusMapper.RunningTaskStatusFromDto(info);
             }
 
         }
@@ -363,6 +363,13 @@ namespace Morph.Server.Sdk.Client
 
                             while (true)
                             {
+                                // cancel download if cancellation token triggered
+                                if (cancellationToken.IsCancellationRequested)
+                                {
+                                    fileProgress.ChangeState(FileProgressState.Cancelled);
+                                    throw new OperationCanceledException();
+                                }
+
                                 var length = await streamToReadFrom.ReadAsync(buffer, 0, buffer.Length);
                                 if (length <= 0) break;
                                 await streamToWriteTo.WriteAsync(buffer, 0, length);
@@ -373,6 +380,7 @@ namespace Morph.Server.Sdk.Client
                                     fileProgress.ChangeState(FileProgressState.Processing);
                                     lastUpdate = DateTime.Now;
                                 }
+
                             }
 
                             fileProgress.ChangeState(FileProgressState.Finishing);
@@ -464,20 +472,21 @@ namespace Morph.Server.Sdk.Client
                 {
                     var downloadProgress = new FileProgress(fileName, fileSize);
                     downloadProgress.StateChanged += DownloadProgress_StateChanged;
-                    using (var streamContent = new ProgressStreamContent(inputStream, downloadProgress))
+                    using (cancellationToken.Register(() => downloadProgress.ChangeState(FileProgressState.Cancelled)))
                     {
-                        content.Add(streamContent, "files", Path.GetFileName(fileName));
-
-                        var requestMessage = BuildHttpRequestMessage(overwriteFileifExists ? HttpMethod.Put : HttpMethod.Post, url, content, apiSession);
-                        using (requestMessage)
+                        using (var streamContent = new ProgressStreamContent(inputStream, downloadProgress))
                         {
-                            using (var response = await GetHttpClient().SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, cancellationToken))
+                            content.Add(streamContent, "files", Path.GetFileName(fileName));
+
+                            var requestMessage = BuildHttpRequestMessage(overwriteFileifExists ? HttpMethod.Put : HttpMethod.Post, url, content, apiSession);
+                            using (requestMessage)
                             {
-                                await HandleResponse(response);
+                                using (var response = await GetHttpClient().SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, cancellationToken))
+                                {
+                                    await HandleResponse(response);
+                                }
                             }
                         }
-
-
                     }
                 }
             }
