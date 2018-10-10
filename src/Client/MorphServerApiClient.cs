@@ -428,6 +428,38 @@ namespace Morph.Server.Sdk.Client
         }
 
 
+        /// <summary>
+        /// Uploads local file to the server folder. 
+        /// </summary>
+        /// <param name="apiSession">api session</param>
+        /// <param name="localFilePath">path to the local file</param>
+        /// <param name="destFolderPath">destination folder like /path/to/folder </param>
+        /// <param name="destFileName">destination filename. If it's empty then original file name will be used</param>
+        /// <param name="cancellationToken">cancellation token</param>
+        /// <param name="overwriteFileifExists">overwrite file</param>
+        /// <returns></returns>
+        public async Task UploadFileAsync(ApiSession apiSession, string localFilePath, string destFolderPath, string destFileName, CancellationToken cancellationToken, bool overwriteFileifExists = false)
+        {
+            if (apiSession == null)
+            {
+                throw new ArgumentNullException(nameof(apiSession));
+            }
+
+            if (!File.Exists(localFilePath))
+            {
+                throw new FileNotFoundException(string.Format("File '{0}' not found", localFilePath));
+            }
+            var fileName = String.IsNullOrWhiteSpace(destFileName)? Path.GetFileName(localFilePath):  destFileName;
+            var fileSize = new FileInfo(localFilePath).Length;            
+            using (var fsSource = new FileStream(localFilePath, FileMode.Open, FileAccess.Read))
+            {
+                await UploadFileAsync(apiSession, fsSource, fileName, fileSize, destFolderPath, cancellationToken, overwriteFileifExists);
+                return;
+            }
+
+        }
+
+
         protected HttpRequestMessage BuildHttpRequestMessage(HttpMethod httpMethod, string url, HttpContent content, ApiSession apiSession)
         {
             var requestMessage = new HttpRequestMessage()
