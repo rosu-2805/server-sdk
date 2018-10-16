@@ -190,7 +190,7 @@ namespace Morph.Server.Sdk.Client
             using (var response = await GetHttpClient().SendAsync(BuildHttpRequestMessage(HttpMethod.Post, url, request, apiSession), cancellationToken))
             {
                 var info = await HandleResponse<RunningTaskStatusDto>(response);
-                return RunningTaskStatusMapper.RunningTaskStatusFromDto(info);                
+                return RunningTaskStatusMapper.RunningTaskStatusFromDto(info);
             }
 
         }
@@ -363,6 +363,13 @@ namespace Morph.Server.Sdk.Client
 
                             while (true)
                             {
+                                // cancel download if cancellation token triggered
+                                if (cancellationToken.IsCancellationRequested)
+                                {
+                                    fileProgress.ChangeState(FileProgressState.Cancelled);
+                                    throw new OperationCanceledException();
+                                }
+
                                 var length = await streamToReadFrom.ReadAsync(buffer, 0, buffer.Length);
                                 if (length <= 0) break;
                                 await streamToWriteTo.WriteAsync(buffer, 0, length);
@@ -373,6 +380,7 @@ namespace Morph.Server.Sdk.Client
                                     fileProgress.ChangeState(FileProgressState.Processing);
                                     lastUpdate = DateTime.Now;
                                 }
+
                             }
 
                             fileProgress.ChangeState(FileProgressState.Finishing);
@@ -411,6 +419,38 @@ namespace Morph.Server.Sdk.Client
                 throw new FileNotFoundException(string.Format("File '{0}' not found", localFilePath));
             var fileSize = new System.IO.FileInfo(localFilePath).Length;
             var fileName = Path.GetFileName(localFilePath);
+            using (var fsSource = new FileStream(localFilePath, FileMode.Open, FileAccess.Read))
+            {
+                await UploadFileAsync(apiSession, fsSource, fileName, fileSize, destFolderPath, cancellationToken, overwriteFileifExists);
+                return;
+            }
+
+        }
+
+
+        /// <summary>
+        /// Uploads local file to the server folder. 
+        /// </summary>
+        /// <param name="apiSession">api session</param>
+        /// <param name="localFilePath">path to the local file</param>
+        /// <param name="destFolderPath">destination folder like /path/to/folder </param>
+        /// <param name="destFileName">destination filename. If it's empty then original file name will be used</param>
+        /// <param name="cancellationToken">cancellation token</param>
+        /// <param name="overwriteFileifExists">overwrite file</param>
+        /// <returns></returns>
+        public async Task UploadFileAsync(ApiSession apiSession, string localFilePath, string destFolderPath, string destFileName, CancellationToken cancellationToken, bool overwriteFileifExists = false)
+        {
+            if (apiSession == null)
+            {
+                throw new ArgumentNullException(nameof(apiSession));
+            }
+
+            if (!File.Exists(localFilePath))
+            {
+                throw new FileNotFoundException(string.Format("File '{0}' not found", localFilePath));
+            }
+            var fileName = String.IsNullOrWhiteSpace(destFileName)? Path.GetFileName(localFilePath):  destFileName;
+            var fileSize = new FileInfo(localFilePath).Length;            
             using (var fsSource = new FileStream(localFilePath, FileMode.Open, FileAccess.Read))
             {
                 await UploadFileAsync(apiSession, fsSource, fileName, fileSize, destFolderPath, cancellationToken, overwriteFileifExists);
@@ -464,20 +504,21 @@ namespace Morph.Server.Sdk.Client
                 {
                     var downloadProgress = new FileProgress(fileName, fileSize);
                     downloadProgress.StateChanged += DownloadProgress_StateChanged;
-                    using (var streamContent = new ProgressStreamContent(inputStream, downloadProgress))
+                    using (cancellationToken.Register(() => downloadProgress.ChangeState(FileProgressState.Cancelled)))
                     {
-                        content.Add(streamContent, "files", Path.GetFileName(fileName));
-
-                        var requestMessage = BuildHttpRequestMessage(overwriteFileifExists ? HttpMethod.Put : HttpMethod.Post, url, content, apiSession);
-                        using (requestMessage)
+                        using (var streamContent = new ProgressStreamContent(inputStream, downloadProgress))
                         {
-                            using (var response = await GetHttpClient().SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, cancellationToken))
+                            content.Add(streamContent, "files", Path.GetFileName(fileName));
+
+                            var requestMessage = BuildHttpRequestMessage(overwriteFileifExists ? HttpMethod.Put : HttpMethod.Post, url, content, apiSession);
+                            using (requestMessage)
                             {
-                                await HandleResponse(response);
+                                using (var response = await GetHttpClient().SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, cancellationToken))
+                                {
+                                    await HandleResponse(response);
+                                }
                             }
                         }
-
-
                     }
                 }
             }
