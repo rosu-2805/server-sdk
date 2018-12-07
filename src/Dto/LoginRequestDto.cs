@@ -19,9 +19,6 @@ namespace Morph.Server.Sdk.Dto
         [DataMember(Name = "userName")]
         public string UserName { get; set; }
         [DataMember(Name = "provider")]
-        public string Provider { get; set; }
-
-
-        
+        public string Provider { get; set; }        
     }
 }

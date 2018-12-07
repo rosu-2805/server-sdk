@@ -22,13 +22,14 @@ namespace Morph.Server.Sdk.Client
         Task<ServerStatus> GetServerStatusAsync(CancellationToken cancellationToken);
         Task<Model.TaskStatus> GetTaskStatusAsync(ApiSession apiSession, Guid taskId, CancellationToken cancellationToken);        
         Task<ApiSession> OpenSessionAsync(string spaceName, string password, CancellationToken cancellationToken);
+        Task<ApiSession> OpenSessionViaWindowsAuthenticationAsync(string spaceName, CancellationToken cancellationToken);
         Task<RunningTaskStatus> StartTaskAsync(ApiSession apiSession, Guid taskId, CancellationToken cancellationToken, IEnumerable<TaskParameterBase> taskParameters = null);
         Task StopTaskAsync(ApiSession apiSession, Guid taskId, CancellationToken cancellationToken);
         Task UploadFileAsync(ApiSession apiSession, Stream inputStream, string fileName, long fileSize, string destFolderPath, CancellationToken cancellationToken, bool overwriteFileifExists = false);
         Task UploadFileAsync(ApiSession apiSession, string localFilePath, string destFolderPath, string destFileName, CancellationToken cancellationToken, bool overwriteFileifExists = false);        
         Task UploadFileAsync(ApiSession apiSession, string localFilePath, string destFolderPath, CancellationToken cancellationToken, bool overwriteFileifExists = false);
         Task<ValidateTasksResult> ValidateTasksAsync(ApiSession apiSession, string projectPath, CancellationToken cancellationToken);
-        Task<SpacesList> GetSpacesListAsync(CancellationToken cancellationToken);
+        Task<SpacesEnumerationList> GetSpacesListAsync(CancellationToken cancellationToken);
         Task<SpaceStatus> GetSpaceStatusAsync(ApiSession apiSession, CancellationToken cancellationToken);
         Task<SpaceTasksList> GetTasksListAsync(ApiSession apiSession, CancellationToken cancellationToken);
         Task<SpaceTask> GetTaskAsync(ApiSession apiSession, Guid taskId, CancellationToken cancellationToken);

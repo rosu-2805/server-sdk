@@ -21,12 +21,12 @@ namespace Morph.Server.Sdk.Model
         internal string AuthToken { get; set; }
         internal bool IsAnonymous { get; set; }
 
-        WeakReference<MorphServerApiClient> _client;
+        MorphServerApiClient _client;
         private string _spaceName;
 
         internal ApiSession(MorphServerApiClient client)
         {
-            _client = new WeakReference<MorphServerApiClient>(client);
+            _client = client;
             IsClosed = false;
             IsAnonymous = false;
 
@@ -56,12 +56,14 @@ namespace Morph.Server.Sdk.Model
         {
             try
             {
-                if (_client.TryGetTarget(out var target))
+                if (!IsClosed && _client!=null)
                 {
                     Task.Run(async () =>
                     {
                         var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(5));
-                        await target.CloseSessionAsync(this, cts.Token);
+                        await _client.CloseSessionAsync(this, cts.Token);
+                        _client.Dispose();
+                        _client = null;
                     }
 
                         ).Wait(TimeSpan.FromSeconds(5));
