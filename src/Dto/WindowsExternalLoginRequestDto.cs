@@ -7,5 +7,7 @@ namespace Morph.Server.Sdk.Dto
     {
         [DataMember(Name = "requestToken")]
         public string RequestToken { get; set; }
+        [DataMember(Name = "spaceName")]
+        public string SpaceName { get; set; }
     }
 }

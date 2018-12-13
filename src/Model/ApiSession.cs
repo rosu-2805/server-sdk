@@ -33,7 +33,7 @@ namespace Morph.Server.Sdk.Model
         }
 
 
-        public static ApiSession Anonymous(string spaceName)
+        internal static ApiSession Anonymous(string spaceName)
         {
 
             if (string.IsNullOrWhiteSpace(spaceName))

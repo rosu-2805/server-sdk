@@ -21,8 +21,8 @@ namespace Morph.Server.Sdk.Client
         Task<bool> FileExistsAsync(ApiSession apiSession, string serverFolder, string fileName, CancellationToken cancellationToken);
         Task<ServerStatus> GetServerStatusAsync(CancellationToken cancellationToken);
         Task<Model.TaskStatus> GetTaskStatusAsync(ApiSession apiSession, Guid taskId, CancellationToken cancellationToken);        
-        Task<ApiSession> OpenSessionAsync(string spaceName, string password, CancellationToken cancellationToken);
-        Task<ApiSession> OpenSessionViaWindowsAuthenticationAsync(string spaceName, CancellationToken cancellationToken);
+        Task<ApiSession> OpenSessionAsync(OpenSessionRequest openSessionRequest, CancellationToken cancellationToken);
+        
         Task<RunningTaskStatus> StartTaskAsync(ApiSession apiSession, Guid taskId, CancellationToken cancellationToken, IEnumerable<TaskParameterBase> taskParameters = null);
         Task StopTaskAsync(ApiSession apiSession, Guid taskId, CancellationToken cancellationToken);
         Task UploadFileAsync(ApiSession apiSession, Stream inputStream, string fileName, long fileSize, string destFolderPath, CancellationToken cancellationToken, bool overwriteFileifExists = false);

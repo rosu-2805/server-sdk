@@ -98,6 +98,7 @@
     <Compile Include="Model\DownloadFileInfo.cs" />
     <Compile Include="Model\Errors\FieldError.cs" />
     <Compile Include="Model\Commands\ValidateTasksResult.cs" />
+    <Compile Include="Model\OpenSessionRequest.cs" />
     <Compile Include="Model\SpaceAccessRestriction.cs" />
     <Compile Include="Model\SpaceListItem.cs" />
     <Compile Include="Model\SpacesEnumerationList.cs" />

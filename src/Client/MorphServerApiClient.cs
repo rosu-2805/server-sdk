@@ -733,12 +733,13 @@ namespace Morph.Server.Sdk.Client
                 return responseDto.Token;
             }
         }
-        protected static async Task<string> internalAuthExternalWindowAsync(HttpClient httpClient, string serverNonce, CancellationToken cancellationToken)
+        protected static async Task<string> internalAuthExternalWindowAsync(HttpClient httpClient, string spaceName, string serverNonce, CancellationToken cancellationToken)
         {
             var url = "auth/external/windows";
             var requestDto = new WindowsExternalLoginRequestDto
             {
-                RequestToken = serverNonce
+                RequestToken = serverNonce,
+                SpaceName = spaceName
             };
 
             using (var response = await httpClient.PostAsync(url, JsonSerializationHelper.SerializeAsStringContent(requestDto), cancellationToken))
@@ -749,7 +750,7 @@ namespace Morph.Server.Sdk.Client
         }
 
 
-        public async Task<ApiSession> OpenSessionViaWindowsAuthenticationAsync(string spaceName, CancellationToken cancellationToken)
+        protected async Task<ApiSession> OpenSessionViaWindowsAuthenticationAsync(string spaceName, CancellationToken cancellationToken)
         {
             if (string.IsNullOrEmpty(spaceName))
             {
@@ -766,7 +767,7 @@ namespace Morph.Server.Sdk.Client
             {
 
                 var serverNonce = await internalGetAuthNonceAsync(httpClient, cancellationToken);
-                var token = await internalAuthExternalWindowAsync(httpClient, serverNonce, cancellationToken);
+                var token = await internalAuthExternalWindowAsync(httpClient, spaceName, serverNonce,  cancellationToken);
 
                 return new ApiSession(this)
                 {
@@ -778,18 +779,92 @@ namespace Morph.Server.Sdk.Client
             }
         }
 
+
         /// <summary>
-        /// Open a new authenticated sessionF
+        /// Opens session based on required authentication mechanism
+        /// </summary>
+        /// <param name="openSessionRequest"></param>
+        /// <param name="cancellationToken"></param>
+        /// <returns></returns>
+        public async Task<ApiSession> OpenSessionAsync(OpenSessionRequest openSessionRequest, CancellationToken ct)
+        {
+            if (openSessionRequest == null)
+            {
+                throw new ArgumentNullException(nameof(openSessionRequest));
+            }
+            if (string.IsNullOrWhiteSpace(openSessionRequest.SpaceName))
+            {
+                throw new ArgumentException("Space name is not set.", nameof(openSessionRequest.SpaceName));
+            }
+           
+                using (var linkedToken = CancellationTokenSource.CreateLinkedTokenSource(ct))
+                {
+                    // no more than 20 sec for session opening
+                    linkedToken.CancelAfter(TimeSpan.FromSeconds(20));
+                    var cancellationToken = linkedToken.Token;
+                try
+                {
+                    var spacesListResult = await GetSpacesListAsync(cancellationToken);
+                    var desiredSpace = spacesListResult.Items.FirstOrDefault(x => x.SpaceName.Equals(openSessionRequest.SpaceName, StringComparison.OrdinalIgnoreCase));
+                    if (desiredSpace == null)
+                    {
+                        throw new Exception($"Server has no space '{openSessionRequest.SpaceName}'");
+                    }
+                    // space access restriction is supported since server 3.9.2
+                    // for previous versions api will return SpaceAccessRestriction.NotSupported 
+                    // a special fall-back mechanize need to be used to open session in such case
+                    switch (desiredSpace.SpaceAccessRestriction)
+                    {
+                        // anon space
+                        case SpaceAccessRestriction.None:
+                            return ApiSession.Anonymous(openSessionRequest.SpaceName);
+
+                        // password protected space                
+                        case SpaceAccessRestriction.BasicPassword:
+                            return await OpenSessionViaSpacePasswordAsync(openSessionRequest.SpaceName, openSessionRequest.Password, cancellationToken);
+
+                        // windows authentication
+                        case SpaceAccessRestriction.WindowsAuthentication:
+                            return await OpenSessionViaWindowsAuthenticationAsync(openSessionRequest.SpaceName, cancellationToken);
+
+                        // fallback
+                        case SpaceAccessRestriction.NotSupported:
+
+                            //  if space is public or password is not set - open anon session
+                            if (desiredSpace.IsPublic || string.IsNullOrWhiteSpace(openSessionRequest.Password))
+                            {
+                                return ApiSession.Anonymous(openSessionRequest.SpaceName);
+                            }
+                            // otherwise open session via space password
+                            else
+                            {
+                                return await OpenSessionViaSpacePasswordAsync(openSessionRequest.SpaceName, openSessionRequest.Password, cancellationToken);
+                            }
+
+                        default:
+                            throw new Exception("Space access restriction method is not supported by this client.");
+                    }
+                }
+                catch (OperationCanceledException) when (!ct.IsCancellationRequested && linkedToken.IsCancellationRequested)
+                {
+                    throw new Exception("Unable to open session. Timeout.");
+                }
+            }
+           
+        }
+
+        /// <summary>
+        /// Open a new authenticated session via password
         /// </summary>
         /// <param name="spaceName">space name</param>
         /// <param name="password">space password</param>
         /// <param name="cancellationToken"></param>
         /// <returns></returns>
-        public async Task<ApiSession> OpenSessionAsync(string spaceName, string password, CancellationToken cancellationToken)
+        public async Task<ApiSession> OpenSessionViaSpacePasswordAsync(string spaceName, string password, CancellationToken cancellationToken)
         {
             if (string.IsNullOrEmpty(spaceName))
             {
-                throw new ArgumentException("Wrong parameter {0}", nameof(spaceName));
+                throw new ArgumentException("Space name is not set.", nameof(spaceName));
             }
 
             if (password == null)
