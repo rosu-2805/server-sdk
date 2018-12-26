@@ -552,14 +552,30 @@ namespace Morph.Server.Sdk.Client
 
         public async Task<SpacesEnumerationList> GetSpacesListAsync(CancellationToken cancellationToken)
         {
-            var nvc = new NameValueCollection();
-            nvc.Add("_", DateTime.Now.Ticks.ToString());
-            var url = "spaces/list" + nvc.ToQueryString();
-            using (var response = await GetHttpClient().GetAsync(url, cancellationToken))
+
+            using (var linkedTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken))
             {
-                var dto = await HandleResponse<SpacesEnumerationDto>(response);
-                return SpacesEnumerationMapper.MapFromDto(dto);
+                // no more than 20 sec for browsing spaces
+                var timeout = TimeSpan.FromSeconds(20);
+                linkedTokenSource.CancelAfter(timeout);
+                var token = linkedTokenSource.Token;
+                try
+                {
+                    var nvc = new NameValueCollection();
+                    nvc.Add("_", DateTime.Now.Ticks.ToString());
+                    var url = "spaces/list" + nvc.ToQueryString();
+                    using (var response = await GetHttpClient().GetAsync(url, token))
+                    {
+                        var dto = await HandleResponse<SpacesEnumerationDto>(response);
+                        return SpacesEnumerationMapper.MapFromDto(dto);
+                    }
+                }
+                catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested && linkedTokenSource.IsCancellationRequested)
+                {
+                    throw new Exception($"Can't connect to host {_apiHost}.  Operation timeout ({timeout})");
+                }
             }
+
         }
 
 
@@ -767,7 +783,7 @@ namespace Morph.Server.Sdk.Client
             {
 
                 var serverNonce = await internalGetAuthNonceAsync(httpClient, cancellationToken);
-                var token = await internalAuthExternalWindowAsync(httpClient, spaceName, serverNonce,  cancellationToken);
+                var token = await internalAuthExternalWindowAsync(httpClient, spaceName, serverNonce, cancellationToken);
 
                 return new ApiSession(this)
                 {
@@ -796,12 +812,13 @@ namespace Morph.Server.Sdk.Client
             {
                 throw new ArgumentException("Space name is not set.", nameof(openSessionRequest.SpaceName));
             }
-           
-                using (var linkedToken = CancellationTokenSource.CreateLinkedTokenSource(ct))
-                {
-                    // no more than 20 sec for session opening
-                    linkedToken.CancelAfter(TimeSpan.FromSeconds(20));
-                    var cancellationToken = linkedToken.Token;
+
+            using (var linkedTokenSource = CancellationTokenSource.CreateLinkedTokenSource(ct))
+            {
+                // no more than 20 sec for session opening
+                var timeout = TimeSpan.FromSeconds(20);
+                linkedTokenSource.CancelAfter(timeout);
+                var cancellationToken = linkedTokenSource.Token;
                 try
                 {
                     var spacesListResult = await GetSpacesListAsync(cancellationToken);
@@ -845,12 +862,12 @@ namespace Morph.Server.Sdk.Client
                             throw new Exception("Space access restriction method is not supported by this client.");
                     }
                 }
-                catch (OperationCanceledException) when (!ct.IsCancellationRequested && linkedToken.IsCancellationRequested)
+                catch (OperationCanceledException) when (!ct.IsCancellationRequested && linkedTokenSource.IsCancellationRequested)
                 {
-                    throw new Exception("Unable to open session. Timeout.");
+                    throw new Exception($"Can't connect to host {_apiHost}.  Operation timeout ({timeout})");
                 }
             }
-           
+
         }
 
         /// <summary>
