@@ -284,17 +284,20 @@ namespace Morph.Server.Sdk.Client
         /// <returns></returns>
         public async Task<ServerStatus> GetServerStatusAsync(CancellationToken cancellationToken)
         {
-            var nvc = new NameValueCollection();
-            nvc.Add("_", DateTime.Now.Ticks.ToString());
-
-            var url = "server/status" + nvc.ToQueryString();
-            using (var response = await GetHttpClient().GetAsync(url, cancellationToken))
+            return await GetDataWithCancelAfter(async (token) =>
             {
-                var dto = await HandleResponse<ServerStatusDto>(response);
-                var result = ServerStatusMapper.MapFromDto(dto);
-                return result;
+                var nvc = new NameValueCollection();
+                nvc.Add("_", DateTime.Now.Ticks.ToString());
 
-            }
+                var url = "server/status" + nvc.ToQueryString();
+                using (var response = await GetHttpClient().GetAsync(url, token))
+                {
+                    var dto = await HandleResponse<ServerStatusDto>(response);
+                    var result = ServerStatusMapper.MapFromDto(dto);
+                    return result;
+
+                }
+            }, TimeSpan.FromSeconds(20), cancellationToken);
         }
 
         /// <summary>
@@ -550,31 +553,36 @@ namespace Morph.Server.Sdk.Client
         }
 
 
-        public async Task<SpacesEnumerationList> GetSpacesListAsync(CancellationToken cancellationToken)
+        protected async Task<T> GetDataWithCancelAfter<T>(Func<CancellationToken, Task<T>> action, TimeSpan timeout,  CancellationToken cancellationToken)
         {
-
             using (var linkedTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken))
-            {
-                // no more than 20 sec for browsing spaces
-                var timeout = TimeSpan.FromSeconds(20);
+            {                                
                 linkedTokenSource.CancelAfter(timeout);
-                var token = linkedTokenSource.Token;
                 try
                 {
-                    var nvc = new NameValueCollection();
-                    nvc.Add("_", DateTime.Now.Ticks.ToString());
-                    var url = "spaces/list" + nvc.ToQueryString();
-                    using (var response = await GetHttpClient().GetAsync(url, token))
-                    {
-                        var dto = await HandleResponse<SpacesEnumerationDto>(response);
-                        return SpacesEnumerationMapper.MapFromDto(dto);
-                    }
+                    return await action(linkedTokenSource.Token);
                 }
+
                 catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested && linkedTokenSource.IsCancellationRequested)
                 {
                     throw new Exception($"Can't connect to host {_apiHost}.  Operation timeout ({timeout})");
                 }
             }
+        }
+
+        public async Task<SpacesEnumerationList> GetSpacesListAsync(CancellationToken cancellationToken)
+        {
+            return await GetDataWithCancelAfter(async (token) =>
+            {
+                var nvc = new NameValueCollection();
+                nvc.Add("_", DateTime.Now.Ticks.ToString());
+                var url = "spaces/list" + nvc.ToQueryString();
+                using (var response = await GetHttpClient().GetAsync(url, token))
+                {
+                    var dto = await HandleResponse<SpacesEnumerationDto>(response);
+                    return SpacesEnumerationMapper.MapFromDto(dto);
+                }
+            }, TimeSpan.FromSeconds(20), cancellationToken);
 
         }
 
