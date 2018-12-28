@@ -8,13 +8,13 @@ using System.Threading.Tasks;
 namespace Morph.Server.Sdk.Dto
 {
     [DataContract]
-    internal class SpacesListDto
+    internal class SpacesEnumerationDto
     {
         [DataMember(Name = "values")]
-        public List<SpaceListItemDto> Values { get; set; }
-        public SpacesListDto()
+        public List<SpaceEnumerationItemDto> Values { get; set; }
+        public SpacesEnumerationDto()
         {
-            Values = new List<SpaceListItemDto>();
+            Values = new List<SpaceEnumerationItemDto>();
         }
     }
 }
