@@ -43,11 +43,6 @@ namespace Morph.Server.Sdk.Helper
 
         }
 
-        public static StringContent SerializeAsStringContent<T>(T obj)
-        {
-            var serialized = Serialize(obj);
-            var result = new StringContent(serialized, Encoding.UTF8, "application/json");
-            return result;
-        }
+        
     }
 }

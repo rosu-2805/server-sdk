@@ -1,123 +1,13 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
-    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{72ECC66F-62FE-463F-AFAD-E1FF5CC19CD9}</ProjectGuid>
-    <OutputType>Library</OutputType>
-    <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>Morph.Server.Sdk</RootNamespace>
-    <AssemblyName>Morph.Server.Sdk</AssemblyName>
-    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
-    <FileAlignment>512</FileAlignment>
-  </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
-    <DebugSymbols>true</DebugSymbols>
-    <DebugType>full</DebugType>
-    <Optimize>false</Optimize>
-    <OutputPath>bin\Debug\</OutputPath>
-    <DefineConstants>DEBUG;TRACE</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
-    <DocumentationFile>bin\Debug\Morph.Server.Sdk.xml</DocumentationFile>
-  </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
-    <DebugType>pdbonly</DebugType>
-    <Optimize>true</Optimize>
-    <OutputPath>bin\Release\</OutputPath>
-    <DefineConstants>TRACE</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
-    <DocumentationFile>bin\Release\Morph.Server.Sdk.xml</DocumentationFile>
+    <TargetFrameworks>netstandard2.0;net45</TargetFrameworks>
   </PropertyGroup>
   <PropertyGroup>
-    <SignAssembly>true</SignAssembly>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
   </PropertyGroup>
-  <PropertyGroup>
-    <AssemblyOriginatorKeyFile>Morph.Server.Sdk.snk</AssemblyOriginatorKeyFile>
-  </PropertyGroup>
-  <ItemGroup>
-    <Reference Include="System" />
-    <Reference Include="System.Runtime.Serialization, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-    </Reference>
-    <Reference Include="System.Web" />
+  
+  <ItemGroup Condition="'$(TargetFramework)' == 'net45'">
     <Reference Include="System.Net.Http" />
-    <Reference Include="System.Xml" />
+    <Reference Include="System.Web" />
   </ItemGroup>
-  <ItemGroup>
-    <Compile Include="Client\IMorphServerApiClient.cs" />
-    <Compile Include="Client\MorphServerApiClient.cs" />
-    <Compile Include="Client\UrlHelper.cs" />
-    <Compile Include="Dto\Commands\ValidateTaskResultDto.cs" />
-    <Compile Include="Dto\Commands\ValidateTasksRequestDto.cs" />
-    <Compile Include="Dto\Errors\Error.cs" />
-    <Compile Include="Dto\Errors\ErrorResponse.cs" />
-    <Compile Include="Dto\Errors\InnerError.cs" />
-    <Compile Include="Dto\Errors\ReadableErrorTopCode.cs" />
-    <Compile Include="Dto\GenerateNonceRequestDto.cs" />
-    <Compile Include="Dto\GenerateNonceResponseDto.cs" />
-    <Compile Include="Dto\LoginRequestDto.cs" />
-    <Compile Include="Dto\LoginResponseDto.cs" />
-    <Compile Include="Dto\RunningTaskStatusDto.cs" />
-    <Compile Include="Dto\ServerStatusDto.cs" />
-    <Compile Include="Dto\SpaceBrowsingResponseDto.cs" />
-    <Compile Include="Dto\SpaceEnumerationItemDto.cs" />
-    <Compile Include="Dto\SpacesEnumerationDto.cs" />
-    <Compile Include="Dto\SpaceStatusDto.cs" />
-    <Compile Include="Dto\SpaceTaskDto.cs" />
-    <Compile Include="Dto\SpaceTasksListDto.cs" />
-    <Compile Include="Dto\SpaceTasksListItemDto.cs" />
-    <Compile Include="Dto\TaskParameterDto.cs" />
-    <Compile Include="Dto\TaskStartRequestDto.cs" />
-    <Compile Include="Dto\TaskStatusDto.cs" />
-    <Compile Include="Dto\WindowsExternalLoginRequestDto.cs" />
-    <Compile Include="Events\FileEventArgs.cs" />
-    <Compile Include="Exceptions\Exceptions.cs" />
-    <Compile Include="Helper\ConvertHelper.cs" />
-    <Compile Include="Helper\CryptographyAlgorithms.cs" />
-    <Compile Include="Helper\CryptographyHelper.cs" />
-    <Compile Include="Helper\FileProgress.cs" />
-    <Compile Include="Helper\IFileProgress.cs" />
-    <Compile Include="Helper\JsonSerializationHelper.cs" />
-    <Compile Include="Helper\ProgressStreamContent.cs" />
-    <Compile Include="Helper\QueryBuilder.cs" />
-    <Compile Include="Mappers\FieldErrorsMapper.cs" />
-    <Compile Include="Mappers\SpacesEnumerationMapper.cs" />
-    <Compile Include="Mappers\SpaceStatusMapper.cs" />
-    <Compile Include="Mappers\SpaceTaskMapper.cs" />
-    <Compile Include="Mappers\SpaceTasksListsMapper.cs" />
-    <Compile Include="Mappers\TaskParameterMapper.cs" />
-    <Compile Include="Mappers\TaskStatusMapper.cs" />
-    <Compile Include="Mappers\ServerStatusMapper.cs" />
-    <Compile Include="Mappers\SpaceBrowsingMapper.cs" />
-    <Compile Include="Mappers\ValidateTasksResponseMapper.cs" />
-    <Compile Include="Model\ApiSession.cs" />
-    <Compile Include="Model\Commands\FailedTaskInfo.cs" />
-    <Compile Include="Model\DownloadFileInfo.cs" />
-    <Compile Include="Model\Errors\FieldError.cs" />
-    <Compile Include="Model\Commands\ValidateTasksResult.cs" />
-    <Compile Include="Model\OpenSessionRequest.cs" />
-    <Compile Include="Model\SpaceAccessRestriction.cs" />
-    <Compile Include="Model\SpaceListItem.cs" />
-    <Compile Include="Model\SpacesEnumerationList.cs" />
-    <Compile Include="Model\SpaceStatus.cs" />
-    <Compile Include="Model\SpaceTaskListItem.cs" />
-    <Compile Include="Model\SpaceTasksList.cs" />
-    <Compile Include="Model\TaskParameter.cs" />
-    <Compile Include="Model\TaskParameterType.cs" />
-    <Compile Include="Model\TaskState.cs" />
-    <Compile Include="Model\TaskStatus.cs" />
-    <Compile Include="Model\WebFilesAccesMode.cs" />
-    <Compile Include="Model\FileProgressState.cs" />
-    <Compile Include="Model\RunningTaskStatus.cs" />
-    <Compile Include="Model\ServerStatus.cs" />
-    <Compile Include="Model\SpaceBrowsingInfo.cs" />
-    <Compile Include="Properties\AssemblyInfo.cs" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="Morph.Server.Sdk.snk" />
-  </ItemGroup>
-  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

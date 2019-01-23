@@ -20,9 +20,287 @@ using Morph.Server.Sdk.Model.Commands;
 using System.Linq;
 using Morph.Server.Sdk.Dto.Errors;
 using System.Collections.Generic;
+using System.Security.Cryptography.X509Certificates;
+using System.Net.Security;
 
 namespace Morph.Server.Sdk.Client
 {
+
+    public class ApiResult<T>
+    {
+        public T Data { get; set; } = default(T);
+        public Exception Error { get; set; } = default(Exception);
+        public bool IsSucceed { get { return Error == null; } }
+        public static ApiResult<T> Fail(Exception exception)
+        {
+            return new ApiResult<T>()
+            {
+                Data = default(T),
+                Error = exception
+            };
+        }
+
+        public static ApiResult<T> Ok(T data)
+        {
+            return new ApiResult<T>()
+            {
+                Data = data,
+                Error = null
+            };
+        }
+    }
+
+    public static class ApiSessionExtension
+    {
+        public static HeadersCollection ToHeadersCollection(this ApiSession apiSession)
+        {
+            var collection = new HeadersCollection();
+            if (apiSession != null && !apiSession.IsAnonymous && !apiSession.IsClosed)
+            {
+                collection.Add(ApiSession.AuthHeaderName, apiSession.AuthToken);
+            }
+            return collection;
+        }
+    }
+
+
+
+    public class HeadersCollection
+    {
+        private Dictionary<string, string> _headers = new Dictionary<string, string>();
+        public HeadersCollection()
+        {
+            
+        }
+
+        
+
+        public void Add(string header, string value)
+        {
+            if (header == null)
+            {
+                throw new ArgumentNullException(nameof(header));
+            }
+
+            if (value == null)
+            {
+                throw new ArgumentNullException(nameof(value));
+            }
+
+            _headers[header] = value;
+        }
+
+        public void Fill(HttpRequestHeaders reqestHeaders)
+        {
+            if (reqestHeaders == null)
+            {
+                throw new ArgumentNullException(nameof(reqestHeaders));
+            }
+            foreach(var item in _headers)
+            {
+                reqestHeaders.Add(item.Key, item.Value);
+            }
+        }
+    }
+    
+
+    public interface IApiClient
+    {
+        Task<ApiResult<TResult>> GetAsync<TResult>(string url, NameValueCollection urlParameters, HeadersCollection headersCollection, CancellationToken cancellationToken);
+        Task<ApiResult<TResult>> PostAsync<TModel, TResult>(string url,TModel model, NameValueCollection urlParameters, HeadersCollection headersCollection, CancellationToken cancellationToken);
+        Task<ApiResult<TResult>> PutAsync<TModel, TResult>(string url, TModel model, NameValueCollection urlParameters, HeadersCollection headersCollection, CancellationToken cancellationToken);
+        Task<ApiResult<TResult>> DeleteAsync<TResult>(string url, NameValueCollection urlParameters, HeadersCollection headersCollection, CancellationToken cancellationToken);
+    }
+
+    public sealed class NoContentResult
+    {
+
+    }
+
+    public sealed class NoContentRequest
+    {
+
+    }
+
+    public class MorphServerRestClient : IApiClient
+    {
+        private readonly HttpClient httpClient;
+
+        public MorphServerRestClient(HttpClient httpClient)
+        {
+            this.httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
+        }
+        public Task<ApiResult<TResult>> DeleteAsync<TResult>(string url, NameValueCollection urlParameters, HeadersCollection headersCollection, CancellationToken cancellationToken)
+        {
+            return SendAsyncApiResult<TResult, NoContentRequest>(HttpMethod.Delete, url, null, urlParameters, headersCollection, cancellationToken);
+        }
+
+        public Task<ApiResult<TResult>> GetAsync<TResult>(string url, NameValueCollection urlParameters, HeadersCollection headersCollection, CancellationToken cancellationToken)
+        {            
+            if(urlParameters == null)
+            {
+                urlParameters = new NameValueCollection();
+            }
+            urlParameters.Add("_", DateTime.Now.Ticks.ToString());
+            return SendAsyncApiResult<TResult, NoContentRequest>(HttpMethod.Get, url, null, urlParameters, headersCollection, cancellationToken);
+        }
+
+        public Task<ApiResult<TResult>> PostAsync<TModel, TResult>(string url, TModel model, NameValueCollection urlParameters, HeadersCollection headersCollection, CancellationToken cancellationToken)
+        {
+            return SendAsyncApiResult<TResult, TModel>(HttpMethod.Post, url, model, urlParameters, headersCollection, cancellationToken);
+        }
+
+        public Task<ApiResult<TResult>> PutAsync<TModel, TResult>(string url, TModel model, NameValueCollection urlParameters, HeadersCollection headersCollection, CancellationToken cancellationToken)
+        {
+            return SendAsyncApiResult<TResult, TModel>(HttpMethod.Put, url, model, urlParameters, headersCollection, cancellationToken);
+        }
+
+        protected virtual async Task<ApiResult<TResult>> SendAsyncApiResult<TResult, TModel>(HttpMethod httpMethod, string path, TModel model, NameValueCollection urlParameters, HeadersCollection headersCollection, CancellationToken cancellationToken)
+        {
+            StringContent stringContent = null;
+            if (model != null)
+            {
+                var serialized = JsonSerializationHelper.Serialize<TModel>(model);
+                stringContent = new StringContent(serialized, Encoding.UTF8, "application/json");
+            }
+
+            var url = path + urlParameters.ToQueryString();
+            var httpRequestMessage = BuildHttpRequestMessage(httpMethod, url, stringContent, headersCollection);
+
+            using (var response = await httpClient.SendAsync(httpRequestMessage, HttpCompletionOption.ResponseHeadersRead, cancellationToken))
+            {
+                if (response.IsSuccessStatusCode)
+                {
+                    var content = await response.Content.ReadAsStringAsync();
+                    var result = JsonSerializationHelper.Deserialize<TResult>(content);
+                    return ApiResult<TResult>.Ok(result);
+                }
+                else
+                {
+                    var error = await BuildExceptionFromResponse(response);
+                    return ApiResult<TResult>.Fail(error);
+                }
+            }
+        }
+
+        protected HttpRequestMessage BuildHttpRequestMessage(HttpMethod httpMethod, string url, HttpContent content, HeadersCollection headersCollection)
+        {
+            var requestMessage = new HttpRequestMessage()
+            {
+                Content = content,
+                Method = httpMethod,
+                RequestUri = new Uri(url, UriKind.Relative)
+            };
+            if(headersCollection != null)
+            {
+                headersCollection.Fill(requestMessage.Headers);
+            }            
+            return requestMessage;
+        }
+
+
+
+        private static async Task<Exception> BuildExceptionFromResponse(HttpResponseMessage response)
+        {
+
+            var content = await response.Content.ReadAsStringAsync();
+            if (!string.IsNullOrWhiteSpace(content))
+            {
+                ErrorResponse errorResponse = null;
+                try
+                {
+                    errorResponse = JsonSerializationHelper.Deserialize<ErrorResponse>(content);
+                }
+                catch (Exception)
+                {
+                    return new ResponseParseException("An error occurred while deserializing the response", content);
+                }
+                if (errorResponse.error == null)
+                    return new ResponseParseException("An error occurred while deserializing the response", content);
+
+                switch (errorResponse.error.code)
+                {
+                    case ReadableErrorTopCode.Conflict: return new MorphApiConflictException(errorResponse.error.message);
+                    case ReadableErrorTopCode.NotFound: return new MorphApiNotFoundException(errorResponse.error.message);
+                    case ReadableErrorTopCode.Forbidden: return new MorphApiForbiddenException(errorResponse.error.message);
+                    case ReadableErrorTopCode.Unauthorized: return new MorphApiUnauthorizedException(errorResponse.error.message);
+                    case ReadableErrorTopCode.BadArgument: return new MorphApiBadArgumentException(FieldErrorsMapper.MapFromDto(errorResponse.error), errorResponse.error.message);
+                    default: return new MorphClientGeneralException(errorResponse.error.code, errorResponse.error.message);
+                }
+            }
+
+            else
+            {
+                switch (response.StatusCode)
+                {
+                    case HttpStatusCode.Conflict: return new MorphApiConflictException(response.ReasonPhrase ?? "Conflict");
+                    case HttpStatusCode.NotFound: return new MorphApiNotFoundException(response.ReasonPhrase ?? "Not found");
+                    case HttpStatusCode.Forbidden: return new MorphApiForbiddenException(response.ReasonPhrase ?? "Forbidden");
+                    case HttpStatusCode.Unauthorized: return new MorphApiUnauthorizedException(response.ReasonPhrase ?? "Unauthorized");
+                    case HttpStatusCode.BadRequest: return new MorphClientGeneralException("Unknown", response.ReasonPhrase ?? "Unknown error");
+                    default: return new ResponseParseException(response.ReasonPhrase, null);
+                }
+
+            }
+        }
+
+
+    }
+
+
+
+    internal interface ILowLevelApiClient
+    {
+        // TASKS
+        Task<ApiResult<TaskStatusDto>> GetTaskStatusAsync(ApiSession apiSession, Guid taskId, CancellationToken cancellationToken);
+        Task<ApiResult<RunningTaskStatus>> StartTaskAsync(ApiSession apiSession, Guid taskId, CancellationToken cancellationToken, IEnumerable<TaskParameterBase> taskParameters = null);
+        Task<ApiResult<NoContentResult>> StopTaskAsync(ApiSession apiSession, Guid taskId, CancellationToken cancellationToken);
+        Task<ApiResult<SpaceTasksList>> GetTasksListAsync(ApiSession apiSession, CancellationToken cancellationToken);
+        Task<ApiResult<SpaceTask>> GetTaskAsync(ApiSession apiSession, Guid taskId, CancellationToken cancellationToken);
+    }
+
+    internal class LowLevelApiClient : ILowLevelApiClient
+    {
+        private readonly IApiClient apiClient;
+
+        public LowLevelApiClient(IApiClient apiClient)
+        {
+            this.apiClient = apiClient;
+        }
+        public Task<ApiResult<SpaceTask>> GetTaskAsync(ApiSession apiSession, Guid taskId, CancellationToken cancellationToken)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<ApiResult<SpaceTasksList>> GetTasksListAsync(ApiSession apiSession, CancellationToken cancellationToken)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<ApiResult<TaskStatusDto>> GetTaskStatusAsync(ApiSession apiSession, Guid taskId, CancellationToken cancellationToken)
+        {
+            if (apiSession == null)
+            {
+                throw new ArgumentNullException(nameof(apiSession));
+            }
+            var spaceName = apiSession.SpaceName;
+            var url = UrlHelper.JoinUrl("space", spaceName, "tasks", taskId.ToString("D"));
+            return apiClient.GetAsync<TaskStatusDto>(url, null, apiSession.ToHeadersCollection(), cancellationToken);
+
+        }
+
+        public Task<ApiResult<RunningTaskStatus>> StartTaskAsync(ApiSession apiSession, Guid taskId, CancellationToken cancellationToken, IEnumerable<TaskParameterBase> taskParameters = null)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<ApiResult<NoContentResult>> StopTaskAsync(ApiSession apiSession, Guid taskId, CancellationToken cancellationToken)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+
     /// <summary>
     /// Morph Server api client V1
     /// </summary>
@@ -32,6 +310,10 @@ namespace Morph.Server.Sdk.Client
         protected readonly string UserAgent = "MorphServerApiClient/1.3.5";
         protected HttpClient _httpClient;
         protected readonly string _api_v1 = "api/v1/";
+
+
+        //private IApiClient apiClient;
+        private ILowLevelApiClient lowLevelApiClient;
 
 
 
@@ -51,11 +333,23 @@ namespace Morph.Server.Sdk.Client
         {
             if (_httpClient == null)
             {
+#if NETSTANDARD2_0                
                 // handler will be disposed automatically
                 HttpClientHandler aHandler = new HttpClientHandler()
                 {
-                    ClientCertificateOptions = ClientCertificateOption.Automatic
+                    ClientCertificateOptions = ClientCertificateOption.Automatic,
+                    ServerCertificateCustomValidationCallback = new Func<HttpRequestMessage, X509Certificate2, X509Chain, SslPolicyErrors, bool>(
+                        (request, certificate, chain, sslPolicyErrors) => true)
+
                 };
+#elif NET45
+                 // handler will be disposed automatically
+                HttpClientHandler aHandler = new HttpClientHandler()
+                {
+                    ClientCertificateOptions = ClientCertificateOption.Automatic
+                    
+                };
+#endif                
 
                 _httpClient = ConstructHttpClient(_apiHost, aHandler);
             }
@@ -102,75 +396,6 @@ namespace Morph.Server.Sdk.Client
 
 
 
-        protected static async Task<T> HandleResponse<T>(HttpResponseMessage response)
-        {
-            if (response.IsSuccessStatusCode)
-            {
-                var content = await response.Content.ReadAsStringAsync();
-                var result = JsonSerializationHelper.Deserialize<T>(content);
-                return result;
-            }
-            else
-            {
-                await HandleErrorResponse(response);
-                return default(T);
-
-            }
-
-        }
-
-        protected async Task HandleResponse(HttpResponseMessage response)
-        {
-            if (!response.IsSuccessStatusCode)
-            {
-                await HandleErrorResponse(response);
-            }
-
-        }
-
-        private static async Task HandleErrorResponse(HttpResponseMessage response)
-        {
-
-            var content = await response.Content.ReadAsStringAsync();
-            if (!string.IsNullOrWhiteSpace(content))
-            {
-                ErrorResponse errorResponse = null;
-                try
-                {
-                    errorResponse = JsonSerializationHelper.Deserialize<ErrorResponse>(content);
-                }
-                catch (Exception)
-                {
-                    throw new ResponseParseException("An error occurred while deserializing the response", content);
-                }
-                if (errorResponse.error == null)
-                    throw new ResponseParseException("An error occurred while deserializing the response", content);
-
-                switch (errorResponse.error.code)
-                {
-                    case ReadableErrorTopCode.Conflict: throw new MorphApiConflictException(errorResponse.error.message);
-                    case ReadableErrorTopCode.NotFound: throw new MorphApiNotFoundException(errorResponse.error.message);
-                    case ReadableErrorTopCode.Forbidden: throw new MorphApiForbiddenException(errorResponse.error.message);
-                    case ReadableErrorTopCode.Unauthorized: throw new MorphApiUnauthorizedException(errorResponse.error.message);
-                    case ReadableErrorTopCode.BadArgument: throw new MorphApiBadArgumentException(FieldErrorsMapper.MapFromDto(errorResponse.error), errorResponse.error.message);
-                    default: throw new MorphClientGeneralException(errorResponse.error.code, errorResponse.error.message);
-                }
-            }
-
-            else
-            {
-                switch (response.StatusCode)
-                {
-                    case HttpStatusCode.Conflict: throw new MorphApiConflictException(response.ReasonPhrase ?? "Conflict");
-                    case HttpStatusCode.NotFound: throw new MorphApiNotFoundException(response.ReasonPhrase ?? "Not found");
-                    case HttpStatusCode.Forbidden: throw new MorphApiForbiddenException(response.ReasonPhrase ?? "Forbidden");
-                    case HttpStatusCode.Unauthorized: throw new MorphApiUnauthorizedException(response.ReasonPhrase ?? "Unauthorized");
-                    case HttpStatusCode.BadRequest: throw new MorphClientGeneralException("Unknown", response.ReasonPhrase ?? "Unknown error");
-                    default: throw new ResponseParseException(response.ReasonPhrase, null);
-                }
-
-            }
-        }
 
         /// <summary>
         /// Start Task like "fire and forget"
@@ -186,7 +411,7 @@ namespace Morph.Server.Sdk.Client
             {
                 throw new ArgumentNullException(nameof(apiSession));
             }
-
+                       
             var spaceName = apiSession.SpaceName;
             var url = UrlHelper.JoinUrl("space", spaceName, "runningtasks", taskId.ToString("D"), "payload");
             var dto = new TaskStartRequestDto();
@@ -194,7 +419,11 @@ namespace Morph.Server.Sdk.Client
             {
                 dto.TaskParameters = taskParameters.Select(TaskParameterMapper.ToDto).ToList();
             }
-            var request = JsonSerializationHelper.SerializeAsStringContent(dto);
+            var result = await apiClient.PostAsync<TaskStartRequestDto,RunningTaskStatusDto>(url, dto, new NameValueCollection(), apiSession.ToHeadersCollection(), cancellationToken);
+            
+
+
+         
             using (var response = await GetHttpClient().SendAsync(BuildHttpRequestMessage(HttpMethod.Post, url, request, apiSession), cancellationToken))
             {
                 var info = await HandleResponse<RunningTaskStatusDto>(response);
@@ -202,6 +431,25 @@ namespace Morph.Server.Sdk.Client
             }
 
         }
+
+        protected Task<TResult> WrappedShort<TResult>(Func<CancellationToken, Task<TResult>> fun, CancellationToken orginalCancellationToken)
+        {
+            return fun(orginalCancellationToken);
+        }
+
+        protected TDataModel MapOrFail<TDto, TDataModel>(ApiResult<TDto> apiResult, Func<TDto, TDataModel> maper)
+        {
+            if (apiResult.IsSucceed)
+            {
+                return maper(apiResult.Data);
+            }
+            else
+            {
+                throw apiResult.Error;
+            }
+        }
+
+
 
         /// <summary>
         /// Gets status of the task (Running/Not running) and payload
@@ -221,7 +469,7 @@ namespace Morph.Server.Sdk.Client
             var nvc = new NameValueCollection();
             nvc.Add("_", DateTime.Now.Ticks.ToString());
             var url = UrlHelper.JoinUrl("space", spaceName, "runningtasks", taskId.ToString("D")) + nvc.ToQueryString();
-
+           
             using (var response = await GetHttpClient().SendAsync(BuildHttpRequestMessage(HttpMethod.Get, url, null, apiSession), cancellationToken))
             {
                 var info = await HandleResponse<RunningTaskStatusDto>(response);
@@ -237,23 +485,19 @@ namespace Morph.Server.Sdk.Client
         /// <param name="taskId">task guid</param>
         /// <param name="cancellationToken">cancellation token</param>
         /// <returns>Returns task status</returns>
-        public async Task<Model.TaskStatus> GetTaskStatusAsync(ApiSession apiSession, Guid taskId, CancellationToken cancellationToken)
+        public  Task<Model.TaskStatus> GetTaskStatusAsync(ApiSession apiSession, Guid taskId, CancellationToken cancellationToken)
         {
             if (apiSession == null)
             {
                 throw new ArgumentNullException(nameof(apiSession));
             }
-            var spaceName = apiSession.SpaceName;
-            var nvc = new NameValueCollection();
-            nvc.Add("_", DateTime.Now.Ticks.ToString());
-            var url = UrlHelper.JoinUrl("space", spaceName, "tasks", taskId.ToString("D")) + nvc.ToQueryString();
-
-            using (var response = await GetHttpClient().SendAsync(BuildHttpRequestMessage(HttpMethod.Get, url, null, apiSession), cancellationToken))
+            return WrappedShort(async (token) =>
             {
-                var dto = await HandleResponse<TaskStatusDto>(response);
-                var data = TaskStatusMapper.MapFromDto(dto);
-                return data;
-            }
+                var apiResult = await lowLevelApiClient.GetTaskStatusAsync(apiSession, taskId, token);
+                return MapOrFail(apiResult, (dto) => TaskStatusMapper.MapFromDto(dto));
+
+            },cancellationToken);
+
         }
 
         /// <summary>
@@ -471,21 +715,7 @@ namespace Morph.Server.Sdk.Client
         }
 
 
-        protected HttpRequestMessage BuildHttpRequestMessage(HttpMethod httpMethod, string url, HttpContent content, ApiSession apiSession)
-        {
-            var requestMessage = new HttpRequestMessage()
-            {
-                Content = content,
-                Method = httpMethod,
-                RequestUri = new Uri(url, UriKind.Relative)
-            };
-            if (apiSession != null && !apiSession.IsAnonymous && !apiSession.IsClosed)
-            {
-                requestMessage.Headers.Add(ApiSession.AuthHeaderName, apiSession.AuthToken);
-            }
-            return requestMessage;
-        }
-
+       
 
         /// <summary>
         /// Upload file stream to the server
