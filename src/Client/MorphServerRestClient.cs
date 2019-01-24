@@ -9,18 +9,41 @@ using System.Net;
 using System.Collections.Specialized;
 using Morph.Server.Sdk.Mappers;
 using Morph.Server.Sdk.Dto.Errors;
+using System.IO;
+using Morph.Server.Sdk.Model;
 
 namespace Morph.Server.Sdk.Client
 {
 
-    public interface IApiClient:IDisposable
+    public interface IApiClient : IDisposable
     {
         HttpClient HttpClient { get; set; }
         Task<ApiResult<TResult>> GetAsync<TResult>(string url, NameValueCollection urlParameters, HeadersCollection headersCollection, CancellationToken cancellationToken);
         Task<ApiResult<TResult>> PostAsync<TModel, TResult>(string url, TModel model, NameValueCollection urlParameters, HeadersCollection headersCollection, CancellationToken cancellationToken);
         Task<ApiResult<TResult>> PutAsync<TModel, TResult>(string url, TModel model, NameValueCollection urlParameters, HeadersCollection headersCollection, CancellationToken cancellationToken);
         Task<ApiResult<TResult>> DeleteAsync<TResult>(string url, NameValueCollection urlParameters, HeadersCollection headersCollection, CancellationToken cancellationToken);
+        Task<ApiResult<TResult>> PutFileStreamAsync<TResult>(string url, SendFileStreamData sendFileStreamData, NameValueCollection urlParameters, HeadersCollection headersCollection,    CancellationToken cancellationToken);
+        Task<ApiResult<TResult>> PostFileStreamAsync<TResult>(string url, SendFileStreamData sendFileStreamData, NameValueCollection urlParameters, HeadersCollection headersCollection, CancellationToken cancellationToken);
+
+
+
     }
+
+
+    public sealed class SendFileStreamData
+    {
+        public SendFileStreamData(Stream stream, string fileName, long fileSize)
+        {
+            Stream = stream ?? throw new ArgumentNullException(nameof(stream));
+            FileName = fileName ?? throw new ArgumentNullException(nameof(fileName));
+            FileSize = fileSize;
+        }
+
+        public Stream Stream { get; }
+        public string FileName { get; }
+        public long FileSize { get; }
+    }
+
 
     public sealed class NoContentResult
     {
@@ -81,17 +104,22 @@ namespace Morph.Server.Sdk.Client
 
             using (var response = await httpClient.SendAsync(httpRequestMessage, HttpCompletionOption.ResponseHeadersRead, cancellationToken))
             {
-                if (response.IsSuccessStatusCode)
-                {
-                    var content = await response.Content.ReadAsStringAsync();
-                    var result = JsonSerializationHelper.Deserialize<TResult>(content);
-                    return ApiResult<TResult>.Ok(result);
-                }
-                else
-                {
-                    var error = await BuildExceptionFromResponse(response);
-                    return ApiResult<TResult>.Fail(error);
-                }
+                return await HandleResponse<TResult>(response);
+            }
+        }
+
+        private static async Task<ApiResult<TResult>> HandleResponse<TResult>(HttpResponseMessage response)
+        {
+            if (response.IsSuccessStatusCode)
+            {
+                var content = await response.Content.ReadAsStringAsync();
+                var result = JsonSerializationHelper.Deserialize<TResult>(content);
+                return ApiResult<TResult>.Ok(result);
+            }
+            else
+            {
+                var error = await BuildExceptionFromResponse(response);
+                return ApiResult<TResult>.Fail(error);
             }
         }
 
@@ -158,11 +186,70 @@ namespace Morph.Server.Sdk.Client
 
         public void Dispose()
         {
-            if(HttpClient!= null)
+            if (HttpClient != null)
             {
                 HttpClient.Dispose();
                 HttpClient = null;
             }
+        }
+
+        public async Task<ApiResult<TResult>> SendFileStreamAsync<TResult>(
+            HttpMethod httpMethod, string path, SendFileStreamData sendFileStreamData,
+            NameValueCollection urlParameters, HeadersCollection headersCollection,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                string boundary = "MorphRestClient--------" + Guid.NewGuid().ToString("N");
+
+                using (var content = new MultipartFormDataContent(boundary))
+                {
+                    var downloadProgress = new FileProgress(sendFileStreamData.FileName, sendFileStreamData.FileSize);
+                    downloadProgress.StateChanged += DownloadProgress_StateChanged;
+                    using (cancellationToken.Register(() => downloadProgress.ChangeState(FileProgressState.Cancelled)))
+                    {
+                        using (var streamContent = new ProgressStreamContent(sendFileStreamData.Stream, downloadProgress))
+                        {
+                            content.Add(streamContent, "files", Path.GetFileName(sendFileStreamData.FileName));
+                            var url = path + urlParameters.ToQueryString();
+                            var requestMessage = BuildHttpRequestMessage(httpMethod, url, content, headersCollection);
+                            using (requestMessage)
+                            {
+                                using (var response = await httpClient.SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, cancellationToken))
+                                {
+                                    return await HandleResponse<TResult>(response);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex) when (ex.InnerException != null && 
+                    ex.InnerException is WebException web && 
+                    web.Status == WebExceptionStatus.ConnectionClosed)
+            {
+                return ApiResult<TResult>.Fail(new MorphApiNotFoundException("Specified folder not found"));
+            }
+            catch (Exception e)
+            {
+                return ApiResult<TResult>.Fail(e);
+            }
+        }
+
+        private void DownloadProgress_StateChanged(object sender, Events.FileEventArgs e)
+        {
+            // TODO: add handler
+            //throw new NotImplementedException();
+        }
+
+        public Task<ApiResult<TResult>> PutFileStreamAsync<TResult>(string url, SendFileStreamData sendFileStreamData, NameValueCollection urlParameters, HeadersCollection headersCollection, CancellationToken cancellationToken)
+        {
+            return SendFileStreamAsync<TResult>(HttpMethod.Put, url, sendFileStreamData, urlParameters, headersCollection, cancellationToken);
+        }
+
+        public Task<ApiResult<TResult>> PostFileStreamAsync<TResult>(string url, SendFileStreamData sendFileStreamData, NameValueCollection urlParameters, HeadersCollection headersCollection, CancellationToken cancellationToken)
+        {
+            return SendFileStreamAsync<TResult>(HttpMethod.Post, url, sendFileStreamData, urlParameters, headersCollection, cancellationToken);
         }
     }
 

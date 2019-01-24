@@ -26,180 +26,6 @@ using System.Net.Security;
 namespace Morph.Server.Sdk.Client
 {
 
-    internal class OpenSessionAuthenticatorContext
-    {
-        
-        public OpenSessionAuthenticatorContext
-            (ILowLevelApiClient lowLevelApiClient,
-        IMorphServerApiClient morphServerApiClient,
-        Func<HttpClientHandler, IApiClient> buildApiClient)
-        {
-            LowLevelApiClient = lowLevelApiClient ?? throw new ArgumentNullException(nameof(lowLevelApiClient));
-            MorphServerApiClient = morphServerApiClient ?? throw new ArgumentNullException(nameof(morphServerApiClient));
-            BuildApiClient = buildApiClient ?? throw new ArgumentNullException(nameof(buildApiClient));
-        }
-
-        public ILowLevelApiClient LowLevelApiClient { get; }
-        public IMorphServerApiClient MorphServerApiClient { get; }
-        public Func<HttpClientHandler, IApiClient> BuildApiClient { get; }
-    }
-
-
-    internal static class MorphServerAuthenticator
-    {
-
-        public static async Task<ApiSession> OpenSessionMultiplexedAsync(
-            SpaceEnumerationItem desiredSpace,
-            OpenSessionAuthenticatorContext context,
-            OpenSessionRequest openSessionRequest,             
-            CancellationToken cancellationToken)
-        {
-            // space access restriction is supported since server 3.9.2
-            // for previous versions api will return SpaceAccessRestriction.NotSupported 
-            // a special fall-back mechanize need to be used to open session in such case
-            switch (desiredSpace.SpaceAccessRestriction)
-            {
-                // anon space
-                case SpaceAccessRestriction.None:
-                    return ApiSession.Anonymous(openSessionRequest.SpaceName);
-
-                // password protected space                
-                case SpaceAccessRestriction.BasicPassword:
-                    return await OpenSessionViaSpacePasswordAsync(context, openSessionRequest.SpaceName, openSessionRequest.Password, cancellationToken);
-
-                // windows authentication
-                case SpaceAccessRestriction.WindowsAuthentication:
-                    return await OpenSessionViaWindowsAuthenticationAsync(context, openSessionRequest.SpaceName, cancellationToken);
-
-                // fallback
-                case SpaceAccessRestriction.NotSupported:
-
-                    //  if space is public or password is not set - open anon session
-                    if (desiredSpace.IsPublic || string.IsNullOrWhiteSpace(openSessionRequest.Password))
-                    {
-                        return ApiSession.Anonymous(openSessionRequest.SpaceName);
-                    }
-                    // otherwise open session via space password
-                    else
-                    {
-                        return await OpenSessionViaSpacePasswordAsync(context, openSessionRequest.SpaceName, openSessionRequest.Password, cancellationToken);
-                    }
-
-                default:
-                    throw new Exception("Space access restriction method is not supported by this client.");
-            }
-        }
-
-
-        static async Task<ApiSession> OpenSessionViaWindowsAuthenticationAsync(OpenSessionAuthenticatorContext context, string spaceName, CancellationToken cancellationToken)
-        {
-            if (string.IsNullOrEmpty(spaceName))
-            {
-                throw new ArgumentException("Space name is not set", nameof(spaceName));
-            }
-            // handler will be disposed automatically
-            HttpClientHandler aHandler = new HttpClientHandler()
-            {
-                ClientCertificateOptions = ClientCertificateOption.Automatic,
-                UseDefaultCredentials = true
-            };
-
-            // build a new low level client based on specified handler
-            using (var ntmlRestApiClient = context.BuildApiClient(aHandler))
-            {
-                var serverNonce = await internalGetAuthNonceAsync(ntmlRestApiClient, cancellationToken);
-                var token = await internalAuthExternalWindowAsync(ntmlRestApiClient, spaceName, serverNonce, cancellationToken);
-
-                return new ApiSession(context.MorphServerApiClient)
-                {
-                    AuthToken = token,
-                    IsAnonymous = false,
-                    IsClosed = false,
-                    SpaceName = spaceName
-                };
-            }
-        }
-        static async Task<string> internalGetAuthNonceAsync(IApiClient apiClient, CancellationToken cancellationToken)
-        {
-            var url = "auth/nonce";
-            var response = await apiClient.PostAsync<GenerateNonceRequestDto, GenerateNonceResponseDto>
-                (url, new GenerateNonceRequestDto(), null, new HeadersCollection(), cancellationToken);
-            response.ThrowIfFailed();
-            return response.Data.Nonce;            
-        }
-
-        static async Task<string> internalAuthExternalWindowAsync(IApiClient apiClient, string spaceName, string serverNonce, CancellationToken cancellationToken)
-        {
-            var url = "auth/external/windows";
-            var requestDto = new WindowsExternalLoginRequestDto
-            {
-                RequestToken = serverNonce,
-                SpaceName = spaceName
-            };
-
-            var apiResult = await apiClient.PostAsync<WindowsExternalLoginRequestDto, LoginResponseDto>(url, requestDto, null, new HeadersCollection(), cancellationToken);
-            apiResult.ThrowIfFailed();
-            return apiResult.Data.Token;
-            
-        }
-
-
-
-        /// <summary>
-        /// Open a new authenticated session via password
-        /// </summary>
-        /// <param name="spaceName">space name</param>
-        /// <param name="password">space password</param>
-        /// <param name="cancellationToken"></param>
-        /// <returns></returns>
-        static async Task<ApiSession> OpenSessionViaSpacePasswordAsync(OpenSessionAuthenticatorContext context, string spaceName, string password, CancellationToken cancellationToken)
-        {
-            if (string.IsNullOrEmpty(spaceName))
-            {
-                throw new ArgumentException("Space name is not set.", nameof(spaceName));
-            }
-
-            if (password == null)
-            {
-                throw new ArgumentNullException(nameof(password));
-            }
-
-            var passwordHash = CryptographyHelper.CalculateSha256HEX(password);            
-            var serverNonceApiResult = await context.LowLevelApiClient.AuthGenerateNonce(cancellationToken);
-            serverNonceApiResult.ThrowIfFailed();
-            var serverNonce = serverNonceApiResult.Data.Nonce;
-            var clientNonce = ConvertHelper.ByteArrayToHexString(CryptographyHelper.GenerateRandomSequence(16));
-            var all = passwordHash + serverNonce + clientNonce;
-            var allHash = CryptographyHelper.CalculateSha256HEX(all);
-
-
-
-            var requestDto = new LoginRequestDto
-            {
-                ClientSeed = clientNonce,
-                Password = passwordHash,
-                Provider = "Space",
-                UserName = spaceName,
-                RequestToken = serverNonce
-            };
-            var authApiResult = await context.LowLevelApiClient.AuthLoginPasswordAsync(requestDto, cancellationToken);
-            authApiResult.ThrowIfFailed();
-            var token = authApiResult.Data.Token;           
-            
-
-            return new ApiSession(context.MorphServerApiClient)
-            {
-                AuthToken = token,
-                IsAnonymous = false,
-                IsClosed = false,
-                SpaceName = spaceName
-            };
-        }
-
-
-
-    }
-
 
 
 
@@ -210,7 +36,7 @@ namespace Morph.Server.Sdk.Client
     {
         protected readonly Uri _apiHost;
         protected readonly string UserAgent = "MorphServerApiClient/1.3.5";
-        protected HttpClient _httpClient;
+        
         protected readonly string _api_v1 = "api/v1/";
 
 
@@ -219,6 +45,9 @@ namespace Morph.Server.Sdk.Client
 
         public TimeSpan OperationTimeout { get; set; } = TimeSpan.FromSeconds(30);
         public TimeSpan FileTransferTimeout { get; set; } = TimeSpan.FromHours(3);
+#if NETSTANDARD2_0
+        public Func<HttpRequestMessage, X509Certificate2, X509Chain, SslPolicyErrors, bool> ServerCertificateCustomValidationCallback { get; set; }
+#endif
 
         /// <summary>
         /// Construct Api client
@@ -229,20 +58,14 @@ namespace Morph.Server.Sdk.Client
             if (!apiHost.EndsWith("/"))
                 apiHost += "/";
             _apiHost = new Uri(apiHost);
-
-        }
-
-        protected HttpClient GetHttpClient()
-        {
-            if (_httpClient == null)
-            {
+            
+            
 #if NETSTANDARD2_0
                 // handler will be disposed automatically
                 HttpClientHandler aHandler = new HttpClientHandler()
                 {
                     ClientCertificateOptions = ClientCertificateOption.Automatic,
-                    ServerCertificateCustomValidationCallback = new Func<HttpRequestMessage, X509Certificate2, X509Chain, SslPolicyErrors, bool>(
-                        (request, certificate, chain, sslPolicyErrors) => true)
+                    ServerCertificateCustomValidationCallback = this.ServerCertificateCustomValidationCallback
 
                 };
 #elif NET45
@@ -254,18 +77,16 @@ namespace Morph.Server.Sdk.Client
                 };
 #endif
 
-                _httpClient = ConstructHttpClient(_apiHost, aHandler);
-            }
-            return _httpClient;
+            var httpClient = ConstructHttpClient(_apiHost, aHandler);
+            var restClient = ConstructRestApiClient(httpClient);
+            this.lowLevelApiClient = new LowLevelApiClient(restClient);
 
-            
         }
-
 
         public event EventHandler<FileEventArgs> FileProgress;
 
 
-        protected IApiClient ConstructRestApiClient(HttpClient httpClient)
+        private IApiClient ConstructRestApiClient(HttpClient httpClient)
         {
             if (httpClient == null)
             {
@@ -278,6 +99,7 @@ namespace Morph.Server.Sdk.Client
 
         protected HttpClient ConstructHttpClient(Uri apiHost, HttpClientHandler httpClientHandler)
         {
+            
             if (httpClientHandler == null)
             {
                 throw new ArgumentNullException(nameof(httpClientHandler));
@@ -304,7 +126,7 @@ namespace Morph.Server.Sdk.Client
 
 
 
-            client.Timeout = TimeSpan.FromMinutes(15);
+            client.Timeout = TimeSpan.FromHours(24);
 
             return client;
         }
@@ -901,16 +723,6 @@ namespace Morph.Server.Sdk.Client
             }, cancellationToken, OperationTimeout);
 
         }
-
-        
-
-
-
-        
-
-        
-
-
         
 
 
@@ -990,10 +802,10 @@ namespace Morph.Server.Sdk.Client
 
         public void Dispose()
         {
-            if (_httpClient != null)
+            if (lowLevelApiClient != null)
             {
-                _httpClient.Dispose();
-                _httpClient = null;
+                lowLevelApiClient.Dispose();
+                lowLevelApiClient = null;
             }
         }
 

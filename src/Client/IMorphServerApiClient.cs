@@ -1,6 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Net.Http;
+using System.Net.Security;
+using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using Morph.Server.Sdk.Events;
@@ -12,6 +15,9 @@ namespace Morph.Server.Sdk.Client
     public interface IMorphServerApiClient:IDisposable
     {
         event EventHandler<FileEventArgs> FileProgress;
+#if NETSTANDARD2_0
+        Func<HttpRequestMessage, X509Certificate2, X509Chain, SslPolicyErrors, bool> ServerCertificateCustomValidationCallback { get; set; }
+#endif
 
         Task<SpaceBrowsingInfo> BrowseSpaceAsync(ApiSession apiSession, string folderPath, CancellationToken cancellationToken);
         Task CloseSessionAsync(ApiSession apiSession, CancellationToken cancellationToken);
