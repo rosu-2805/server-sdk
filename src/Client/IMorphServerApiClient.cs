@@ -9,7 +9,7 @@ using Morph.Server.Sdk.Model.Commands;
 
 namespace Morph.Server.Sdk.Client
 {
-    public interface IMorphServerApiClient
+    public interface IMorphServerApiClient:IDisposable
     {
         event EventHandler<FileEventArgs> FileProgress;
 

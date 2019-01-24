@@ -21,10 +21,10 @@ namespace Morph.Server.Sdk.Model
         internal string AuthToken { get; set; }
         internal bool IsAnonymous { get; set; }
 
-        MorphServerApiClient _client;
+        IMorphServerApiClient _client;
         private string _spaceName;
 
-        internal ApiSession(MorphServerApiClient client)
+        internal ApiSession(IMorphServerApiClient client)
         {
             _client = client;
             IsClosed = false;
@@ -62,7 +62,8 @@ namespace Morph.Server.Sdk.Model
                     {
                         var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(5));
                         await _client.CloseSessionAsync(this, cts.Token);
-                        _client.Dispose();
+                        // don't dispose client implicitly, just remove link to client
+                        //_client.Dispose();
                         _client = null;
                     }
 
