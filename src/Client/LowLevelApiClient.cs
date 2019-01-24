@@ -14,7 +14,7 @@ namespace Morph.Server.Sdk.Client
 
 
 
-    internal interface ILowLevelApiClient
+    internal interface ILowLevelApiClient: IDisposable
     {
         // TASKS
         Task<ApiResult<TaskStatusDto>> GetTaskStatusAsync(ApiSession apiSession, Guid taskId, CancellationToken cancellationToken);
@@ -34,6 +34,7 @@ namespace Morph.Server.Sdk.Client
         Task<ApiResult<NoContentResult>> AuthLogoutAsync(ApiSession apiSession, CancellationToken cancellationToken);
         Task<ApiResult<LoginResponseDto>> AuthLoginPasswordAsync(LoginRequestDto loginRequestDto, CancellationToken cancellationToken);
         Task<ApiResult<GenerateNonceResponseDto>> AuthGenerateNonce(CancellationToken cancellationToken);
+        
 
 
         // Server interaction
@@ -241,6 +242,10 @@ namespace Morph.Server.Sdk.Client
             return apiClient.PostAsync<GenerateNonceRequestDto, GenerateNonceResponseDto>(url, new GenerateNonceRequestDto(), null, new HeadersCollection(), cancellationToken);
         }
 
+        public void Dispose()
+        {
+            apiClient.Dispose();
+        }
     }
 }
 

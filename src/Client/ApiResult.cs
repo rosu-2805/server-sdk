@@ -24,6 +24,14 @@ namespace Morph.Server.Sdk.Client
                 Error = null
             };
         }
+
+        public void ThrowIfFailed()
+        {
+            if(!IsSucceed && Error != null)
+            {
+                throw Error;
+            }
+        }
     }
 
         

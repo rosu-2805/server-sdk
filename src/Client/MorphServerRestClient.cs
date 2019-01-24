@@ -13,8 +13,9 @@ using Morph.Server.Sdk.Dto.Errors;
 namespace Morph.Server.Sdk.Client
 {
 
-    public interface IApiClient
+    public interface IApiClient:IDisposable
     {
+        HttpClient HttpClient { get; set; }
         Task<ApiResult<TResult>> GetAsync<TResult>(string url, NameValueCollection urlParameters, HeadersCollection headersCollection, CancellationToken cancellationToken);
         Task<ApiResult<TResult>> PostAsync<TModel, TResult>(string url, TModel model, NameValueCollection urlParameters, HeadersCollection headersCollection, CancellationToken cancellationToken);
         Task<ApiResult<TResult>> PutAsync<TModel, TResult>(string url, TModel model, NameValueCollection urlParameters, HeadersCollection headersCollection, CancellationToken cancellationToken);
@@ -34,11 +35,12 @@ namespace Morph.Server.Sdk.Client
 
     public class MorphServerRestClient : IApiClient
     {
-        private readonly HttpClient httpClient;
+        private HttpClient httpClient;
+        public HttpClient HttpClient { get => httpClient; set => httpClient = value; }
 
         public MorphServerRestClient(HttpClient httpClient)
         {
-            this.httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
+            HttpClient = httpClient;
         }
         public Task<ApiResult<TResult>> DeleteAsync<TResult>(string url, NameValueCollection urlParameters, HeadersCollection headersCollection, CancellationToken cancellationToken)
         {
@@ -154,7 +156,14 @@ namespace Morph.Server.Sdk.Client
             }
         }
 
-
+        public void Dispose()
+        {
+            if(HttpClient!= null)
+            {
+                HttpClient.Dispose();
+                HttpClient = null;
+            }
+        }
     }
 
 
