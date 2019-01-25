@@ -22,13 +22,28 @@ namespace Morph.Server.Sdk.Client
         Task<ApiResult<TResult>> PostAsync<TModel, TResult>(string url, TModel model, NameValueCollection urlParameters, HeadersCollection headersCollection, CancellationToken cancellationToken);
         Task<ApiResult<TResult>> PutAsync<TModel, TResult>(string url, TModel model, NameValueCollection urlParameters, HeadersCollection headersCollection, CancellationToken cancellationToken);
         Task<ApiResult<TResult>> DeleteAsync<TResult>(string url, NameValueCollection urlParameters, HeadersCollection headersCollection, CancellationToken cancellationToken);
-        Task<ApiResult<TResult>> PutFileStreamAsync<TResult>(string url, SendFileStreamData sendFileStreamData, NameValueCollection urlParameters, HeadersCollection headersCollection,    CancellationToken cancellationToken);
+
+        Task<ApiResult<TResult>> PutFileStreamAsync<TResult>(string url, SendFileStreamData sendFileStreamData, NameValueCollection urlParameters, HeadersCollection headersCollection, CancellationToken cancellationToken);
         Task<ApiResult<TResult>> PostFileStreamAsync<TResult>(string url, SendFileStreamData sendFileStreamData, NameValueCollection urlParameters, HeadersCollection headersCollection, CancellationToken cancellationToken);
 
-
+        Task<ApiResult<FetchFileStreamData>> RetrieveFileGetAsync(string url, NameValueCollection urlParameters, HeadersCollection headersCollection, CancellationToken cancellationToken);
 
     }
 
+
+    public sealed class FetchFileStreamData
+    {
+        public FetchFileStreamData(Stream stream, string fileName, long? fileSize)
+        {
+            Stream = stream ?? throw new ArgumentNullException(nameof(stream));
+            FileName = fileName ?? throw new ArgumentNullException(nameof(fileName));
+            FileSize = fileSize;
+        }
+
+        public Stream Stream { get; }
+        public string FileName { get; }
+        public long? FileSize { get; }
+    }
 
     public sealed class SendFileStreamData
     {
@@ -224,8 +239,8 @@ namespace Morph.Server.Sdk.Client
                     }
                 }
             }
-            catch (Exception ex) when (ex.InnerException != null && 
-                    ex.InnerException is WebException web && 
+            catch (Exception ex) when (ex.InnerException != null &&
+                    ex.InnerException is WebException web &&
                     web.Status == WebExceptionStatus.ConnectionClosed)
             {
                 return ApiResult<TResult>.Fail(new MorphApiNotFoundException("Specified folder not found"));
@@ -251,10 +266,66 @@ namespace Morph.Server.Sdk.Client
         {
             return SendFileStreamAsync<TResult>(HttpMethod.Post, url, sendFileStreamData, urlParameters, headersCollection, cancellationToken);
         }
+
+
+        public Task<ApiResult<FetchFileStreamData>> RetrieveFileGetAsync(string url, NameValueCollection urlParameters, HeadersCollection headersCollection, CancellationToken cancellationToken)
+        {
+            if (urlParameters == null)
+            {
+                urlParameters = new NameValueCollection();
+            }
+            urlParameters.Add("_", DateTime.Now.Ticks.ToString());
+            return RetrieveFileStreamAsync(HttpMethod.Get, url, urlParameters, headersCollection, cancellationToken);
+        }
+
+
+
+        protected async Task<ApiResult<FetchFileStreamData>> RetrieveFileStreamAsync(HttpMethod httpMethod, string path, NameValueCollection urlParameters, HeadersCollection headersCollection, CancellationToken cancellationToken)
+        {
+            var url = path + urlParameters.ToQueryString();
+            using (HttpResponseMessage response = await httpClient.SendAsync(
+                    BuildHttpRequestMessage(httpMethod, url, null, headersCollection), HttpCompletionOption.ResponseHeadersRead, cancellationToken))
+            {
+                if (response.IsSuccessStatusCode)
+                {
+                    var contentDisposition = response.Content.Headers.ContentDisposition;
+                    DownloadFileInfo dfi = null;
+                    if (contentDisposition != null)
+                    {
+                        dfi = new DownloadFileInfo
+                        {
+                            // need to fix double quotes, that may come from server response
+                            // FileNameStar contains file name encoded in UTF8
+                            FileName = (contentDisposition.FileNameStar ?? contentDisposition.FileName).TrimStart('\"').TrimEnd('\"')
+                        };
+                    }
+                    var contentLength = response.Content.Headers.ContentLength;
+
+                    using (Stream streamToReadFrom = await response.Content.ReadAsStreamAsync())
+                    {
+                        var streamWithProgress = new StreamWithProgress(streamToReadFrom,
+                            e =>
+                            {
+
+                            },
+                        e =>
+                        {
+
+                        });
+                        return ApiResult<FetchFileStreamData>.Ok(new FetchFileStreamData(streamWithProgress, dfi.FileName, contentLength));
+                    }
+                }
+                else
+                {
+                    var error = await BuildExceptionFromResponse(response);
+                    return ApiResult<FetchFileStreamData>.Fail(error);
+                }
+            }
+        }
+
+
     }
 
 
+
 }
-
-
-

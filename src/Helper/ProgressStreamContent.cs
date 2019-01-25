@@ -6,10 +6,30 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Morph.Server.Sdk.Helper
 {
+    internal class StreamProgressEventArgs : EventArgs
+    {        
+        public int BytesMoved { get;  }             
+        public long StreamTotalLength { get; }        
+        public long StreamCurrentPosition { get; }
+
+        public StreamProgressEventArgs()
+        {
+
+        }
+        public StreamProgressEventArgs(int bytesMoved, long streamTotalLength, long streamCurrentPosition):this()
+        {
+            BytesMoved = bytesMoved;
+            StreamTotalLength = streamTotalLength;
+            StreamCurrentPosition = streamCurrentPosition;
+        }
+    }
+
+
     internal class ProgressStreamContent : HttpContent
     {
         private const int DefBufferSize = 4096;

@@ -27,6 +27,16 @@ namespace Morph.Server.Sdk.Client
 {
 
 
+    public static class MorphServerApiClientConfig
+    {
+#if NETSTANDARD2_0
+        public static Func<HttpRequestMessage, X509Certificate2, X509Chain, SslPolicyErrors, bool> ServerCertificateCustomValidationCallback { get; set; }
+#endif
+
+        public static string ClientId { get; set; } = string.Empty;
+
+    }
+
 
 
     /// <summary>
@@ -346,235 +356,6 @@ namespace Morph.Server.Sdk.Client
             }, cancellationToken, OperationTimeout);
         }
 
-        /// <summary>
-        /// Download file from server
-        /// </summary>
-        /// <param name="apiSession">api session</param>
-        /// <param name="remoteFilePath">Path to the remote file. Like /some/folder/file.txt </param>
-        /// <param name="streamToWriteTo">stream for writing. You should dispose the stream by yourself</param>
-        /// <param name="cancellationToken">cancellation token</param>
-        /// <returns>returns file info</returns>
-        public async Task<DownloadFileInfo> DownloadFileAsync(ApiSession apiSession, string remoteFilePath, Stream streamToWriteTo, CancellationToken cancellationToken)
-        {
-            if (apiSession == null)
-            {
-                throw new ArgumentNullException(nameof(apiSession));
-            }
-
-            DownloadFileInfo fileInfo = null;
-            await DownloadFileAsync(apiSession, remoteFilePath, (fi) => { fileInfo = fi; return true; }, streamToWriteTo, cancellationToken);
-            return fileInfo;
-        }
-        /// <summary>
-        /// Download file from server
-        /// </summary>
-        /// <param name="apiSession">api session</param>
-        /// <param name="remoteFilePath"> Path to the remote file. Like /some/folder/file.txt </param>
-        /// <param name="handleFile">delegate to check file info before accessing to the file stream</param>
-        /// <param name="streamToWriteTo">stream for writing. Writing will be executed only if handleFile delegate returns true</param>
-        /// <param name="cancellationToken"></param>
-        /// <returns></returns>
-        public async Task DownloadFileAsync(ApiSession apiSession, string remoteFilePath, Func<DownloadFileInfo, bool> handleFile, Stream streamToWriteTo, CancellationToken cancellationToken)
-        {
-            if (apiSession == null)
-            {
-                throw new ArgumentNullException(nameof(apiSession));
-            }
-
-            var spaceName = apiSession.SpaceName;
-            var nvc = new NameValueCollection();
-            nvc.Add("_", DateTime.Now.Ticks.ToString());
-            var url = UrlHelper.JoinUrl("space", spaceName, "files", remoteFilePath) + nvc.ToQueryString();
-            // it's necessary to add HttpCompletionOption.ResponseHeadersRead to disable caching
-            using (HttpResponseMessage response = await GetHttpClient()
-                .SendAsync(BuildHttpRequestMessage(HttpMethod.Get, url, null, apiSession), HttpCompletionOption.ResponseHeadersRead, cancellationToken))
-                if (response.IsSuccessStatusCode)
-                {
-                    using (Stream streamToReadFrom = await response.Content.ReadAsStreamAsync())
-                    {
-                        var contentDisposition = response.Content.Headers.ContentDisposition;
-                        DownloadFileInfo dfi = null;
-                        if (contentDisposition != null)
-                        {
-                            dfi = new DownloadFileInfo
-                            {
-                                // need to fix double quotes, that may come from server response
-                                // FileNameStar contains file name encoded in UTF8
-                                FileName = (contentDisposition.FileNameStar ?? contentDisposition.FileName).TrimStart('\"').TrimEnd('\"')
-                            };
-                        }
-                        var contentLength = response.Content.Headers.ContentLength;
-                        var fileProgress = new FileProgress(dfi.FileName, contentLength.Value);
-                        fileProgress.StateChanged += DownloadProgress_StateChanged;
-
-                        var bufferSize = 4096;
-                        if (handleFile(dfi))
-                        {
-
-                            var buffer = new byte[bufferSize];
-                            var size = contentLength.Value;
-                            var processed = 0;
-                            var lastUpdate = DateTime.MinValue;
-
-                            fileProgress.ChangeState(FileProgressState.Starting);
-
-                            while (true)
-                            {
-                                // cancel download if cancellation token triggered
-                                if (cancellationToken.IsCancellationRequested)
-                                {
-                                    fileProgress.ChangeState(FileProgressState.Cancelled);
-                                    throw new OperationCanceledException();
-                                }
-
-                                var length = await streamToReadFrom.ReadAsync(buffer, 0, buffer.Length);
-                                if (length <= 0) break;
-                                await streamToWriteTo.WriteAsync(buffer, 0, length);
-                                processed += length;
-                                if (DateTime.Now - lastUpdate > TimeSpan.FromMilliseconds(250))
-                                {
-                                    fileProgress.SetProcessedBytes(processed);
-                                    fileProgress.ChangeState(FileProgressState.Processing);
-                                    lastUpdate = DateTime.Now;
-                                }
-
-                            }
-
-                            fileProgress.ChangeState(FileProgressState.Finishing);
-
-                        }
-
-                    }
-                }
-                else
-                {
-                    // TODO: check
-                    await HandleErrorResponse(response);
-
-                }
-
-
-        }
-
-        /// <summary>
-        /// Uploads file to the server 
-        /// </summary>
-        /// <param name="apiSession">api session</param>
-        /// <param name="localFilePath">path to the local file</param>
-        /// <param name="destFolderPath">detination folder like /path/to/folder </param>
-        /// <param name="cancellationToken">cancellation token</param>
-        /// <param name="overwriteFileifExists">overwrite file</param>
-        /// <returns></returns>
-        public async Task UploadFileAsync(ApiSession apiSession, string localFilePath, string destFolderPath, CancellationToken cancellationToken, bool overwriteFileifExists = false)
-        {
-            if (apiSession == null)
-            {
-                throw new ArgumentNullException(nameof(apiSession));
-            }
-
-            if (!File.Exists(localFilePath))
-                throw new FileNotFoundException(string.Format("File '{0}' not found", localFilePath));
-            var fileSize = new System.IO.FileInfo(localFilePath).Length;
-            var fileName = Path.GetFileName(localFilePath);
-            using (var fsSource = new FileStream(localFilePath, FileMode.Open, FileAccess.Read))
-            {
-                await UploadFileAsync(apiSession, fsSource, fileName, fileSize, destFolderPath, cancellationToken, overwriteFileifExists);
-                return;
-            }
-
-        }
-
-
-        /// <summary>
-        /// Uploads local file to the server folder. 
-        /// </summary>
-        /// <param name="apiSession">api session</param>
-        /// <param name="localFilePath">path to the local file</param>
-        /// <param name="destFolderPath">destination folder like /path/to/folder </param>
-        /// <param name="destFileName">destination filename. If it's empty then original file name will be used</param>
-        /// <param name="cancellationToken">cancellation token</param>
-        /// <param name="overwriteFileifExists">overwrite file</param>
-        /// <returns></returns>
-        public async Task UploadFileAsync(ApiSession apiSession, string localFilePath, string destFolderPath, string destFileName, CancellationToken cancellationToken, bool overwriteFileifExists = false)
-        {
-            if (apiSession == null)
-            {
-                throw new ArgumentNullException(nameof(apiSession));
-            }
-
-            if (!File.Exists(localFilePath))
-            {
-                throw new FileNotFoundException(string.Format("File '{0}' not found", localFilePath));
-            }
-            var fileName = String.IsNullOrWhiteSpace(destFileName) ? Path.GetFileName(localFilePath) : destFileName;
-            var fileSize = new FileInfo(localFilePath).Length;
-            using (var fsSource = new FileStream(localFilePath, FileMode.Open, FileAccess.Read))
-            {
-                await UploadFileAsync(apiSession, fsSource, fileName, fileSize, destFolderPath, cancellationToken, overwriteFileifExists);
-                return;
-            }
-
-        }
-
-
-
-
-        /// <summary>
-        /// Upload file stream to the server
-        /// </summary>
-        /// <param name="apiSession">api session</param>
-        /// <param name="inputStream">stream for read from</param>
-        /// <param name="fileName">file name</param>
-        /// <param name="fileSize">file size in bytes</param>
-        /// <param name="destFolderPath">destination folder like /path/to/folder </param>
-        /// <param name="cancellationToken">cancellation tokern</param>
-        /// <param name="overwriteFileifExists"></param>
-        /// <returns></returns>
-        public async Task UploadFileAsync(ApiSession apiSession, Stream inputStream, string fileName, long fileSize, string destFolderPath, CancellationToken cancellationToken, bool overwriteFileifExists = false)
-        {
-            if (apiSession == null)
-            {
-                throw new ArgumentNullException(nameof(apiSession));
-            }
-
-            try
-            {
-                var spaceName = apiSession.SpaceName;
-                string boundary = "EasyMorphCommandClient--------" + Guid.NewGuid().ToString("N");
-                string url = UrlHelper.JoinUrl("space", spaceName, "files", destFolderPath);
-
-                using (var content = new MultipartFormDataContent(boundary))
-                {
-                    var downloadProgress = new FileProgress(fileName, fileSize);
-                    downloadProgress.StateChanged += DownloadProgress_StateChanged;
-                    using (cancellationToken.Register(() => downloadProgress.ChangeState(FileProgressState.Cancelled)))
-                    {
-                        using (var streamContent = new ProgressStreamContent(inputStream, downloadProgress))
-                        {
-                            content.Add(streamContent, "files", Path.GetFileName(fileName));
-
-                            var requestMessage = BuildHttpRequestMessage(overwriteFileifExists ? HttpMethod.Put : HttpMethod.Post, url, content, apiSession);
-                            using (requestMessage)
-                            {
-                                using (var response = await GetHttpClient().SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, cancellationToken))
-                                {
-                                    await HandleResponse(response);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            catch (Exception ex)
-            when (ex.InnerException != null && ex.InnerException is WebException)
-            {
-                var einner = ex.InnerException as WebException;
-                if (einner.Status == WebExceptionStatus.ConnectionClosed)
-                    throw new MorphApiNotFoundException("Specified folder not found");
-
-            }
-        }
-
         private void DownloadProgress_StateChanged(object sender, FileEventArgs e)
         {
             if (FileProgress != null)
@@ -584,23 +365,6 @@ namespace Morph.Server.Sdk.Client
 
         }
 
-
-        //protected async Task<T> GetDataWithCancelAfter<T>(Func<CancellationToken, Task<T>> action, TimeSpan timeout, CancellationToken cancellationToken)
-        //{
-        //    using (var linkedTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken))
-        //    {
-        //        linkedTokenSource.CancelAfter(timeout);
-        //        try
-        //        {
-        //            return await action(linkedTokenSource.Token);
-        //        }
-
-        //        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested && linkedTokenSource.IsCancellationRequested)
-        //        {
-        //            throw new Exception($"Can't connect to host {_apiHost}.  Operation timeout ({timeout})");
-        //        }
-        //    }
-        //}
 
 
 
@@ -810,6 +574,46 @@ namespace Morph.Server.Sdk.Client
         }
 
 
+        public Task<FetchFileStreamData> DownloadFileAsync(ApiSession apiSession, string remoteFilePath, CancellationToken cancellationToken)
+        {
+            if (apiSession == null)
+            {
+                throw new ArgumentNullException(nameof(apiSession));
+            }
+
+            return Wrapped(async (token) =>
+            {
+                var apiResult = await lowLevelApiClient.WebFilesDownloadFileAsync(apiSession, remoteFilePath, cancellationToken);
+                return MapOrFail(apiResult, (data) => data);
+
+            }, cancellationToken, FileTransferTimeout);
+        }
+
+
+        public Task DownloadFileAsync(ApiSession apiSession, string remoteFilePath, Func<DownloadFileInfo, bool> handleFile, Stream streamToWriteTo, CancellationToken cancellationToken)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<DownloadFileInfo> DownloadFileAsync(ApiSession apiSession, string remoteFilePath, Stream streamToWriteTo, CancellationToken cancellationToken)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task UploadFileAsync(ApiSession apiSession, Stream inputStream, string fileName, long fileSize, string destFolderPath, CancellationToken cancellationToken, bool overwriteFileifExists = false)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task UploadFileAsync(ApiSession apiSession, string localFilePath, string destFolderPath, string destFileName, CancellationToken cancellationToken, bool overwriteFileifExists = false)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task UploadFileAsync(ApiSession apiSession, string localFilePath, string destFolderPath, CancellationToken cancellationToken, bool overwriteFileifExists = false)
+        {
+            throw new NotImplementedException();
+        }
     }
 }
 

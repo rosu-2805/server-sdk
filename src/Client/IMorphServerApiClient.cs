@@ -39,5 +39,7 @@ namespace Morph.Server.Sdk.Client
         Task<SpaceStatus> GetSpaceStatusAsync(ApiSession apiSession, CancellationToken cancellationToken);
         Task<SpaceTasksList> GetTasksListAsync(ApiSession apiSession, CancellationToken cancellationToken);
         Task<SpaceTask> GetTaskAsync(ApiSession apiSession, Guid taskId, CancellationToken cancellationToken);
+
+        Task<FetchFileStreamData> DownloadFileAsync(ApiSession apiSession, string remoteFilePath, CancellationToken cancellationToken);
     }
 }
