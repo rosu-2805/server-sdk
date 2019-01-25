@@ -10,14 +10,17 @@ namespace Morph.Server.Sdk.Helper
         private readonly Stream stream;
         private readonly Action<StreamProgressEventArgs> onReadProgress;
         private readonly Action<StreamProgressEventArgs> onWriteProgress;
+        private readonly Action onDisposed;
 
         public StreamWithProgress(Stream stream,
-            Action<StreamProgressEventArgs> onReadProgress = null,
-            Action<StreamProgressEventArgs> onWriteProgress = null)
+            Action<StreamProgressEventArgs> onReadProgress = null,                        
+            Action onDisposed = null
+            )
         {
             this.stream = stream ?? throw new ArgumentNullException(nameof(stream));
             this.onReadProgress = onReadProgress;
             this.onWriteProgress = onWriteProgress;
+            this.onDisposed = onDisposed;
         }
         public override bool CanRead => stream.CanRead;
 
@@ -45,7 +48,7 @@ namespace Morph.Server.Sdk.Helper
         {
             if (onReadProgress != null)
             {
-                var args = new StreamProgressEventArgs(bytesRead , stream.Length, stream.Position);
+                var args = new StreamProgressEventArgs(bytesRead );
                 onReadProgress(args);
             }
         }
@@ -53,7 +56,7 @@ namespace Morph.Server.Sdk.Helper
         {
             if (onWriteProgress != null)
             {
-                var args = new StreamProgressEventArgs(bytesWrittens, stream.Length, stream.Position);
+                var args = new StreamProgressEventArgs(bytesWrittens);
                 onWriteProgress(args);
             }
         }
@@ -89,9 +92,14 @@ namespace Morph.Server.Sdk.Helper
             stream.Close();
             base.Close();
         }
-        public override Task CopyToAsync(Stream destination, int bufferSize, CancellationToken cancellationToken)
+        public override async Task CopyToAsync(Stream destination, int bufferSize, CancellationToken cancellationToken)
         {
-            return stream.CopyToAsync(destination, bufferSize, cancellationToken);
+            byte[] buffer = new byte[bufferSize];
+            int bytesRead;
+            while ((bytesRead = await ReadAsync(buffer, 0, buffer.Length, cancellationToken).ConfigureAwait(false)) != 0)
+            {                
+                await destination.WriteAsync(buffer, 0, bytesRead, cancellationToken).ConfigureAwait(false);
+            }
         }
         public override int EndRead(IAsyncResult asyncResult)
         {
@@ -117,9 +125,10 @@ namespace Morph.Server.Sdk.Helper
         {
             return stream.InitializeLifetimeService();
         }
+        
         public override async Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
         {
-            var bytesRead = await stream.ReadAsync(buffer, offset, count, cancellationToken);
+            var bytesRead = await stream.ReadAsync(buffer, offset, count, cancellationToken).ConfigureAwait(false);
             RaiseOnReadProgress(bytesRead);
             return bytesRead;
         }
@@ -150,6 +159,10 @@ namespace Morph.Server.Sdk.Helper
             if (disposing)
             {
                 stream.Dispose();
+                if (onDisposed != null)
+                {
+                    onDisposed();
+                }
             }
         }
 

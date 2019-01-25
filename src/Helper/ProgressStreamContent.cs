@@ -13,19 +13,15 @@ namespace Morph.Server.Sdk.Helper
 {
     internal class StreamProgressEventArgs : EventArgs
     {        
-        public int BytesMoved { get;  }             
-        public long StreamTotalLength { get; }        
-        public long StreamCurrentPosition { get; }
-
+        public int BytesProcessed { get;  }             
+        
         public StreamProgressEventArgs()
         {
 
         }
-        public StreamProgressEventArgs(int bytesMoved, long streamTotalLength, long streamCurrentPosition):this()
+        public StreamProgressEventArgs(int bytesProcessed):this()
         {
-            BytesMoved = bytesMoved;
-            StreamTotalLength = streamTotalLength;
-            StreamCurrentPosition = streamCurrentPosition;
+            BytesProcessed = bytesProcessed;
         }
     }
 

@@ -31,7 +31,7 @@ namespace Morph.Server.Sdk.Client
     }
 
 
-    public sealed class FetchFileStreamData
+    public sealed class FetchFileStreamData : IDisposable
     {
         public FetchFileStreamData(Stream stream, string fileName, long? fileSize)
         {
@@ -40,9 +40,18 @@ namespace Morph.Server.Sdk.Client
             FileSize = fileSize;
         }
 
-        public Stream Stream { get; }
+        public Stream Stream { get; private set; }
         public string FileName { get; }
         public long? FileSize { get; }
+
+        public void Dispose()
+        {
+            if (Stream != null)
+            {
+                Stream.Dispose();
+                Stream = null;
+            }
+        }
     }
 
     public sealed class SendFileStreamData
@@ -114,10 +123,10 @@ namespace Morph.Server.Sdk.Client
                 stringContent = new StringContent(serialized, Encoding.UTF8, "application/json");
             }
 
-            var url = path + urlParameters.ToQueryString();
+            var url = path + (urlParameters != null ? urlParameters.ToQueryString() : string.Empty);
             var httpRequestMessage = BuildHttpRequestMessage(httpMethod, url, stringContent, headersCollection);
 
-            using (var response = await httpClient.SendAsync(httpRequestMessage, HttpCompletionOption.ResponseHeadersRead, cancellationToken))
+            using (var response = await httpClient.SendAsync(httpRequestMessage, HttpCompletionOption.ResponseContentRead, cancellationToken))
             {
                 return await HandleResponse<TResult>(response);
             }
@@ -283,8 +292,8 @@ namespace Morph.Server.Sdk.Client
         protected async Task<ApiResult<FetchFileStreamData>> RetrieveFileStreamAsync(HttpMethod httpMethod, string path, NameValueCollection urlParameters, HeadersCollection headersCollection, CancellationToken cancellationToken)
         {
             var url = path + urlParameters.ToQueryString();
-            using (HttpResponseMessage response = await httpClient.SendAsync(
-                    BuildHttpRequestMessage(httpMethod, url, null, headersCollection), HttpCompletionOption.ResponseHeadersRead, cancellationToken))
+            HttpResponseMessage response = await httpClient.SendAsync(
+                   BuildHttpRequestMessage(httpMethod, url, null, headersCollection), HttpCompletionOption.ResponseHeadersRead, cancellationToken);
             {
                 if (response.IsSuccessStatusCode)
                 {
@@ -301,19 +310,19 @@ namespace Morph.Server.Sdk.Client
                     }
                     var contentLength = response.Content.Headers.ContentLength;
 
-                    using (Stream streamToReadFrom = await response.Content.ReadAsStreamAsync())
-                    {
-                        var streamWithProgress = new StreamWithProgress(streamToReadFrom,
-                            e =>
-                            {
-
-                            },
+                    // stream must be disposed by a caller
+                    Stream streamToReadFrom = await response.Content.ReadAsStreamAsync();
+                    var streamWithProgress = new StreamWithProgress(streamToReadFrom,
                         e =>
                         {
 
-                        });
-                        return ApiResult<FetchFileStreamData>.Ok(new FetchFileStreamData(streamWithProgress, dfi.FileName, contentLength));
-                    }
+                        },
+                    () =>
+                    {
+                        response.Dispose();
+                    });
+                    return ApiResult<FetchFileStreamData>.Ok(new FetchFileStreamData(streamWithProgress, dfi.FileName, contentLength));
+                    
                 }
                 else
                 {

@@ -133,20 +133,19 @@ namespace Morph.Server.Sdk.Client
                 throw new ArgumentNullException(nameof(password));
             }
 
-            var passwordHash = CryptographyHelper.CalculateSha256HEX(password);            
+            var passwordSha256 = CryptographyHelper.CalculateSha256HEX(password);            
             var serverNonceApiResult = await context.LowLevelApiClient.AuthGenerateNonce(cancellationToken);
             serverNonceApiResult.ThrowIfFailed();
             var serverNonce = serverNonceApiResult.Data.Nonce;
             var clientNonce = ConvertHelper.ByteArrayToHexString(CryptographyHelper.GenerateRandomSequence(16));
-            var all = passwordHash + serverNonce + clientNonce;
-            var allHash = CryptographyHelper.CalculateSha256HEX(all);
-
-
+            var all = passwordSha256 + serverNonce + clientNonce;
+            var composedHash = CryptographyHelper.CalculateSha256HEX(all);
+            
 
             var requestDto = new LoginRequestDto
             {
                 ClientSeed = clientNonce,
-                Password = passwordHash,
+                Password = composedHash,
                 Provider = "Space",
                 UserName = spaceName,
                 RequestToken = serverNonce
