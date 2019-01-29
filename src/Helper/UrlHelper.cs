@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Linq;
 
-namespace Morph.Server.Sdk.Client
+namespace Morph.Server.Sdk.Helper
 {
     internal static class UrlHelper
     {

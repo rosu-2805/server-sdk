@@ -1,9 +1,10 @@
-﻿using System;
+﻿using Morph.Server.Sdk.Client;
+using System;
 using System.Net.Http;
 using System.Net.Security;
 using System.Security.Cryptography.X509Certificates;
 
-namespace Morph.Server.Sdk.Client
+namespace Morph.Server.Sdk.Model.InternalModels
 {
     internal class OpenSessionAuthenticatorContext
     {
@@ -11,7 +12,7 @@ namespace Morph.Server.Sdk.Client
         public OpenSessionAuthenticatorContext
             (ILowLevelApiClient lowLevelApiClient,
             IMorphServerApiClient morphServerApiClient,
-            Func<HttpClientHandler, IApiClient> buildApiClient
+            Func<HttpClientHandler, IRestClient> buildApiClient
             
             )
         {
@@ -23,7 +24,7 @@ namespace Morph.Server.Sdk.Client
 
         public ILowLevelApiClient LowLevelApiClient { get; }
         public IMorphServerApiClient MorphServerApiClient { get; }
-        public Func<HttpClientHandler, IApiClient> BuildApiClient { get; }
+        public Func<HttpClientHandler, IRestClient> BuildApiClient { get; }
         
     }
 }

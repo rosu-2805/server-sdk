@@ -2,17 +2,16 @@
 using System.Net.Http.Headers;
 using System.Collections.Generic;
 
-namespace Morph.Server.Sdk.Client
+namespace Morph.Server.Sdk.Model.InternalModels
 {
-    public class HeadersCollection
+    internal class HeadersCollection
     {
         private Dictionary<string, string> _headers = new Dictionary<string, string>();
         public HeadersCollection()
         {
 
         }
-
-
+        
 
         public void Add(string header, string value)
         {

@@ -1,8 +1,9 @@
 ﻿using Morph.Server.Sdk.Model;
+using Morph.Server.Sdk.Model.InternalModels;
 
-namespace Morph.Server.Sdk.Client
+namespace Morph.Server.Sdk.Helper
 {
-    public static class ApiSessionExtension
+    internal static class ApiSessionExtension
     {
         public static HeadersCollection ToHeadersCollection(this ApiSession apiSession)
         {

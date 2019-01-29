@@ -1,8 +1,8 @@
 ﻿using System;
 
-namespace Morph.Server.Sdk.Client
+namespace Morph.Server.Sdk.Model.InternalModels
 {
-    public class ApiResult<T>
+    internal class ApiResult<T>
     {
         public T Data { get; set; } = default(T);
         public Exception Error { get; set; } = default(Exception);

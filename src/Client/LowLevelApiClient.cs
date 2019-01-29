@@ -9,66 +9,19 @@ using System.Linq;
 using System.Collections.Generic;
 using System.IO;
 using Morph.Server.Sdk.Exceptions;
+using Morph.Server.Sdk.Model.InternalModels;
+using Morph.Server.Sdk.Helper;
 
 namespace Morph.Server.Sdk.Client
 {
 
-
-
-    internal interface ILowLevelApiClient: IDisposable
-    {
-        IApiClient ApiClient { get; }
-
-        // TASKS
-        Task<ApiResult<TaskStatusDto>> GetTaskStatusAsync(ApiSession apiSession, Guid taskId, CancellationToken cancellationToken);
-        Task<ApiResult<SpaceTasksListDto>> GetTasksListAsync(ApiSession apiSession, CancellationToken cancellationToken);
-        Task<ApiResult<SpaceTaskDto>> GetTaskAsync(ApiSession apiSession, Guid taskId, CancellationToken cancellationToken);
-
-        // RUN-STOP Task
-        Task<ApiResult<RunningTaskStatusDto>> GetRunningTaskStatusAsync(ApiSession apiSession, Guid taskId, CancellationToken cancellationToken);
-        Task<ApiResult<RunningTaskStatusDto>> StartTaskAsync(ApiSession apiSession, Guid taskId, CancellationToken cancellationToken, IEnumerable<TaskParameterBase> taskParameters = null);
-        Task<ApiResult<NoContentResult>> StopTaskAsync(ApiSession apiSession, Guid taskId, CancellationToken cancellationToken);
-
-        // Tasks validation
-        Task<ApiResult<ValidateTasksResponseDto>> ValidateTasksAsync(ApiSession apiSession, ValidateTasksRequestDto validateTasksRequestDto, CancellationToken cancellationToken);
-
-
-        // Auth and sessions
-        Task<ApiResult<NoContentResult>> AuthLogoutAsync(ApiSession apiSession, CancellationToken cancellationToken);
-        Task<ApiResult<LoginResponseDto>> AuthLoginPasswordAsync(LoginRequestDto loginRequestDto, CancellationToken cancellationToken);
-        Task<ApiResult<GenerateNonceResponseDto>> AuthGenerateNonce(CancellationToken cancellationToken);
-        
-
-
-        // Server interaction
-        Task<ApiResult<ServerStatusDto>> ServerGetStatusAsync(CancellationToken cancellationToken);
-
-
-        // spaces
-
-        Task<ApiResult<SpacesEnumerationDto>> SpacesGetListAsync(CancellationToken cancellationToken);
-        Task<ApiResult<SpaceStatusDto>> SpacesGetSpaceStatusAsync(ApiSession apiSession, string spaceName, CancellationToken cancellationToken);
-
-        // WEB FILES
-        Task<ApiResult<SpaceBrowsingResponseDto>> WebFilesBrowseSpaceAsync(ApiSession apiSession, string folderPath, CancellationToken cancellationToken);
-        Task<ApiResult<bool>> WebFileExistsAsync(ApiSession apiSession, string serverFilePath, CancellationToken cancellationToken);
-        Task<ApiResult<NoContentResult>> WebFilesDeleteFileAsync(ApiSession apiSession, string serverFilePath, CancellationToken cancellationToken);
-        Task<ApiResult<FetchFileStreamData>> WebFilesDownloadFileAsync(ApiSession apiSession, string serverFilePath, CancellationToken cancellationToken);
-
-
-    }
-
-    
-
-
-
     internal class LowLevelApiClient : ILowLevelApiClient
     {
-        private readonly IApiClient apiClient;
+        private readonly IRestClient apiClient;
 
-        public IApiClient ApiClient => apiClient;
+        public IRestClient RestClient => apiClient;
 
-        public LowLevelApiClient(IApiClient apiClient)
+        public LowLevelApiClient(IRestClient apiClient)
         {
             this.apiClient = apiClient;
         }
@@ -280,6 +233,43 @@ namespace Morph.Server.Sdk.Client
 
                 }
             }
+        }
+
+        public Task<ApiResult<NoContentResult>> WebFilesPutFileAsync(ApiSession apiSession, string serverFolder, SendFileStreamData sendFileStreamData, CancellationToken cancellationToken)
+        {
+            if (apiSession == null)
+            {
+                throw new ArgumentNullException(nameof(apiSession));
+            }
+
+            if (sendFileStreamData == null)
+            {
+                throw new ArgumentNullException(nameof(sendFileStreamData));
+            }
+
+            var spaceName = apiSession.SpaceName;
+            var url = UrlHelper.JoinUrl("space", spaceName, "files", serverFolder);
+            
+            return apiClient.PutFileStreamAsync<NoContentResult>(url,sendFileStreamData,  null, apiSession.ToHeadersCollection(), cancellationToken);
+
+        }
+
+        public Task<ApiResult<NoContentResult>> WebFilesPostFileAsync(ApiSession apiSession, string serverFolder, SendFileStreamData sendFileStreamData, CancellationToken cancellationToken)
+        {
+            if (apiSession == null)
+            {
+                throw new ArgumentNullException(nameof(apiSession));
+            }
+
+            if (sendFileStreamData == null)
+            {
+                throw new ArgumentNullException(nameof(sendFileStreamData));
+            }
+
+            var spaceName = apiSession.SpaceName;
+            var url = UrlHelper.JoinUrl("space", spaceName, "files", serverFolder);
+
+            return apiClient.PostFileStreamAsync<NoContentResult>(url, sendFileStreamData, null, apiSession.ToHeadersCollection(), cancellationToken);
         }
     }
 }

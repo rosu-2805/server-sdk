@@ -1,6 +1,7 @@
 ﻿using Morph.Server.Sdk.Dto;
 using Morph.Server.Sdk.Helper;
 using Morph.Server.Sdk.Model;
+using Morph.Server.Sdk.Model.InternalModels;
 using System;
 using System.Net.Http;
 using System.Threading;
@@ -88,7 +89,7 @@ namespace Morph.Server.Sdk.Client
                 };
             }
         }
-        static async Task<string> internalGetAuthNonceAsync(IApiClient apiClient, CancellationToken cancellationToken)
+        static async Task<string> internalGetAuthNonceAsync(IRestClient apiClient, CancellationToken cancellationToken)
         {
             var url = "auth/nonce";
             var response = await apiClient.PostAsync<GenerateNonceRequestDto, GenerateNonceResponseDto>
@@ -97,7 +98,7 @@ namespace Morph.Server.Sdk.Client
             return response.Data.Nonce;            
         }
 
-        static async Task<string> internalAuthExternalWindowAsync(IApiClient apiClient, string spaceName, string serverNonce, CancellationToken cancellationToken)
+        static async Task<string> internalAuthExternalWindowAsync(IRestClient apiClient, string spaceName, string serverNonce, CancellationToken cancellationToken)
         {
             var url = "auth/external/windows";
             var requestDto = new WindowsExternalLoginRequestDto

@@ -11,77 +11,14 @@ using Morph.Server.Sdk.Mappers;
 using Morph.Server.Sdk.Dto.Errors;
 using System.IO;
 using Morph.Server.Sdk.Model;
+using Morph.Server.Sdk.Model.InternalModels;
+using Morph.Server.Sdk.Dto;
 
 namespace Morph.Server.Sdk.Client
 {
 
-    public interface IApiClient : IDisposable
-    {
-        HttpClient HttpClient { get; set; }
-        Task<ApiResult<TResult>> GetAsync<TResult>(string url, NameValueCollection urlParameters, HeadersCollection headersCollection, CancellationToken cancellationToken);
-        Task<ApiResult<TResult>> HeadAsync<TResult>(string url, NameValueCollection urlParameters, HeadersCollection headersCollection, CancellationToken cancellationToken);
-        Task<ApiResult<TResult>> PostAsync<TModel, TResult>(string url, TModel model, NameValueCollection urlParameters, HeadersCollection headersCollection, CancellationToken cancellationToken);
-        Task<ApiResult<TResult>> PutAsync<TModel, TResult>(string url, TModel model, NameValueCollection urlParameters, HeadersCollection headersCollection, CancellationToken cancellationToken);
-        Task<ApiResult<TResult>> DeleteAsync<TResult>(string url, NameValueCollection urlParameters, HeadersCollection headersCollection, CancellationToken cancellationToken);
 
-        Task<ApiResult<TResult>> PutFileStreamAsync<TResult>(string url, SendFileStreamData sendFileStreamData, NameValueCollection urlParameters, HeadersCollection headersCollection, CancellationToken cancellationToken);
-        Task<ApiResult<TResult>> PostFileStreamAsync<TResult>(string url, SendFileStreamData sendFileStreamData, NameValueCollection urlParameters, HeadersCollection headersCollection, CancellationToken cancellationToken);
-
-        Task<ApiResult<FetchFileStreamData>> RetrieveFileGetAsync(string url, NameValueCollection urlParameters, HeadersCollection headersCollection, CancellationToken cancellationToken);
-
-    }
-
-
-    public sealed class FetchFileStreamData : IDisposable
-    {
-        public FetchFileStreamData(Stream stream, string fileName, long? fileSize)
-        {
-            Stream = stream ?? throw new ArgumentNullException(nameof(stream));
-            FileName = fileName ?? throw new ArgumentNullException(nameof(fileName));
-            FileSize = fileSize;
-        }
-
-        public Stream Stream { get; private set; }
-        public string FileName { get; }
-        public long? FileSize { get; }
-
-        public void Dispose()
-        {
-            if (Stream != null)
-            {
-                Stream.Dispose();
-                Stream = null;
-            }
-        }
-    }
-
-    public sealed class SendFileStreamData
-    {
-        public SendFileStreamData(Stream stream, string fileName, long fileSize)
-        {
-            Stream = stream ?? throw new ArgumentNullException(nameof(stream));
-            FileName = fileName ?? throw new ArgumentNullException(nameof(fileName));
-            FileSize = fileSize;
-        }
-
-        public Stream Stream { get; }
-        public string FileName { get; }
-        public long FileSize { get; }
-    }
-
-
-    public sealed class NoContentResult
-    {
-
-    }
-
-    public sealed class NoContentRequest
-    {
-
-    }
-
-
-    public class MorphServerRestClient : IApiClient
+    internal class MorphServerRestClient : IRestClient
     {
         private HttpClient httpClient;
         public HttpClient HttpClient { get => httpClient; set => httpClient = value; }
@@ -299,16 +236,10 @@ namespace Morph.Server.Sdk.Client
                 if (response.IsSuccessStatusCode)
                 {
                     var contentDisposition = response.Content.Headers.ContentDisposition;
-                    DownloadFileInfo dfi = null;
-                    if (contentDisposition != null)
-                    {
-                        dfi = new DownloadFileInfo
-                        {
-                            // need to fix double quotes, that may come from server response
-                            // FileNameStar contains file name encoded in UTF8
-                            FileName = (contentDisposition.FileNameStar ?? contentDisposition.FileName).TrimStart('\"').TrimEnd('\"')
-                        };
-                    }
+                    // need to fix double quotes, that may come from server response
+                    // FileNameStar contains file name encoded in UTF8
+                    var realFileName = (contentDisposition.FileNameStar ?? contentDisposition.FileName).TrimStart('\"').TrimEnd('\"');
+                    
                     var contentLength = response.Content.Headers.ContentLength;
 
                     // stream must be disposed by a caller
@@ -322,7 +253,7 @@ namespace Morph.Server.Sdk.Client
                     {
                         response.Dispose();
                     });
-                    return ApiResult<FetchFileStreamData>.Ok(new FetchFileStreamData(streamWithProgress, dfi.FileName, contentLength));
+                    return ApiResult<FetchFileStreamData>.Ok(new FetchFileStreamData(streamWithProgress, realFileName, contentLength));
                     
                 }
                 else

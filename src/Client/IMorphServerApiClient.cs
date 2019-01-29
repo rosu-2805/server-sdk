@@ -12,21 +12,12 @@ using Morph.Server.Sdk.Model.Commands;
 
 namespace Morph.Server.Sdk.Client
 {
-
-    public class SpaceUploadFileRequest
-    {
-        public Stream DataStream { get; set; }
-        public string FileName { get; set; }
-        public long? FileSize { get; set; }
-        public bool OverwriteExistingFile { get; set; } = false;
-    }
-
-
+    
     public interface IMorphServerApiClient:IDisposable
     {
         event EventHandler<FileEventArgs> FileProgress;
 
-        IMorphApiClientConfiguration Config { get; }
+        IClientConfiguration Config { get; }
 
         Task CloseSessionAsync(ApiSession apiSession, CancellationToken cancellationToken);
         
@@ -47,7 +38,7 @@ namespace Morph.Server.Sdk.Client
         Task SpaceDeleteFileAsync(ApiSession apiSession, string remoteFilePath, CancellationToken cancellationToken);
         Task<bool> SpaceFileExistsAsync(ApiSession apiSession, string remoteFilePath, CancellationToken cancellationToken);
 
-        Task<FetchFileStreamData> SpaceDownloadFileAsync(ApiSession apiSession, string remoteFilePath, CancellationToken cancellationToken);
+        Task<ServerStreamingData> SpaceDownloadFileAsync(ApiSession apiSession, string remoteFilePath, CancellationToken cancellationToken);
         Task<Stream> SpaceDownloadFileStreamAsync(ApiSession apiSession, string remoteFilePath, CancellationToken cancellationToken);
 
         Task SpaceUploadFileAsync(ApiSession apiSession, SpaceUploadFileRequest spaceUploadFileRequest, CancellationToken cancellationToken);
