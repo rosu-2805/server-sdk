@@ -8,6 +8,7 @@ using Morph.Server.Sdk.Mappers;
 using System.Linq;
 using System.Collections.Generic;
 using System.IO;
+using Morph.Server.Sdk.Exceptions;
 
 namespace Morph.Server.Sdk.Client
 {
@@ -50,28 +51,14 @@ namespace Morph.Server.Sdk.Client
 
         // WEB FILES
         Task<ApiResult<SpaceBrowsingResponseDto>> WebFilesBrowseSpaceAsync(ApiSession apiSession, string folderPath, CancellationToken cancellationToken);
-        Task<ApiResult<NoContentResult>> WebFilesDeleteFileAsync(ApiSession apiSession, string serverFolder, string fileName, CancellationToken cancellationToken);
+        Task<ApiResult<bool>> WebFileExistsAsync(ApiSession apiSession, string serverFilePath, CancellationToken cancellationToken);
+        Task<ApiResult<NoContentResult>> WebFilesDeleteFileAsync(ApiSession apiSession, string serverFilePath, CancellationToken cancellationToken);
         Task<ApiResult<FetchFileStreamData>> WebFilesDownloadFileAsync(ApiSession apiSession, string serverFilePath, CancellationToken cancellationToken);
 
 
     }
 
-
-    //public interface IWebFilesLowLevelApiClient
-    //{
-
-
-    //    Task DownloadFileAsync(ApiSession apiSession, string remoteFilePath, Func<DownloadFileInfo, bool> handleFile, Stream streamToWriteTo, CancellationToken cancellationToken);
-    //    Task<DownloadFileInfo> DownloadFileAsync(ApiSession apiSession, string remoteFilePath, Stream streamToWriteTo, CancellationToken cancellationToken);
-
-
-
-    //    Task UploadFileAsync(ApiSession apiSession, Stream inputStream, string fileName, long fileSize, string destFolderPath, CancellationToken cancellationToken, bool overwriteFileifExists = false);
-    //    Task UploadFileAsync(ApiSession apiSession, string localFilePath, string destFolderPath, string destFileName, CancellationToken cancellationToken, bool overwriteFileifExists = false);
-    //    Task UploadFileAsync(ApiSession apiSession, string localFilePath, string destFolderPath, CancellationToken cancellationToken, bool overwriteFileifExists = false);
-
-
-    //}
+    
 
 
 
@@ -228,10 +215,10 @@ namespace Morph.Server.Sdk.Client
             return apiClient.GetAsync<SpaceBrowsingResponseDto>(url, null, apiSession.ToHeadersCollection(), cancellationToken);
         }
 
-        public Task<ApiResult<NoContentResult>> WebFilesDeleteFileAsync(ApiSession apiSession, string serverFolder, string fileName, CancellationToken cancellationToken)
+        public Task<ApiResult<NoContentResult>> WebFilesDeleteFileAsync(ApiSession apiSession, string serverFilePath, CancellationToken cancellationToken)
         {
             var spaceName = apiSession.SpaceName;
-            var url = UrlHelper.JoinUrl("space", spaceName, "files", serverFolder, fileName);
+            var url = UrlHelper.JoinUrl("space", spaceName, "files", serverFilePath);
 
             return apiClient.DeleteAsync<NoContentResult>(url, null, apiSession.ToHeadersCollection(), cancellationToken);
         }
@@ -263,6 +250,36 @@ namespace Morph.Server.Sdk.Client
             var spaceName = apiSession.SpaceName;
             var url = UrlHelper.JoinUrl("space", spaceName, "files", serverFilePath);
             return apiClient.RetrieveFileGetAsync(url, null, apiSession.ToHeadersCollection(), cancellationToken);
+        }
+
+        public async Task<ApiResult<bool>> WebFileExistsAsync(ApiSession apiSession, string serverFilePath, CancellationToken cancellationToken)
+        {
+            if (apiSession == null)
+            {
+                throw new ArgumentNullException(nameof(apiSession));
+            }
+            var spaceName = apiSession.SpaceName;
+            var url = UrlHelper.JoinUrl("space", spaceName, "files", serverFilePath);
+            var apiResult = await apiClient.HeadAsync<NoContentResult>(url, null, apiSession.ToHeadersCollection(), cancellationToken);
+            //  http ok or http no content means that file exists
+            if (apiResult.IsSucceed)
+            {
+                return ApiResult<bool>.Ok(true);
+            }
+            else
+            {
+                // if not found, return Ok with false result
+                if(apiResult.Error is MorphApiNotFoundException)
+                {
+                    return ApiResult<bool>.Ok(false);
+                }
+                else
+                {
+                    // some error occured - return internal error from api result
+                    return ApiResult<bool>.Fail(apiResult.Error);
+
+                }
+            }
         }
     }
 }

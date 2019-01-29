@@ -9,7 +9,7 @@ namespace Morph.Server.Sdk.Helper
     {
         private readonly Stream stream;
         private readonly Action<StreamProgressEventArgs> onReadProgress;
-        private readonly Action<StreamProgressEventArgs> onWriteProgress;
+        private readonly Action<StreamProgressEventArgs> onWriteProgress = null;
         private readonly Action onDisposed;
 
         public StreamWithProgress(Stream stream,
@@ -19,7 +19,7 @@ namespace Morph.Server.Sdk.Helper
         {
             this.stream = stream ?? throw new ArgumentNullException(nameof(stream));
             this.onReadProgress = onReadProgress;
-            this.onWriteProgress = onWriteProgress;
+            
             this.onDisposed = onDisposed;
         }
         public override bool CanRead => stream.CanRead;
