@@ -13,16 +13,19 @@ using System.Collections.Generic;
 using System.Reflection;
 using System.IO;
 using Morph.Server.Sdk.Model.InternalModels;
+using Morph.Server.Sdk.Dto;
 
 namespace Morph.Server.Sdk.Client
 {
+
 
     /// <summary>
     /// Morph Server api client V1
     /// </summary>
     public class MorphServerApiClient : IMorphServerApiClient, IDisposable
     {
-        public event EventHandler<FileEventArgs> FileProgress;
+        public event EventHandler<FileTransferProgressEventArgs> OnFileDownloadProgress;
+        public event EventHandler<FileTransferProgressEventArgs> OnFileUploadProgress;
 
         protected readonly string _userAgent = "MorphServerApiClient/next";
         protected readonly string _api_v1 = "api/v1/";
@@ -134,28 +137,32 @@ namespace Morph.Server.Sdk.Client
 
             return client;
         }
-
-
-
-
+                     
 
         /// <summary>
         /// Start Task like "fire and forget"
         /// </summary>
-        /// <param name="apiSession">api session</param>
-        /// <param name="taskId">tast guid</param>
-        /// <param name="cancellationToken"></param>
-        /// <param name="taskParameters"></param>
-        /// <returns></returns>
-        public Task<RunningTaskStatus> StartTaskAsync(ApiSession apiSession, Guid taskId, CancellationToken cancellationToken, IEnumerable<TaskParameterBase> taskParameters = null)
+        public Task<RunningTaskStatus> StartTaskAsync(ApiSession apiSession, StartTaskRequest startTaskRequest, CancellationToken cancellationToken)
         {
             if (apiSession == null)
             {
                 throw new ArgumentNullException(nameof(apiSession));
             }
+
+            if (startTaskRequest == null)
+            {
+                throw new ArgumentNullException(nameof(startTaskRequest));
+            }
+
             return Wrapped(async (token) =>
             {
-                var apiResult = await _lowLevelApiClient.StartTaskAsync(apiSession, taskId, token);
+                var requestDto = new TaskStartRequestDto();
+                if (startTaskRequest.TaskParameters != null)
+                {
+                    requestDto.TaskParameters = startTaskRequest.TaskParameters.Select(TaskParameterMapper.ToDto).ToList();
+                }
+                
+                var apiResult = await _lowLevelApiClient.StartTaskAsync(apiSession, startTaskRequest.TaskId, requestDto, token);
                 return MapOrFail(apiResult, (dto) => RunningTaskStatusMapper.RunningTaskStatusFromDto(dto));
 
             }, cancellationToken, OperationType.ShortOperation);
@@ -359,9 +366,9 @@ namespace Morph.Server.Sdk.Client
             }, cancellationToken, OperationType.ShortOperation);
         }
 
-        private void DownloadProgress_StateChanged(object sender, FileEventArgs e)
+        private void DownloadProgress_StateChanged(object sender, FileTransferProgressEventArgs e)
         {
-            FileProgress?.Invoke(this, e);
+            OnFileDownloadProgress?.Invoke(this, e);
         }
 
 

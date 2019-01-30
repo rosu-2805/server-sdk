@@ -198,7 +198,7 @@ namespace Morph.Server.Sdk.Client
             }
         }
 
-        private void DownloadProgress_StateChanged(object sender, Events.FileEventArgs e)
+        private void DownloadProgress_StateChanged(object sender, Events.FileTransferProgressEventArgs e)
         {
             // TODO: add handler
             //throw new NotImplementedException();

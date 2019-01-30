@@ -20,7 +20,7 @@ namespace Morph.Server.Sdk.Client
 
         // RUN-STOP Task
         Task<ApiResult<RunningTaskStatusDto>> GetRunningTaskStatusAsync(ApiSession apiSession, Guid taskId, CancellationToken cancellationToken);
-        Task<ApiResult<RunningTaskStatusDto>> StartTaskAsync(ApiSession apiSession, Guid taskId, CancellationToken cancellationToken, IEnumerable<TaskParameterBase> taskParameters = null);
+        Task<ApiResult<RunningTaskStatusDto>> StartTaskAsync(ApiSession apiSession, Guid taskId, TaskStartRequestDto taskStartRequestDto, CancellationToken cancellationToken);
         Task<ApiResult<NoContentResult>> StopTaskAsync(ApiSession apiSession, Guid taskId, CancellationToken cancellationToken);
 
         // Tasks validation

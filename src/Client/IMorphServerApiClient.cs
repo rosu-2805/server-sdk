@@ -15,7 +15,8 @@ namespace Morph.Server.Sdk.Client
     
     public interface IMorphServerApiClient:IDisposable
     {
-        event EventHandler<FileEventArgs> FileProgress;
+        event EventHandler<FileTransferProgressEventArgs> OnFileDownloadProgress;
+        event EventHandler<FileTransferProgressEventArgs> OnFileUploadProgress;
 
         IClientConfiguration Config { get; }
 
@@ -25,7 +26,7 @@ namespace Morph.Server.Sdk.Client
         Task<Model.TaskStatus> GetTaskStatusAsync(ApiSession apiSession, Guid taskId, CancellationToken cancellationToken);        
         Task<ApiSession> OpenSessionAsync(OpenSessionRequest openSessionRequest, CancellationToken cancellationToken);
         
-        Task<RunningTaskStatus> StartTaskAsync(ApiSession apiSession, Guid taskId, CancellationToken cancellationToken, IEnumerable<TaskParameterBase> taskParameters = null);
+        Task<RunningTaskStatus> StartTaskAsync(ApiSession apiSession, StartTaskRequest startTaskRequest, CancellationToken cancellationToken);
         Task StopTaskAsync(ApiSession apiSession, Guid taskId, CancellationToken cancellationToken);
         
         Task<ValidateTasksResult> ValidateTasksAsync(ApiSession apiSession, string projectPath, CancellationToken cancellationToken);

@@ -96,7 +96,7 @@ namespace Morph.Server.Sdk.Client
             return apiClient.GetAsync<ServerStatusDto>(url, null, new HeadersCollection(), cancellationToken);
         }
 
-        public Task<ApiResult<RunningTaskStatusDto>> StartTaskAsync(ApiSession apiSession, Guid taskId, CancellationToken cancellationToken, IEnumerable<TaskParameterBase> taskParameters = null)
+        public Task<ApiResult<RunningTaskStatusDto>> StartTaskAsync(ApiSession apiSession, Guid taskId, TaskStartRequestDto taskStartRequestDto, CancellationToken cancellationToken)
         {
             if (apiSession == null)
             {
@@ -105,14 +105,8 @@ namespace Morph.Server.Sdk.Client
 
             var spaceName = apiSession.SpaceName;
             var url = UrlHelper.JoinUrl("space", spaceName, "runningtasks", taskId.ToString("D"), "payload");
-            var dto = new TaskStartRequestDto();
-            if (taskParameters != null)
-            {
-                dto.TaskParameters = taskParameters.Select(TaskParameterMapper.ToDto).ToList();
-            }
-
-            return apiClient.PostAsync<TaskStartRequestDto, RunningTaskStatusDto>(url, dto, null, apiSession.ToHeadersCollection(), cancellationToken);
-
+            
+            return apiClient.PostAsync<TaskStartRequestDto, RunningTaskStatusDto>(url, taskStartRequestDto, null, apiSession.ToHeadersCollection(), cancellationToken);
         }
 
         public Task<ApiResult<NoContentResult>> StopTaskAsync(ApiSession apiSession, Guid taskId, CancellationToken cancellationToken)

@@ -1,18 +1,14 @@
 ﻿using Morph.Server.Sdk.Model;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Morph.Server.Sdk.Events
 {
-    public class FileEventArgs : EventArgs
+    public class FileTransferProgressEventArgs : EventArgs
     {
         public FileProgressState State { get; set; }
         public long ProcessedBytes { get; set; }
         public long FileSize { get; set; }
-        public Guid? Guid { get; set; }
+        //public Guid? Guid { get; set; }
         public string FileName { get; set; }
         public double Percent
         {
@@ -23,7 +19,7 @@ namespace Morph.Server.Sdk.Events
                 return Math.Round((ProcessedBytes * 100.0 / FileSize), 2);
             }
         }
-        public FileEventArgs()
+        public FileTransferProgressEventArgs()
         {
 
 
