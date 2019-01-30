@@ -13,6 +13,7 @@ using System.IO;
 using Morph.Server.Sdk.Model;
 using Morph.Server.Sdk.Model.InternalModels;
 using Morph.Server.Sdk.Dto;
+using Morph.Server.Sdk.Events;
 
 namespace Morph.Server.Sdk.Client
 {
@@ -28,11 +29,13 @@ namespace Morph.Server.Sdk.Client
             HttpClient = httpClient;
         }
         public Task<ApiResult<TResult>> DeleteAsync<TResult>(string url, NameValueCollection urlParameters, HeadersCollection headersCollection, CancellationToken cancellationToken)
+              where TResult : new()
         {
             return SendAsyncApiResult<TResult, NoContentRequest>(HttpMethod.Delete, url, null, urlParameters, headersCollection, cancellationToken);
         }
 
         public Task<ApiResult<TResult>> GetAsync<TResult>(string url, NameValueCollection urlParameters, HeadersCollection headersCollection, CancellationToken cancellationToken)
+              where TResult : new()
         {
             if (urlParameters == null)
             {
@@ -43,16 +46,19 @@ namespace Morph.Server.Sdk.Client
         }
 
         public Task<ApiResult<TResult>> PostAsync<TModel, TResult>(string url, TModel model, NameValueCollection urlParameters, HeadersCollection headersCollection, CancellationToken cancellationToken)
+              where TResult : new()
         {
             return SendAsyncApiResult<TResult, TModel>(HttpMethod.Post, url, model, urlParameters, headersCollection, cancellationToken);
         }
 
         public Task<ApiResult<TResult>> PutAsync<TModel, TResult>(string url, TModel model, NameValueCollection urlParameters, HeadersCollection headersCollection, CancellationToken cancellationToken)
+              where TResult : new()
         {
             return SendAsyncApiResult<TResult, TModel>(HttpMethod.Put, url, model, urlParameters, headersCollection, cancellationToken);
         }
 
         protected virtual async Task<ApiResult<TResult>> SendAsyncApiResult<TResult, TModel>(HttpMethod httpMethod, string path, TModel model, NameValueCollection urlParameters, HeadersCollection headersCollection, CancellationToken cancellationToken)
+              where TResult : new()
         {
             StringContent stringContent = null;
             if (model != null)
@@ -71,6 +77,7 @@ namespace Morph.Server.Sdk.Client
         }
 
         private static async Task<ApiResult<TResult>> HandleResponse<TResult>(HttpResponseMessage response)
+            where TResult : new()
         {
             if (response.IsSuccessStatusCode)
             {
@@ -158,7 +165,9 @@ namespace Morph.Server.Sdk.Client
         public async Task<ApiResult<TResult>> SendFileStreamAsync<TResult>(
             HttpMethod httpMethod, string path, SendFileStreamData sendFileStreamData,
             NameValueCollection urlParameters, HeadersCollection headersCollection,
+            Action<FileTransferProgressEventArgs> onSendProgress,
             CancellationToken cancellationToken)
+        where TResult : new()
         {
             try
             {
@@ -166,11 +175,11 @@ namespace Morph.Server.Sdk.Client
 
                 using (var content = new MultipartFormDataContent(boundary))
                 {
-                    var downloadProgress = new FileProgress(sendFileStreamData.FileName, sendFileStreamData.FileSize);
-                    downloadProgress.StateChanged += DownloadProgress_StateChanged;
-                    using (cancellationToken.Register(() => downloadProgress.ChangeState(FileProgressState.Cancelled)))
+                    var uploadProgress = new FileProgress(sendFileStreamData.FileName, sendFileStreamData.FileSize, onSendProgress);
+                    
+                    using (cancellationToken.Register(() => uploadProgress.ChangeState(FileProgressState.Cancelled)))
                     {
-                        using (var streamContent = new ProgressStreamContent(sendFileStreamData.Stream, downloadProgress))
+                        using (var streamContent = new ProgressStreamContent(sendFileStreamData.Stream, uploadProgress))
                         {
                             content.Add(streamContent, "files", Path.GetFileName(sendFileStreamData.FileName));
                             var url = path + urlParameters.ToQueryString();
@@ -198,36 +207,7 @@ namespace Morph.Server.Sdk.Client
             }
         }
 
-        private void DownloadProgress_StateChanged(object sender, Events.FileTransferProgressEventArgs e)
-        {
-            // TODO: add handler
-            //throw new NotImplementedException();
-        }
-
-        public Task<ApiResult<TResult>> PutFileStreamAsync<TResult>(string url, SendFileStreamData sendFileStreamData, NameValueCollection urlParameters, HeadersCollection headersCollection, CancellationToken cancellationToken)
-        {
-            return SendFileStreamAsync<TResult>(HttpMethod.Put, url, sendFileStreamData, urlParameters, headersCollection, cancellationToken);
-        }
-
-        public Task<ApiResult<TResult>> PostFileStreamAsync<TResult>(string url, SendFileStreamData sendFileStreamData, NameValueCollection urlParameters, HeadersCollection headersCollection, CancellationToken cancellationToken)
-        {
-            return SendFileStreamAsync<TResult>(HttpMethod.Post, url, sendFileStreamData, urlParameters, headersCollection, cancellationToken);
-        }
-
-
-        public Task<ApiResult<FetchFileStreamData>> RetrieveFileGetAsync(string url, NameValueCollection urlParameters, HeadersCollection headersCollection, CancellationToken cancellationToken)
-        {
-            if (urlParameters == null)
-            {
-                urlParameters = new NameValueCollection();
-            }
-            urlParameters.Add("_", DateTime.Now.Ticks.ToString());
-            return RetrieveFileStreamAsync(HttpMethod.Get, url, urlParameters, headersCollection, cancellationToken);
-        }
-
-
-
-        protected async Task<ApiResult<FetchFileStreamData>> RetrieveFileStreamAsync(HttpMethod httpMethod, string path, NameValueCollection urlParameters, HeadersCollection headersCollection, CancellationToken cancellationToken)
+        protected async Task<ApiResult<FetchFileStreamData>> RetrieveFileStreamAsync(HttpMethod httpMethod, string path, NameValueCollection urlParameters, HeadersCollection headersCollection, Action<FileTransferProgressEventArgs> onReceiveProgress, CancellationToken cancellationToken)
         {
             var url = path + urlParameters.ToQueryString();
             HttpResponseMessage response = await httpClient.SendAsync(
@@ -239,22 +219,47 @@ namespace Morph.Server.Sdk.Client
                     // need to fix double quotes, that may come from server response
                     // FileNameStar contains file name encoded in UTF8
                     var realFileName = (contentDisposition.FileNameStar ?? contentDisposition.FileName).TrimStart('\"').TrimEnd('\"');
-                    
                     var contentLength = response.Content.Headers.ContentLength;
 
-                    // stream must be disposed by a caller
-                    Stream streamToReadFrom = await response.Content.ReadAsStreamAsync();
-                    var streamWithProgress = new StreamWithProgress(streamToReadFrom,
-                        e =>
+                    FileProgress downloadProgress = null;
+
+                    if (contentLength.HasValue)
+                    {
+                        downloadProgress = new FileProgress(realFileName, contentLength.Value, onReceiveProgress);
+                    }
+                    downloadProgress?.ChangeState(FileProgressState.Starting);
+                    var totalProcessedBytes = 0;
+                  
+                    {
+                        // stream must be disposed by a caller
+                        Stream streamToReadFrom = await response.Content.ReadAsStreamAsync();
+                        DateTime _lastUpdate = DateTime.MinValue;
+                        
+                        var streamWithProgress = new StreamWithProgress(streamToReadFrom,
+                            e =>
+                            {                                
+                                if (downloadProgress != null)
+                                {
+                                    totalProcessedBytes += e.BytesProcessed;
+                                    if ((DateTime.Now - _lastUpdate > TimeSpan.FromMilliseconds(500)) || e.BytesProcessed == 0)
+                                    {
+                                        downloadProgress.SetProcessedBytes(totalProcessedBytes);
+                                        _lastUpdate = DateTime.Now;
+                                    }
+                                    
+                                }
+                            },
+                        () =>
                         {
 
-                        },
-                    () =>
-                    {
-                        response.Dispose();
-                    });
-                    return ApiResult<FetchFileStreamData>.Ok(new FetchFileStreamData(streamWithProgress, realFileName, contentLength));
-                    
+                            if (downloadProgress != null  && downloadProgress.ProcessedBytes!= totalProcessedBytes)
+                            {
+                                downloadProgress.ChangeState(FileProgressState.Cancelled);
+                            }
+                            response.Dispose();
+                        });
+                        return ApiResult<FetchFileStreamData>.Ok(new FetchFileStreamData(streamWithProgress, realFileName, contentLength));
+                    }
                 }
                 else
                 {
@@ -264,7 +269,36 @@ namespace Morph.Server.Sdk.Client
             }
         }
 
+
+        public Task<ApiResult<TResult>> PutFileStreamAsync<TResult>(string url, SendFileStreamData sendFileStreamData, NameValueCollection urlParameters, HeadersCollection headersCollection, Action<FileTransferProgressEventArgs> onSendProgress,  CancellationToken cancellationToken)
+              where TResult : new()
+        {
+            return SendFileStreamAsync<TResult>(HttpMethod.Put, url, sendFileStreamData, urlParameters, headersCollection, onSendProgress, cancellationToken);
+        }
+
+        public Task<ApiResult<TResult>> PostFileStreamAsync<TResult>(string url, SendFileStreamData sendFileStreamData, NameValueCollection urlParameters, HeadersCollection headersCollection, Action<FileTransferProgressEventArgs> onSendProgress, CancellationToken cancellationToken)
+              where TResult : new()
+        {
+            return SendFileStreamAsync<TResult>(HttpMethod.Post, url, sendFileStreamData, urlParameters, headersCollection, onSendProgress, cancellationToken);
+        }
+
+
+        public Task<ApiResult<FetchFileStreamData>> RetrieveFileGetAsync(string url, NameValueCollection urlParameters, HeadersCollection headersCollection, Action<FileTransferProgressEventArgs> onReceiveProgress, CancellationToken cancellationToken)
+        {
+            if (urlParameters == null)
+            {
+                urlParameters = new NameValueCollection();
+            }
+            urlParameters.Add("_", DateTime.Now.Ticks.ToString());
+            return RetrieveFileStreamAsync(HttpMethod.Get, url, urlParameters, headersCollection, onReceiveProgress, cancellationToken);
+        }
+
+
+
+       
+
         public Task<ApiResult<TResult>> HeadAsync<TResult>(string url, NameValueCollection urlParameters, HeadersCollection headersCollection, CancellationToken cancellationToken)
+              where TResult : new()
         {
             if (urlParameters == null)
             {

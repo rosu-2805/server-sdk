@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Morph.Server.Sdk.Dto.Commands;
 using System.Collections.Generic;
 using Morph.Server.Sdk.Model.InternalModels;
+using Morph.Server.Sdk.Events;
 
 namespace Morph.Server.Sdk.Client
 {
@@ -47,9 +48,9 @@ namespace Morph.Server.Sdk.Client
         Task<ApiResult<SpaceBrowsingResponseDto>> WebFilesBrowseSpaceAsync(ApiSession apiSession, string folderPath, CancellationToken cancellationToken);
         Task<ApiResult<bool>> WebFileExistsAsync(ApiSession apiSession, string serverFilePath, CancellationToken cancellationToken);
         Task<ApiResult<NoContentResult>> WebFilesDeleteFileAsync(ApiSession apiSession, string serverFilePath, CancellationToken cancellationToken);
-        Task<ApiResult<FetchFileStreamData>> WebFilesDownloadFileAsync(ApiSession apiSession, string serverFilePath, CancellationToken cancellationToken);
-        Task<ApiResult<NoContentResult>> WebFilesPutFileAsync(ApiSession apiSession, string serverFolder, SendFileStreamData sendFileStreamData, CancellationToken cancellationToken);
-        Task<ApiResult<NoContentResult>> WebFilesPostFileAsync(ApiSession apiSession, string serverFolder, SendFileStreamData sendFileStreamData, CancellationToken cancellationToken);
+        Task<ApiResult<FetchFileStreamData>> WebFilesDownloadFileAsync(ApiSession apiSession, string serverFilePath, Action<FileTransferProgressEventArgs> onReceiveProgress, CancellationToken cancellationToken);
+        Task<ApiResult<NoContentResult>> WebFilesPutFileAsync(ApiSession apiSession, string serverFolder, SendFileStreamData sendFileStreamData, Action<FileTransferProgressEventArgs> onSendProgress, CancellationToken cancellationToken);
+        Task<ApiResult<NoContentResult>> WebFilesPostFileAsync(ApiSession apiSession, string serverFolder, SendFileStreamData sendFileStreamData, Action<FileTransferProgressEventArgs> onSendProgress, CancellationToken cancellationToken);
 
     }
 }

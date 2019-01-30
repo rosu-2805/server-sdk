@@ -72,7 +72,7 @@ namespace Morph.Server.Sdk.Model
                     this.IsClosed = true;
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
 
             }

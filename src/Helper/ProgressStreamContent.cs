@@ -64,10 +64,9 @@ namespace Morph.Server.Sdk.Helper
                     await stream.WriteAsync(buffer, 0, length);
                     processed += length;                    
 
-                    if (DateTime.Now - _lastUpdate > TimeSpan.FromMilliseconds(250))
+                    if (DateTime.Now - _lastUpdate > TimeSpan.FromMilliseconds(500))
                     {
-                        _fileProgress.SetProcessedBytes(processed);
-                        _fileProgress.ChangeState(FileProgressState.Processing);
+                        _fileProgress.SetProcessedBytes(processed);                        
                         _lastUpdate = DateTime.Now;
                     }
                 }

@@ -11,7 +11,9 @@ namespace Morph.Server.Sdk.Helper
 
     internal class FileProgress : IFileProgress
     {
-        public event EventHandler<FileTransferProgressEventArgs> StateChanged;
+        private readonly Action<FileTransferProgressEventArgs> onProgress;
+
+        //public event EventHandler<FileTransferProgressEventArgs> StateChanged;
 
         public long FileSize { get; private set; }
         public string FileName { get; private set; }        
@@ -21,7 +23,7 @@ namespace Morph.Server.Sdk.Helper
         public void ChangeState(FileProgressState state)
         {
             State = state;
-            StateChanged?.Invoke(this, new FileTransferProgressEventArgs
+            onProgress?.Invoke(new FileTransferProgressEventArgs
             {
                 ProcessedBytes = ProcessedBytes,
                 State = state,
@@ -33,12 +35,21 @@ namespace Morph.Server.Sdk.Helper
         public void SetProcessedBytes(long np)
         {
             ProcessedBytes = np;
+            if(ProcessedBytes!= FileSize)
+            {
+                ChangeState(FileProgressState.Processing);
+            }
+            if(ProcessedBytes == FileSize && State !=FileProgressState.Finishing)
+            {
+                ChangeState(FileProgressState.Finishing);
+            }
         }
 
-        public FileProgress(string fileName, long fileSize)
+        public FileProgress(string fileName, long fileSize, Action<FileTransferProgressEventArgs> onProgress)
         {
             FileName = fileName;
-            FileSize = fileSize;            
+            FileSize = fileSize;
+            this.onProgress = onProgress;
         }
     }
 }

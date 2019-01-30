@@ -10,7 +10,7 @@ namespace Morph.Server.Sdk.Helper
 {
     internal interface IFileProgress
     {
-        event EventHandler<FileTransferProgressEventArgs> StateChanged;
+        // event EventHandler<FileTransferProgressEventArgs> StateChanged;
         FileProgressState State { get; }
         long FileSize { get; }
         string FileName { get; }
