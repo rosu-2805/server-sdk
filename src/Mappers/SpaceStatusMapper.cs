@@ -16,14 +16,14 @@ namespace Morph.Server.Sdk.Mappers
             {
                 IsPublic = dto.IsPublic,
                 SpaceName = dto.SpaceName,
-                SpacePermissions = dto.UserPermissions?.Select(MapPermission)?.Where(x => x.HasValue)?.Select(x => x.Value)?.ToList().AsReadOnly()
+                UserPermissions = dto.UserPermissions?.Select(MapPermission)?.Where(x => x.HasValue)?.Select(x => x.Value)?.ToList().AsReadOnly()
 
             };
         }
 
-        private static SpacePermission? MapPermission(string permission)
+        private static UserSpacePermission? MapPermission(string permission)
         {
-            if (Enum.TryParse<SpacePermission>(permission, true, out var p))
+            if (Enum.TryParse<UserSpacePermission>(permission, true, out var p))
             {
                 return p;
             }

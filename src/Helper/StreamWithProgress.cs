@@ -11,16 +11,23 @@ namespace Morph.Server.Sdk.Helper
         private readonly Action<StreamProgressEventArgs> onReadProgress;
         private readonly Action<StreamProgressEventArgs> onWriteProgress = null;
         private readonly Action onDisposed;
+        private readonly Action onTokenCancelled;
+        private readonly CancellationToken mainTokem;
 
         public StreamWithProgress(Stream stream,
+            CancellationToken mainTokem,
             Action<StreamProgressEventArgs> onReadProgress = null,                        
-            Action onDisposed = null
+            Action onDisposed = null,
+            Action onTokenCancelled = null
+
             )
         {
             this.stream = stream ?? throw new ArgumentNullException(nameof(stream));
             this.onReadProgress = onReadProgress;
             
             this.onDisposed = onDisposed;
+            this.onTokenCancelled = onTokenCancelled;
+            this.mainTokem = mainTokem;
         }
         public override bool CanRead => stream.CanRead;
 
@@ -39,6 +46,10 @@ namespace Morph.Server.Sdk.Helper
 
         public override int Read(byte[] buffer, int offset, int count)
         {
+            if (mainTokem.IsCancellationRequested)
+            {
+                onTokenCancelled();
+            }
             var bytesRead = stream.Read(buffer, offset, count);
             RaiseOnReadProgress(bytesRead);
             return bytesRead;            
@@ -97,7 +108,11 @@ namespace Morph.Server.Sdk.Helper
             byte[] buffer = new byte[bufferSize];
             int bytesRead;
             while ((bytesRead = await ReadAsync(buffer, 0, buffer.Length, cancellationToken).ConfigureAwait(false)) != 0)
-            {                
+            {
+                if (mainTokem.IsCancellationRequested)
+                {
+                    onTokenCancelled();
+                }
                 await destination.WriteAsync(buffer, 0, bytesRead, cancellationToken).ConfigureAwait(false);
             }
         }
@@ -128,6 +143,10 @@ namespace Morph.Server.Sdk.Helper
         
         public override async Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
         {
+            if (mainTokem.IsCancellationRequested)
+            {
+                onTokenCancelled();
+            }
             var bytesRead = await stream.ReadAsync(buffer, offset, count, cancellationToken).ConfigureAwait(false);
             RaiseOnReadProgress(bytesRead);
             return bytesRead;

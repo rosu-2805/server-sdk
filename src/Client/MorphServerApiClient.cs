@@ -172,7 +172,7 @@ namespace Morph.Server.Sdk.Client
             }, cancellationToken, OperationType.ShortOperation);
         }
 
-        internal virtual Task<TResult> Wrapped<TResult>(Func<CancellationToken, Task<TResult>> fun, CancellationToken orginalCancellationToken, OperationType operationType)
+        internal virtual async Task<TResult> Wrapped<TResult>(Func<CancellationToken, Task<TResult>> fun, CancellationToken orginalCancellationToken, OperationType operationType)
         {
             TimeSpan maxExecutionTime;
             switch (operationType)
@@ -183,22 +183,21 @@ namespace Morph.Server.Sdk.Client
                     maxExecutionTime = clientConfiguration.OperationTimeout; break;
                 default: throw new NotImplementedException();
             }
-            using (var derTokenSource = CancellationTokenSource.CreateLinkedTokenSource(orginalCancellationToken))
+            
+            var derTokenSource = CancellationTokenSource.CreateLinkedTokenSource(orginalCancellationToken);
             {
-          //      derTokenSource.CancelAfter(maxExecutionTime);
+                derTokenSource.CancelAfter(maxExecutionTime);
                 try
                 {
-                    return fun(derTokenSource.Token);
+                    return await fun(derTokenSource.Token);
                 }
 
                 catch (OperationCanceledException) when (!orginalCancellationToken.IsCancellationRequested && derTokenSource.IsCancellationRequested)
                 {
                     throw new Exception($"Can't connect to host {clientConfiguration.ApiUri}.  Operation timeout ({maxExecutionTime})");
                 }
-                finally
-                {
-
-                }
+             
+               
             }
         }
 
@@ -363,9 +362,9 @@ namespace Morph.Server.Sdk.Client
             }, cancellationToken, OperationType.ShortOperation);
         }
 
-        public Task<SpacesEnumerationList> GetSpacesListAsync(CancellationToken cancellationToken)
+        public async Task<SpacesEnumerationList> GetSpacesListAsync(CancellationToken cancellationToken)
         {
-            return Wrapped(async (token) =>
+            return await Wrapped(async (token) =>
             {
                 var apiResult = await _lowLevelApiClient.SpacesGetListAsync(token);
                 return MapOrFail(apiResult, (dto) => SpacesEnumerationMapper.MapFromDto(dto));

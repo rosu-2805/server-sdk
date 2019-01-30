@@ -182,7 +182,7 @@ namespace Morph.Server.Sdk.Client
                         using (var streamContent = new ProgressStreamContent(sendFileStreamData.Stream, uploadProgress))
                         {
                             content.Add(streamContent, "files", Path.GetFileName(sendFileStreamData.FileName));
-                            var url = path + urlParameters.ToQueryString();
+                            var url = path + (urlParameters != null ? urlParameters.ToQueryString() : string.Empty);
                             var requestMessage = BuildHttpRequestMessage(httpMethod, url, content, headersCollection);
                             using (requestMessage)
                             {
@@ -209,7 +209,7 @@ namespace Morph.Server.Sdk.Client
 
         protected async Task<ApiResult<FetchFileStreamData>> RetrieveFileStreamAsync(HttpMethod httpMethod, string path, NameValueCollection urlParameters, HeadersCollection headersCollection, Action<FileTransferProgressEventArgs> onReceiveProgress, CancellationToken cancellationToken)
         {
-            var url = path + urlParameters.ToQueryString();
+            var url = path + (urlParameters != null ? urlParameters.ToQueryString() : string.Empty);
             HttpResponseMessage response = await httpClient.SendAsync(
                    BuildHttpRequestMessage(httpMethod, url, null, headersCollection), HttpCompletionOption.ResponseHeadersRead, cancellationToken);
             {
@@ -235,36 +235,49 @@ namespace Morph.Server.Sdk.Client
                         Stream streamToReadFrom = await response.Content.ReadAsStreamAsync();
                         DateTime _lastUpdate = DateTime.MinValue;
                         
-                        var streamWithProgress = new StreamWithProgress(streamToReadFrom,
-                            e =>
-                            {                                
-                                if (downloadProgress != null)
+                        
+                            var streamWithProgress = new StreamWithProgress(streamToReadFrom, cancellationToken,
+                                e =>
                                 {
-                                    totalProcessedBytes += e.BytesProcessed;
-                                    if ((DateTime.Now - _lastUpdate > TimeSpan.FromMilliseconds(500)) || e.BytesProcessed == 0)
+                                    if (downloadProgress != null)
                                     {
-                                        downloadProgress.SetProcessedBytes(totalProcessedBytes);
-                                        _lastUpdate = DateTime.Now;
-                                    }
-                                    
-                                }
-                            },
-                        () =>
-                        {
+                                        totalProcessedBytes += e.BytesProcessed;
+                                        if ((DateTime.Now - _lastUpdate > TimeSpan.FromMilliseconds(500)) || e.BytesProcessed == 0)
+                                        {
+                                            downloadProgress.SetProcessedBytes(totalProcessedBytes);
+                                            _lastUpdate = DateTime.Now;
+                                        }
 
-                            if (downloadProgress != null  && downloadProgress.ProcessedBytes!= totalProcessedBytes)
+                                    }
+                                },
+                            () =>
                             {
-                                downloadProgress.ChangeState(FileProgressState.Cancelled);
-                            }
-                            response.Dispose();
-                        });
-                        return ApiResult<FetchFileStreamData>.Ok(new FetchFileStreamData(streamWithProgress, realFileName, contentLength));
+
+                                if (downloadProgress != null && downloadProgress.ProcessedBytes != totalProcessedBytes)
+                                {
+                                    downloadProgress.ChangeState(FileProgressState.Cancelled);
+                                }
+                                response.Dispose();
+                            },
+                            ()=> {
+                                throw new Exception("Timeout");
+
+                            });
+                            return ApiResult<FetchFileStreamData>.Ok(new FetchFileStreamData(streamWithProgress, realFileName, contentLength));
+                        
                     }
                 }
                 else
                 {
-                    var error = await BuildExceptionFromResponse(response);
-                    return ApiResult<FetchFileStreamData>.Fail(error);
+                    try
+                    {
+                        var error = await BuildExceptionFromResponse(response);
+                        return ApiResult<FetchFileStreamData>.Fail(error);
+                    }
+                    finally
+                    {
+                        response.Dispose();
+                    }
                 }
             }
         }
