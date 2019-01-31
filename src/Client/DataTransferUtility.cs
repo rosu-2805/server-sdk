@@ -11,6 +11,7 @@ namespace Morph.Server.Sdk.Client
     /// </summary>
     public class DataTransferUtility : IDataTransferUtility
     {
+        private int BufferSize { get; set; }  = 81920;
         private readonly IMorphServerApiClient _morphServerApiClient;
         private readonly ApiSession _apiSession;
 
@@ -20,7 +21,7 @@ namespace Morph.Server.Sdk.Client
             this._apiSession = apiSession ?? throw new ArgumentNullException(nameof(apiSession));
         }
 
-        public async Task SpaceUploadFileAsync(string localFilePath, string destFolderPath, CancellationToken cancellationToken, bool overwriteExistingFile = false)
+        public async Task SpaceUploadFileAsync(string localFilePath, string serverFolder, CancellationToken cancellationToken, bool overwriteExistingFile = false)
         {        
             if (!File.Exists(localFilePath))
             {
@@ -36,11 +37,115 @@ namespace Morph.Server.Sdk.Client
                     FileName = fileName,
                     FileSize = fileSize,
                     OverwriteExistingFile = overwriteExistingFile,
-                    ServerFolder = destFolderPath
+                    ServerFolder = serverFolder
                 };
                 await _morphServerApiClient.SpaceUploadFileAsync(_apiSession, request, cancellationToken);
                 return;
             }
+        }
+
+        
+
+
+        public async Task SpaceDownloadFileIntoFileAsync(string remoteFilePath, string targetLocalFilePath, CancellationToken cancellationToken, bool overwriteExistingFile = false)
+        {
+            if (remoteFilePath == null)
+            {
+                throw new ArgumentNullException(nameof(remoteFilePath));
+            }
+
+            if (targetLocalFilePath == null)
+            {
+                throw new ArgumentNullException(nameof(targetLocalFilePath));
+            }
+
+            string destFileName = Path.GetFileName(targetLocalFilePath);
+            var localFolder = Path.GetDirectoryName(targetLocalFilePath);
+            var tempFile = Path.Combine(localFolder, Guid.NewGuid().ToString("D") + ".emtmp");
+
+            if (!overwriteExistingFile && File.Exists(destFileName))
+            {
+                throw new Exception($"Destination file '{destFileName}' already exists.");
+            }
+
+
+            try
+            {
+                using (Stream tempFileStream = File.Open(tempFile, FileMode.Create))
+                {
+                    using (var serverStreamingData = await _morphServerApiClient.SpaceDownloadFileAsync(_apiSession, remoteFilePath, cancellationToken))
+                    {
+                        await serverStreamingData.Stream.CopyToAsync(tempFileStream, BufferSize, cancellationToken);
+                    }
+                }
+
+                if (File.Exists(destFileName))
+                {
+                    File.Delete(destFileName);
+                }
+                File.Move(tempFile, destFileName);
+
+            }
+            finally
+            {
+                //drop file
+                if (tempFile != null && File.Exists(tempFile))
+                {
+                    File.Delete(tempFile);
+                }
+
+            }
+        }
+
+        public async Task SpaceDownloadFileIntoFolderAsync(string remoteFilePath, string targetLocalFolder, CancellationToken cancellationToken, bool overwriteExistingFile = false)
+        {
+            if (remoteFilePath == null)
+            {
+                throw new ArgumentNullException(nameof(remoteFilePath));
+            }
+
+            if (targetLocalFolder == null)
+            {
+                throw new ArgumentNullException(nameof(targetLocalFolder));
+            }
+
+            string destFileName = null;
+            var tempFile = Path.Combine(targetLocalFolder, Guid.NewGuid().ToString("D") + ".emtmp");
+            try
+            {
+                using (Stream tempFileStream = File.Open(tempFile, FileMode.Create))
+                {
+
+                    using (var serverStreamingData = await _morphServerApiClient.SpaceDownloadFileAsync(_apiSession, remoteFilePath, cancellationToken))
+                    {
+                        destFileName = Path.Combine(targetLocalFolder, serverStreamingData.FileName);
+
+                        if (!overwriteExistingFile && File.Exists(destFileName))
+                        {
+                            throw new Exception($"Destination file '{destFileName}' already exists.");
+                        }
+
+                        await serverStreamingData.Stream.CopyToAsync(tempFileStream, BufferSize, cancellationToken);
+                    }
+                }
+
+                if (File.Exists(destFileName))
+                {
+                    File.Delete(destFileName);
+                }
+                File.Move(tempFile, destFileName);
+
+            }
+            finally
+            {
+                //drop file
+                if (tempFile != null && File.Exists(tempFile))
+                {
+                    File.Delete(tempFile);
+                }
+
+            }
+
         }
 
     }

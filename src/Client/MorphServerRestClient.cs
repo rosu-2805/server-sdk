@@ -220,6 +220,10 @@ namespace Morph.Server.Sdk.Client
                     // FileNameStar contains file name encoded in UTF8
                     var realFileName = (contentDisposition.FileNameStar ?? contentDisposition.FileName).TrimStart('\"').TrimEnd('\"');
                     var contentLength = response.Content.Headers.ContentLength;
+                    if (!contentLength.HasValue)
+                    {
+                        throw new Exception("Response content length header is not set by the server.");
+                    }
 
                     FileProgress downloadProgress = null;
 
@@ -233,10 +237,9 @@ namespace Morph.Server.Sdk.Client
                     {
                         // stream must be disposed by a caller
                         Stream streamToReadFrom = await response.Content.ReadAsStreamAsync();
-                        DateTime _lastUpdate = DateTime.MinValue;
+                        DateTime _lastUpdate = DateTime.MinValue;                        
                         
-                        
-                            var streamWithProgress = new StreamWithProgress(streamToReadFrom, cancellationToken,
+                            var streamWithProgress = new StreamWithProgress(streamToReadFrom, contentLength.Value, cancellationToken ,
                                 e =>
                                 {
                                     if (downloadProgress != null)

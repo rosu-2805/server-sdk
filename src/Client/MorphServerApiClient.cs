@@ -124,6 +124,9 @@ namespace Morph.Server.Sdk.Client
             client.DefaultRequestHeaders.Add("X-Client-Id", config.ClientId);
             client.DefaultRequestHeaders.Add("X-Client-Sdk", config.SDKVersionString);
 
+            client.DefaultRequestHeaders.Add("Connection", "Keep-Alive");
+            client.DefaultRequestHeaders.Add("Keep-Alive", "timeout=60");
+
             client.MaxResponseContentBufferSize = 100 * 1024;
             client.DefaultRequestHeaders.CacheControl = new CacheControlHeaderValue
             {

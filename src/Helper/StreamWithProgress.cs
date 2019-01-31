@@ -8,13 +8,18 @@ namespace Morph.Server.Sdk.Helper
     internal class StreamWithProgress : Stream
     {
         private readonly Stream stream;
+        private readonly long streamLength;
         private readonly Action<StreamProgressEventArgs> onReadProgress;
         private readonly Action<StreamProgressEventArgs> onWriteProgress = null;
         private readonly Action onDisposed;
         private readonly Action onTokenCancelled;
-        private readonly CancellationToken mainTokem;
+        private readonly CancellationToken httpTimeoutToken;
 
-        public StreamWithProgress(Stream stream,
+        private long _readPosition = 0;
+
+
+        public StreamWithProgress(Stream httpStream,
+            long streamLength,
             CancellationToken mainTokem,
             Action<StreamProgressEventArgs> onReadProgress = null,                        
             Action onDisposed = null,
@@ -22,12 +27,13 @@ namespace Morph.Server.Sdk.Helper
 
             )
         {
-            this.stream = stream ?? throw new ArgumentNullException(nameof(stream));
+            this.stream = httpStream ?? throw new ArgumentNullException(nameof(httpStream));
+            this.streamLength = streamLength;
             this.onReadProgress = onReadProgress;
             
             this.onDisposed = onDisposed;
             this.onTokenCancelled = onTokenCancelled;
-            this.mainTokem = mainTokem;
+            this.httpTimeoutToken = mainTokem;
         }
         public override bool CanRead => stream.CanRead;
 
@@ -35,9 +41,9 @@ namespace Morph.Server.Sdk.Helper
 
         public override bool CanWrite => stream.CanWrite;
 
-        public override long Length => stream.Length;
+        public override long Length => streamLength;
 
-        public override long Position { get => stream.Position; set => stream.Position = value; }
+        public override long Position { get => _readPosition; set => throw new NotImplementedException(); }
 
         public override void Flush()
         {
@@ -46,17 +52,18 @@ namespace Morph.Server.Sdk.Helper
 
         public override int Read(byte[] buffer, int offset, int count)
         {
-            if (mainTokem.IsCancellationRequested)
+            if (httpTimeoutToken.IsCancellationRequested)
             {
                 onTokenCancelled();
             }
-            var bytesRead = stream.Read(buffer, offset, count);
+            var bytesRead = stream.Read(buffer, offset, count);            
             RaiseOnReadProgress(bytesRead);
             return bytesRead;            
         }
 
         private void RaiseOnReadProgress(int bytesRead)
         {
+            _readPosition += bytesRead;
             if (onReadProgress != null)
             {
                 var args = new StreamProgressEventArgs(bytesRead );
@@ -109,7 +116,7 @@ namespace Morph.Server.Sdk.Helper
             int bytesRead;
             while ((bytesRead = await ReadAsync(buffer, 0, buffer.Length, cancellationToken).ConfigureAwait(false)) != 0)
             {
-                if (mainTokem.IsCancellationRequested)
+                if (httpTimeoutToken.IsCancellationRequested)
                 {
                     onTokenCancelled();
                 }
@@ -143,7 +150,7 @@ namespace Morph.Server.Sdk.Helper
         
         public override async Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
         {
-            if (mainTokem.IsCancellationRequested)
+            if (httpTimeoutToken.IsCancellationRequested)
             {
                 onTokenCancelled();
             }
@@ -153,7 +160,12 @@ namespace Morph.Server.Sdk.Helper
         }
         public override int ReadByte()
         {
-            return stream.ReadByte();
+            var @byte = stream.ReadByte();
+            if (@byte != -1)
+            {
+                RaiseOnReadProgress(1);
+            }
+            return @byte;
         }
         public override int ReadTimeout { get => stream.ReadTimeout; set => stream.ReadTimeout = value; }
         public override string ToString()
