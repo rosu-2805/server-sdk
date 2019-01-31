@@ -15,8 +15,8 @@ namespace Morph.Server.Sdk.Client
     
     public interface IMorphServerApiClient:IDisposable
     {
-        event EventHandler<FileTransferProgressEventArgs> OnFileDownloadProgress;
-        event EventHandler<FileTransferProgressEventArgs> OnFileUploadProgress;
+        event EventHandler<FileTransferProgressEventArgs> OnDataDownloadProgress;
+        event EventHandler<FileTransferProgressEventArgs> OnDataUploadProgress;
 
         IClientConfiguration Config { get; }
 
@@ -39,10 +39,10 @@ namespace Morph.Server.Sdk.Client
         Task SpaceDeleteFileAsync(ApiSession apiSession, string remoteFilePath, CancellationToken cancellationToken);
         Task<bool> SpaceFileExistsAsync(ApiSession apiSession, string remoteFilePath, CancellationToken cancellationToken);
 
-        Task<ServerStreamingData> SpaceDownloadFileAsync(ApiSession apiSession, string remoteFilePath, CancellationToken cancellationToken);
-        Task<Stream> SpaceDownloadFileStreamAsync(ApiSession apiSession, string remoteFilePath, CancellationToken cancellationToken);
+        Task<ServerStreamingData> SpaceOpenStreamingDataAsync(ApiSession apiSession, string remoteFilePath, CancellationToken cancellationToken);
+        Task<Stream> SpaceOpenFileStreamAsync(ApiSession apiSession, string remoteFilePath, CancellationToken cancellationToken);
 
-        Task SpaceUploadFileAsync(ApiSession apiSession, SpaceUploadFileRequest spaceUploadFileRequest, CancellationToken cancellationToken);
+        Task SpaceUploadStreamAsync(ApiSession apiSession, SpaceUploadFileRequest spaceUploadFileRequest, CancellationToken cancellationToken);
 
 
     }

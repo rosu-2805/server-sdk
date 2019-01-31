@@ -39,7 +39,7 @@ namespace Morph.Server.Sdk.Client
                     OverwriteExistingFile = overwriteExistingFile,
                     ServerFolder = serverFolder
                 };
-                await _morphServerApiClient.SpaceUploadFileAsync(_apiSession, request, cancellationToken);
+                await _morphServerApiClient.SpaceUploadStreamAsync(_apiSession, request, cancellationToken);
                 return;
             }
         }
@@ -73,7 +73,7 @@ namespace Morph.Server.Sdk.Client
             {
                 using (Stream tempFileStream = File.Open(tempFile, FileMode.Create))
                 {
-                    using (var serverStreamingData = await _morphServerApiClient.SpaceDownloadFileAsync(_apiSession, remoteFilePath, cancellationToken))
+                    using (var serverStreamingData = await _morphServerApiClient.SpaceOpenStreamingDataAsync(_apiSession, remoteFilePath, cancellationToken))
                     {
                         await serverStreamingData.Stream.CopyToAsync(tempFileStream, BufferSize, cancellationToken);
                     }
@@ -116,7 +116,7 @@ namespace Morph.Server.Sdk.Client
                 using (Stream tempFileStream = File.Open(tempFile, FileMode.Create))
                 {
 
-                    using (var serverStreamingData = await _morphServerApiClient.SpaceDownloadFileAsync(_apiSession, remoteFilePath, cancellationToken))
+                    using (var serverStreamingData = await _morphServerApiClient.SpaceOpenStreamingDataAsync(_apiSession, remoteFilePath, cancellationToken))
                     {
                         destFileName = Path.Combine(targetLocalFolder, serverStreamingData.FileName);
 
@@ -148,6 +148,28 @@ namespace Morph.Server.Sdk.Client
 
         }
 
+        public async Task SpaceUploadFileAsync(string localFilePath, string serverFolder, string destFileName, CancellationToken cancellationToken, bool overwriteExistingFile = false)
+        {
+            if (!File.Exists(localFilePath))
+            {
+                throw new FileNotFoundException(string.Format("File '{0}' not found", localFilePath));
+            }
+            var fileSize = new FileInfo(localFilePath).Length;
+            
+            using (var fsSource = new FileStream(localFilePath, FileMode.Open, FileAccess.Read))
+            {
+                var request = new SpaceUploadFileRequest
+                {
+                    DataStream = fsSource,
+                    FileName = destFileName,
+                    FileSize = fileSize,
+                    OverwriteExistingFile = overwriteExistingFile,
+                    ServerFolder = serverFolder
+                };
+                await _morphServerApiClient.SpaceUploadStreamAsync(_apiSession, request, cancellationToken);
+                return;
+            }
+        }
     }
 
 }

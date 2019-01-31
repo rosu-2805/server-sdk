@@ -230,7 +230,7 @@ namespace Morph.Server.Sdk.Client
             }
         }
 
-        public Task<ApiResult<NoContentResult>> WebFilesPutFileAsync(ApiSession apiSession, string serverFolder, SendFileStreamData sendFileStreamData, Action<FileTransferProgressEventArgs> onSendProgress, CancellationToken cancellationToken)
+        public Task<ApiResult<NoContentResult>> WebFilesPutFileStreamAsync(ApiSession apiSession, string serverFolder, SendFileStreamData sendFileStreamData, Action<FileTransferProgressEventArgs> onSendProgress, CancellationToken cancellationToken)
         {
             if (apiSession == null)
             {
@@ -249,7 +249,7 @@ namespace Morph.Server.Sdk.Client
 
         }
 
-        public Task<ApiResult<NoContentResult>> WebFilesPostFileAsync(ApiSession apiSession, string serverFolder, SendFileStreamData sendFileStreamData, Action<FileTransferProgressEventArgs> onSendProgress, CancellationToken cancellationToken)
+        public Task<ApiResult<NoContentResult>> WebFilesPostFileStreamAsync(ApiSession apiSession, string serverFolder, SendFileStreamData sendFileStreamData, Action<FileTransferProgressEventArgs> onSendProgress, CancellationToken cancellationToken)
         {
             if (apiSession == null)
             {

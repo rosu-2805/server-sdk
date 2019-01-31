@@ -24,8 +24,8 @@ namespace Morph.Server.Sdk.Client
     /// </summary>
     public class MorphServerApiClient : IMorphServerApiClient, IDisposable
     {
-        public event EventHandler<FileTransferProgressEventArgs> OnFileDownloadProgress;
-        public event EventHandler<FileTransferProgressEventArgs> OnFileUploadProgress;
+        public event EventHandler<FileTransferProgressEventArgs> OnDataDownloadProgress;
+        public event EventHandler<FileTransferProgressEventArgs> OnDataUploadProgress;
 
         protected readonly string _userAgent = "MorphServerApiClient/next";
         protected readonly string _api_v1 = "api/v1/";
@@ -377,7 +377,7 @@ namespace Morph.Server.Sdk.Client
 
         private void DownloadProgress_StateChanged(object sender, FileTransferProgressEventArgs e)
         {
-            OnFileDownloadProgress?.Invoke(this, e);
+            OnDataDownloadProgress?.Invoke(this, e);
         }
 
 
@@ -575,7 +575,7 @@ namespace Morph.Server.Sdk.Client
         }
 
 
-        public Task<ServerStreamingData> SpaceDownloadFileAsync(ApiSession apiSession, string remoteFilePath, CancellationToken cancellationToken)
+        public Task<ServerStreamingData> SpaceOpenStreamingDataAsync(ApiSession apiSession, string remoteFilePath, CancellationToken cancellationToken)
         {
             if (apiSession == null)
             {
@@ -586,7 +586,7 @@ namespace Morph.Server.Sdk.Client
             {
                 Action<FileTransferProgressEventArgs> onReceiveProgress = (data) =>
                 {
-                    OnFileDownloadProgress?.Invoke(this, data);
+                    OnDataDownloadProgress?.Invoke(this, data);
                 };
                 var apiResult = await _lowLevelApiClient.WebFilesDownloadFileAsync(apiSession, remoteFilePath, onReceiveProgress, token);
                 return MapOrFail(apiResult, (data) => new ServerStreamingData(data.Stream, data.FileName, data.FileSize)
@@ -603,7 +603,7 @@ namespace Morph.Server.Sdk.Client
             }
         }
 
-        public Task<Stream> SpaceDownloadFileStreamAsync(ApiSession apiSession, string remoteFilePath, CancellationToken cancellationToken)
+        public Task<Stream> SpaceOpenFileStreamAsync(ApiSession apiSession, string remoteFilePath, CancellationToken cancellationToken)
         {
             if (apiSession == null)
             {
@@ -614,7 +614,7 @@ namespace Morph.Server.Sdk.Client
             {
                 Action<FileTransferProgressEventArgs> onReceiveProgress = (data) =>
                 {
-                    OnFileDownloadProgress?.Invoke(this, data);
+                    OnDataDownloadProgress?.Invoke(this, data);
                 };
                 var apiResult = await _lowLevelApiClient.WebFilesDownloadFileAsync(apiSession, remoteFilePath, onReceiveProgress, token);
                 return MapOrFail(apiResult, (data) => data.Stream);
@@ -622,7 +622,7 @@ namespace Morph.Server.Sdk.Client
             }, cancellationToken, OperationType.FileTransfer);
         }
 
-        public Task SpaceUploadFileAsync(ApiSession apiSession, SpaceUploadFileRequest spaceUploadFileRequest, CancellationToken cancellationToken)
+        public Task SpaceUploadStreamAsync(ApiSession apiSession, SpaceUploadFileRequest spaceUploadFileRequest, CancellationToken cancellationToken)
         {
             if (apiSession == null)
             {
@@ -638,7 +638,7 @@ namespace Morph.Server.Sdk.Client
             {
                 Action<FileTransferProgressEventArgs> onSendProgress = (data) =>
                 {
-                    OnFileUploadProgress?.Invoke(this, data);
+                    OnDataUploadProgress?.Invoke(this, data);
                 };
                 var sendStreamData = new SendFileStreamData(
                     spaceUploadFileRequest.DataStream, 
@@ -646,8 +646,8 @@ namespace Morph.Server.Sdk.Client
                     spaceUploadFileRequest.FileSize);
                 var apiResult =
                     spaceUploadFileRequest.OverwriteExistingFile ?
-                    await _lowLevelApiClient.WebFilesPutFileAsync(apiSession, spaceUploadFileRequest.ServerFolder, sendStreamData, onSendProgress, token) :
-                    await _lowLevelApiClient.WebFilesPostFileAsync(apiSession, spaceUploadFileRequest.ServerFolder, sendStreamData, onSendProgress, token);
+                    await _lowLevelApiClient.WebFilesPutFileStreamAsync(apiSession, spaceUploadFileRequest.ServerFolder, sendStreamData, onSendProgress, token) :
+                    await _lowLevelApiClient.WebFilesPostFileStreamAsync(apiSession, spaceUploadFileRequest.ServerFolder, sendStreamData, onSendProgress, token);
                 FailIfError(apiResult);
                 return Task.FromResult(0);
 
