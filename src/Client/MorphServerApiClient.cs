@@ -167,7 +167,7 @@ namespace Morph.Server.Sdk.Client
 
                 if (!startTaskRequest.TaskId.HasValue)
                 {
-                    throw new Exception("TaskId mus be set.");
+                    throw new Exception("TaskId must be set.");
                 }
                 var apiResult = await _lowLevelApiClient.StartTaskAsync(apiSession, startTaskRequest.TaskId.Value, requestDto, token);
                 return MapOrFail(apiResult, (dto) => RunningTaskStatusMapper.RunningTaskStatusFromDto(dto));
@@ -575,7 +575,7 @@ namespace Morph.Server.Sdk.Client
         }
 
 
-        public Task<ServerStreamingData> SpaceOpenStreamingDataAsync(ApiSession apiSession, string remoteFilePath, CancellationToken cancellationToken)
+        public Task<ServerStreamingData> SpaceOpenReadStreamingDataAsync(ApiSession apiSession, string remoteFilePath, CancellationToken cancellationToken)
         {
             if (apiSession == null)
             {
@@ -620,6 +620,26 @@ namespace Morph.Server.Sdk.Client
                 return MapOrFail(apiResult, (data) => data.Stream);
 
             }, cancellationToken, OperationType.FileTransfer);
+        }
+
+        public Task<ServerPushStreaming> SpaceUploadContiniousStreamingAsync(ApiSession apiSession, string folder, string fileName, CancellationToken cancellationToken)
+        {
+            if (apiSession == null)
+            {
+                throw new ArgumentNullException(nameof(apiSession));
+            }
+
+            return Wrapped(async (token) =>
+            {
+                Action<FileTransferProgressEventArgs> onSendProgress = (data) =>
+                {
+                    OnDataUploadProgress?.Invoke(this, data);
+                };
+                var apiResult = await _lowLevelApiClient.WebFilesPushPostStreamAsync(apiSession, folder, fileName, token);
+                return MapOrFail(apiResult, x => x);                
+
+            }, cancellationToken, OperationType.FileTransfer);
+            
         }
 
         public Task SpaceUploadStreamAsync(ApiSession apiSession, SpaceUploadFileRequest spaceUploadFileRequest, CancellationToken cancellationToken)

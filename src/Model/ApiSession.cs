@@ -1,13 +1,14 @@
 ﻿using Morph.Server.Sdk.Client;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Morph.Server.Sdk.Model
 {
-
 
     public class ApiSession : IDisposable
     {

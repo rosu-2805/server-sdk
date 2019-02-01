@@ -11,21 +11,7 @@ using System.Threading.Tasks;
 
 namespace Morph.Server.Sdk.Helper
 {
-    internal class StreamProgressEventArgs : EventArgs
-    {        
-        public int BytesProcessed { get;  }             
-        
-        public StreamProgressEventArgs()
-        {
-
-        }
-        public StreamProgressEventArgs(int bytesProcessed):this()
-        {
-            BytesProcessed = bytesProcessed;
-        }
-    }
-
-
+    
     internal class ProgressStreamContent : HttpContent
     {
         private const int DefBufferSize = 4096;
@@ -48,7 +34,9 @@ namespace Morph.Server.Sdk.Helper
 
         protected override async Task SerializeToStreamAsync(Stream stream, TransportContext context)
         {
-            var buffer = new byte[_bufSize];
+            
+
+               var buffer = new byte[_bufSize];
             var size = _stream.Length;
             var processed = 0;
 

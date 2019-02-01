@@ -3,13 +3,27 @@ using System.Net.Http;
 using System.Security.Cryptography.X509Certificates;
 using System.Net.Security;
 using System.Reflection;
+using System.Net;
 
 namespace Morph.Server.Sdk.Client
 {
     public static class MorphServerApiClientGlobalConfig
     {
+
 #if NETSTANDARD2_0
-        public static Func<HttpRequestMessage, X509Certificate2, X509Chain, SslPolicyErrors, bool> ServerCertificateCustomValidationCallback { get; set; }
+        private static object obj = new object();
+        public static Func<HttpRequestMessage, X509Certificate2, X509Chain, SslPolicyErrors, bool> ServerCertificateCustomValidationCallback { get; set; } =
+            (httpRequestMessage, xcert, xchain, sslerror) =>
+            {
+                if (ServicePointManager.ServerCertificateValidationCallback != null)
+                {
+                    return ServicePointManager.ServerCertificateValidationCallback(obj, xcert, xchain, sslerror);
+                }
+                else
+                {
+                    return false;
+                }
+            };            
 #endif
 
         private const string DefaultClientType = "EMS-SDK";

@@ -162,6 +162,64 @@ namespace Morph.Server.Sdk.Client
             }
         }
 
+
+
+
+        public  Task<ApiResult<ServerPushStreaming>> PushContiniousStreamingDataAsync(
+            HttpMethod httpMethod, string path, ContiniousStreamingRequest startContiniousStreamingRequest, NameValueCollection urlParameters, HeadersCollection headersCollection,
+            CancellationToken cancellationToken)        
+        {
+            try
+            {
+                string boundary = "MorphRestClient-Streaming--------" + Guid.NewGuid().ToString("N");
+
+                var content = new MultipartFormDataContent(boundary); 
+
+
+                    var streamContent = new ContiniousSteamingContent(cancellationToken);
+                        var serverPushStreaming = new ServerPushStreaming(streamContent);
+                        content.Add(streamContent, "files", Path.GetFileName(startContiniousStreamingRequest.FileName));
+                        var url = path + (urlParameters != null ? urlParameters.ToQueryString() : string.Empty);
+                        var requestMessage = BuildHttpRequestMessage(httpMethod, url, content, headersCollection);
+                        //using (requestMessage)
+                        {
+                            new Task(async () =>
+                              {
+                                  // TODO: dispose
+                                  serverPushStreaming.RegisterOnClose(() =>
+                                  {
+                                      streamContent.CloseConnetion();                                      
+                                      requestMessage.Dispose();
+                                      content.Dispose();
+                                      streamContent.Dispose();
+                                      
+                                      
+
+                                  });
+                                  var response = await httpClient.SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+                                  response.Dispose();
+
+                              }).Start();
+                            return Task.FromResult(ApiResult<ServerPushStreaming>.Ok(serverPushStreaming));
+
+                        
+                    }
+
+                
+            }
+            catch (Exception ex) when (ex.InnerException != null &&
+                    ex.InnerException is WebException web &&
+                    web.Status == WebExceptionStatus.ConnectionClosed)
+            {
+                return Task.FromResult(ApiResult<ServerPushStreaming>.Fail(new MorphApiNotFoundException("Specified folder not found")));
+            }
+            catch (Exception e)
+            {
+                return Task.FromResult(ApiResult<ServerPushStreaming>.Fail(e));
+            }
+        }
+
+
         public async Task<ApiResult<TResult>> SendFileStreamAsync<TResult>(
             HttpMethod httpMethod, string path, SendFileStreamData sendFileStreamData,
             NameValueCollection urlParameters, HeadersCollection headersCollection,
@@ -176,7 +234,7 @@ namespace Morph.Server.Sdk.Client
                 using (var content = new MultipartFormDataContent(boundary))
                 {
                     var uploadProgress = new FileProgress(sendFileStreamData.FileName, sendFileStreamData.FileSize, onSendProgress);
-                    
+
                     using (cancellationToken.Register(() => uploadProgress.ChangeState(FileProgressState.Cancelled)))
                     {
                         using (var streamContent = new ProgressStreamContent(sendFileStreamData.Stream, uploadProgress))
@@ -233,41 +291,42 @@ namespace Morph.Server.Sdk.Client
                     }
                     downloadProgress?.ChangeState(FileProgressState.Starting);
                     var totalProcessedBytes = 0;
-                  
+
                     {
                         // stream must be disposed by a caller
                         Stream streamToReadFrom = await response.Content.ReadAsStreamAsync();
-                        DateTime _lastUpdate = DateTime.MinValue;                        
-                        
-                            var streamWithProgress = new StreamWithProgress(streamToReadFrom, contentLength.Value, cancellationToken ,
-                                e =>
-                                {
-                                    if (downloadProgress != null)
-                                    {
-                                        totalProcessedBytes += e.BytesProcessed;
-                                        if ((DateTime.Now - _lastUpdate > TimeSpan.FromMilliseconds(500)) || e.BytesProcessed == 0)
-                                        {
-                                            downloadProgress.SetProcessedBytes(totalProcessedBytes);
-                                            _lastUpdate = DateTime.Now;
-                                        }
+                        DateTime _lastUpdate = DateTime.MinValue;
 
-                                    }
-                                },
-                            () =>
+                        var streamWithProgress = new StreamWithProgress(streamToReadFrom, contentLength.Value, cancellationToken,
+                            e =>
                             {
-
-                                if (downloadProgress != null && downloadProgress.ProcessedBytes != totalProcessedBytes)
+                                if (downloadProgress != null)
                                 {
-                                    downloadProgress.ChangeState(FileProgressState.Cancelled);
-                                }
-                                response.Dispose();
-                            },
-                            ()=> {
-                                throw new Exception("Timeout");
+                                    totalProcessedBytes += e.BytesProcessed;
+                                    if ((DateTime.Now - _lastUpdate > TimeSpan.FromMilliseconds(500)) || e.BytesProcessed == 0)
+                                    {
+                                        downloadProgress.SetProcessedBytes(totalProcessedBytes);
+                                        _lastUpdate = DateTime.Now;
+                                    }
 
-                            });
-                            return ApiResult<FetchFileStreamData>.Ok(new FetchFileStreamData(streamWithProgress, realFileName, contentLength));
-                        
+                                }
+                            },
+                        () =>
+                        {
+
+                            if (downloadProgress != null && downloadProgress.ProcessedBytes != totalProcessedBytes)
+                            {
+                                downloadProgress.ChangeState(FileProgressState.Cancelled);
+                            }
+                            response.Dispose();
+                        },
+                        () =>
+                        {
+                            throw new Exception("Timeout");
+
+                        });
+                        return ApiResult<FetchFileStreamData>.Ok(new FetchFileStreamData(streamWithProgress, realFileName, contentLength));
+
                     }
                 }
                 else
@@ -286,7 +345,7 @@ namespace Morph.Server.Sdk.Client
         }
 
 
-        public Task<ApiResult<TResult>> PutFileStreamAsync<TResult>(string url, SendFileStreamData sendFileStreamData, NameValueCollection urlParameters, HeadersCollection headersCollection, Action<FileTransferProgressEventArgs> onSendProgress,  CancellationToken cancellationToken)
+        public Task<ApiResult<TResult>> PutFileStreamAsync<TResult>(string url, SendFileStreamData sendFileStreamData, NameValueCollection urlParameters, HeadersCollection headersCollection, Action<FileTransferProgressEventArgs> onSendProgress, CancellationToken cancellationToken)
               where TResult : new()
         {
             return SendFileStreamAsync<TResult>(HttpMethod.Put, url, sendFileStreamData, urlParameters, headersCollection, onSendProgress, cancellationToken);
@@ -311,7 +370,7 @@ namespace Morph.Server.Sdk.Client
 
 
 
-       
+
 
         public Task<ApiResult<TResult>> HeadAsync<TResult>(string url, NameValueCollection urlParameters, HeadersCollection headersCollection, CancellationToken cancellationToken)
               where TResult : new()

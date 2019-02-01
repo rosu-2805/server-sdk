@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using System.Collections.Specialized;
 using Morph.Server.Sdk.Model.InternalModels;
 using Morph.Server.Sdk.Events;
+using Morph.Server.Sdk.Model;
 
 namespace Morph.Server.Sdk.Client
 {
@@ -27,7 +28,11 @@ namespace Morph.Server.Sdk.Client
               where TResult : new();
 
         Task<ApiResult<FetchFileStreamData>> RetrieveFileGetAsync(string url, NameValueCollection urlParameters, HeadersCollection headersCollection, Action<FileTransferProgressEventArgs> onReceiveProgress, CancellationToken cancellationToken);
-        
+
+
+        Task<ApiResult<ServerPushStreaming>> PushContiniousStreamingDataAsync(
+            HttpMethod httpMethod, string path, ContiniousStreamingRequest startContiniousStreamingRequest, NameValueCollection urlParameters, HeadersCollection headersCollection,
+            CancellationToken cancellationToken);
 
     }
 

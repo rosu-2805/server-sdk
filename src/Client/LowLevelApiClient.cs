@@ -12,6 +12,7 @@ using Morph.Server.Sdk.Exceptions;
 using Morph.Server.Sdk.Model.InternalModels;
 using Morph.Server.Sdk.Helper;
 using Morph.Server.Sdk.Events;
+using System.Net.Http;
 
 namespace Morph.Server.Sdk.Client
 {
@@ -265,6 +266,19 @@ namespace Morph.Server.Sdk.Client
             var url = UrlHelper.JoinUrl("space", spaceName, "files", serverFolder);
 
             return apiClient.PostFileStreamAsync<NoContentResult>(url, sendFileStreamData, null, apiSession.ToHeadersCollection(), onSendProgress, cancellationToken);
+        }
+        public Task<ApiResult<ServerPushStreaming>> WebFilesPushPostStreamAsync(ApiSession apiSession, string serverFolder, string fileName, CancellationToken cancellationToken)
+        {
+            if (apiSession == null)
+            {
+                throw new ArgumentNullException(nameof(apiSession));
+            }
+
+
+            var spaceName = apiSession.SpaceName;
+            var url = UrlHelper.JoinUrl("space", spaceName, "files", serverFolder);
+
+            return apiClient.PushContiniousStreamingDataAsync(HttpMethod.Put, url, new ContiniousStreamingRequest(fileName), null, apiSession.ToHeadersCollection(), cancellationToken);
         }
     }
 }

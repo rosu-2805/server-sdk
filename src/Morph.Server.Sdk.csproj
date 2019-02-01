@@ -4,6 +4,8 @@
   </PropertyGroup>
   <PropertyGroup>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <SignAssembly>true</SignAssembly>
+    <AssemblyOriginatorKeyFile>Morph.Server.Sdk.snk</AssemblyOriginatorKeyFile>
   </PropertyGroup>
   
   <ItemGroup Condition="'$(TargetFramework)' == 'net45'">

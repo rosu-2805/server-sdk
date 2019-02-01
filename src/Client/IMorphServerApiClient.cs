@@ -39,11 +39,11 @@ namespace Morph.Server.Sdk.Client
         Task SpaceDeleteFileAsync(ApiSession apiSession, string remoteFilePath, CancellationToken cancellationToken);
         Task<bool> SpaceFileExistsAsync(ApiSession apiSession, string remoteFilePath, CancellationToken cancellationToken);
 
-        Task<ServerStreamingData> SpaceOpenStreamingDataAsync(ApiSession apiSession, string remoteFilePath, CancellationToken cancellationToken);
+        Task<ServerStreamingData> SpaceOpenReadStreamingDataAsync(ApiSession apiSession, string remoteFilePath, CancellationToken cancellationToken);
         Task<Stream> SpaceOpenFileStreamAsync(ApiSession apiSession, string remoteFilePath, CancellationToken cancellationToken);
 
         Task SpaceUploadStreamAsync(ApiSession apiSession, SpaceUploadFileRequest spaceUploadFileRequest, CancellationToken cancellationToken);
-
+        Task<ServerPushStreaming> SpaceUploadContiniousStreamingAsync(ApiSession apiSession, string folder, string fileName, CancellationToken cancellationToken);
 
     }
 }
