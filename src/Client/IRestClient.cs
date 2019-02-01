@@ -30,9 +30,11 @@ namespace Morph.Server.Sdk.Client
         Task<ApiResult<FetchFileStreamData>> RetrieveFileGetAsync(string url, NameValueCollection urlParameters, HeadersCollection headersCollection, Action<FileTransferProgressEventArgs> onReceiveProgress, CancellationToken cancellationToken);
 
 
-        Task<ApiResult<ServerPushStreaming>> PushContiniousStreamingDataAsync(
+        Task<ApiResult<ServerPushStreaming>> PushContiniousStreamingDataAsync<TResult>(
             HttpMethod httpMethod, string path, ContiniousStreamingRequest startContiniousStreamingRequest, NameValueCollection urlParameters, HeadersCollection headersCollection,
-            CancellationToken cancellationToken);
+            CancellationToken cancellationToken)
+            where TResult : new();
+            
 
     }
 

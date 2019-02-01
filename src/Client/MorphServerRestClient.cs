@@ -165,47 +165,69 @@ namespace Morph.Server.Sdk.Client
 
 
 
-        public  Task<ApiResult<ServerPushStreaming>> PushContiniousStreamingDataAsync(
+        public Task<ApiResult<ServerPushStreaming>> PushContiniousStreamingDataAsync<TResult>(
             HttpMethod httpMethod, string path, ContiniousStreamingRequest startContiniousStreamingRequest, NameValueCollection urlParameters, HeadersCollection headersCollection,
-            CancellationToken cancellationToken)        
+            CancellationToken cancellationToken)
+            where TResult : new()
         {
             try
             {
                 string boundary = "MorphRestClient-Streaming--------" + Guid.NewGuid().ToString("N");
 
-                var content = new MultipartFormDataContent(boundary); 
+                var content = new MultipartFormDataContent(boundary);
 
 
-                    var streamContent = new ContiniousSteamingContent(cancellationToken);
-                        var serverPushStreaming = new ServerPushStreaming(streamContent);
-                        content.Add(streamContent, "files", Path.GetFileName(startContiniousStreamingRequest.FileName));
-                        var url = path + (urlParameters != null ? urlParameters.ToQueryString() : string.Empty);
-                        var requestMessage = BuildHttpRequestMessage(httpMethod, url, content, headersCollection);
-                        //using (requestMessage)
-                        {
-                            new Task(async () =>
+                var streamContent = new ContiniousSteamingHttpContent(cancellationToken);
+                var serverPushStreaming = new ServerPushStreaming(streamContent);
+                content.Add(streamContent, "files", Path.GetFileName(startContiniousStreamingRequest.FileName));
+                var url =  path + (urlParameters != null ? urlParameters.ToQueryString() : string.Empty);
+                var requestMessage = BuildHttpRequestMessage(httpMethod, url, content, headersCollection);
+                //using (requestMessage)
+                {
+                    new Task(async () =>
+                      {
+                          //// TODO: dispose
+                          //serverPushStreaming.RegisterOnClose(() =>
+                          //{
+                          //    streamContent.CloseConnetion();                                      
+                          //});
+                          try
+                          {
+                              try
                               {
-                                  // TODO: dispose
-                                  serverPushStreaming.RegisterOnClose(() =>
-                                  {
-                                      streamContent.CloseConnetion();                                      
-                                      requestMessage.Dispose();
-                                      content.Dispose();
-                                      streamContent.Dispose();
-                                      
-                                      
-
-                                  });
                                   var response = await httpClient.SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+                                  
+                                  var result = await HandleResponse<TResult>(response);
+                                  serverPushStreaming.SetApiResult(result);
                                   response.Dispose();
+                              }
+                              catch (Exception ex) when (ex.InnerException != null &&
+                                    ex.InnerException is WebException web &&
+                                    web.Status == WebExceptionStatus.ConnectionClosed)
+                              {
+                                  serverPushStreaming.SetApiResult(ApiResult<TResult>.Fail(new MorphApiNotFoundException("Specified folder not found")));
+                              }
+                              catch (Exception e)
+                              {
+                                  serverPushStreaming.SetApiResult(ApiResult<TResult>.Fail(e));
+                              }
 
-                              }).Start();
-                            return Task.FromResult(ApiResult<ServerPushStreaming>.Ok(serverPushStreaming));
+                              requestMessage.Dispose();
+                              streamContent.Dispose();
+                              content.Dispose();
+                          }
+                          catch (Exception ex)
+                          {
+                              //  dd
+                          }
 
-                        
-                    }
+                      }).Start();
+                    return Task.FromResult(ApiResult<ServerPushStreaming>.Ok(serverPushStreaming));
 
-                
+
+                }
+
+
             }
             catch (Exception ex) when (ex.InnerException != null &&
                     ex.InnerException is WebException web &&

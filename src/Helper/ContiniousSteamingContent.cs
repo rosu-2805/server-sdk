@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Morph.Server.Sdk.Helper
 {
-    internal class ContiniousSteamingContent : HttpContent
+    internal class ContiniousSteamingHttpContent : HttpContent
     {
         internal enum MessageType
         {
@@ -47,7 +47,7 @@ namespace Morph.Server.Sdk.Helper
             //dataProcessed.Release();
         }
 
-        public ContiniousSteamingContent(CancellationToken mainCancellation)
+        public ContiniousSteamingHttpContent(CancellationToken mainCancellation)
         {
             this.mainCancellation = mainCancellation;
             
