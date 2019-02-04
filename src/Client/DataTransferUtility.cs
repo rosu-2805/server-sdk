@@ -31,7 +31,7 @@ namespace Morph.Server.Sdk.Client
             var fileName = Path.GetFileName(localFilePath);            
             using (var fsSource = new FileStream(localFilePath, FileMode.Open, FileAccess.Read))
             {
-                var request = new SpaceUploadFileRequest
+                var request = new SpaceUploadDataStreamRequest
                 {
                     DataStream = fsSource,
                     FileName = fileName,
@@ -39,7 +39,7 @@ namespace Morph.Server.Sdk.Client
                     OverwriteExistingFile = overwriteExistingFile,
                     ServerFolder = serverFolder
                 };
-                await _morphServerApiClient.SpaceUploadStreamAsync(_apiSession, request, cancellationToken);
+                await _morphServerApiClient.SpaceUploadFileStreamAsync(_apiSession, request, cancellationToken);
                 return;
             }
         }
@@ -158,7 +158,7 @@ namespace Morph.Server.Sdk.Client
             
             using (var fsSource = new FileStream(localFilePath, FileMode.Open, FileAccess.Read))
             {
-                var request = new SpaceUploadFileRequest
+                var request = new SpaceUploadDataStreamRequest
                 {
                     DataStream = fsSource,
                     FileName = destFileName,
@@ -166,7 +166,7 @@ namespace Morph.Server.Sdk.Client
                     OverwriteExistingFile = overwriteExistingFile,
                     ServerFolder = serverFolder
                 };
-                await _morphServerApiClient.SpaceUploadStreamAsync(_apiSession, request, cancellationToken);
+                await _morphServerApiClient.SpaceUploadFileStreamAsync(_apiSession, request, cancellationToken);
                 return;
             }
         }

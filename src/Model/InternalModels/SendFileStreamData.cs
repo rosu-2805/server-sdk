@@ -17,6 +17,8 @@ namespace Morph.Server.Sdk.Model.InternalModels
         public long FileSize { get; }
     }
 
+    
+
 
 
 }

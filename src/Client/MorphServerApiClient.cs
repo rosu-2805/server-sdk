@@ -622,27 +622,33 @@ namespace Morph.Server.Sdk.Client
             }, cancellationToken, OperationType.FileTransfer);
         }
 
-        public Task<ServerPushStreaming> SpaceUploadContiniousStreamingAsync(ApiSession apiSession, string folder, string fileName, CancellationToken cancellationToken)
+        public Task<ContiniousStreamingConnection> SpaceUploadContiniousStreamingAsync(ApiSession apiSession, SpaceUploadContiniousStreamRequest continiousStreamRequest, CancellationToken cancellationToken)
         {
             if (apiSession == null)
             {
                 throw new ArgumentNullException(nameof(apiSession));
             }
 
+            if (continiousStreamRequest == null)
+            {
+                throw new ArgumentNullException(nameof(continiousStreamRequest));
+            }
+
             return Wrapped(async (token) =>
             {
-                Action<FileTransferProgressEventArgs> onSendProgress = (data) =>
-                {
-                    OnDataUploadProgress?.Invoke(this, data);
-                };
-                var apiResult = await _lowLevelApiClient.WebFilesPushPostStreamAsync(apiSession, folder, fileName, token);
-                return MapOrFail(apiResult, x => x);                
+                var apiResult =
+                  continiousStreamRequest.OverwriteExistingFile ?
+                    await _lowLevelApiClient.WebFilesOpenContiniousPutStreamAsync(apiSession, continiousStreamRequest.ServerFolder, continiousStreamRequest.FileName, token) :
+                    await _lowLevelApiClient.WebFilesOpenContiniousPostStreamAsync(apiSession, continiousStreamRequest.ServerFolder, continiousStreamRequest.FileName, token);
+
+                var connection = MapOrFail(apiResult, c => c);
+                return new ContiniousStreamingConnection(connection);
 
             }, cancellationToken, OperationType.FileTransfer);
             
         }
 
-        public Task SpaceUploadStreamAsync(ApiSession apiSession, SpaceUploadFileRequest spaceUploadFileRequest, CancellationToken cancellationToken)
+        public Task SpaceUploadFileStreamAsync(ApiSession apiSession, SpaceUploadDataStreamRequest spaceUploadFileRequest, CancellationToken cancellationToken)
         {
             if (apiSession == null)
             {

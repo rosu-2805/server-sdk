@@ -5,9 +5,9 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Morph.Server.Sdk.Model
+namespace Morph.Server.Sdk.Model.InternalModels
 {
-    public class ServerPushStreaming : IDisposable
+    internal class ServerPushStreaming : IDisposable
     {
         internal readonly ContiniousSteamingHttpContent steamingContent;
         
@@ -86,6 +86,8 @@ namespace Morph.Server.Sdk.Model
             SemaphoreSlim.Release();
         }
     }
+
+
 
 
 }

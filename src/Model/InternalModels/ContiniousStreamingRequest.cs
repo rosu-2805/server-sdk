@@ -10,10 +10,5 @@ namespace Morph.Server.Sdk.Model.InternalModels
         }
 
         public string FileName { get; }
-
-        
     }
-
-
-
 }

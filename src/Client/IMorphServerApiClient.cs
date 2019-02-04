@@ -42,8 +42,8 @@ namespace Morph.Server.Sdk.Client
         Task<ServerStreamingData> SpaceOpenReadStreamingDataAsync(ApiSession apiSession, string remoteFilePath, CancellationToken cancellationToken);
         Task<Stream> SpaceOpenFileStreamAsync(ApiSession apiSession, string remoteFilePath, CancellationToken cancellationToken);
 
-        Task SpaceUploadStreamAsync(ApiSession apiSession, SpaceUploadFileRequest spaceUploadFileRequest, CancellationToken cancellationToken);
-        Task<ServerPushStreaming> SpaceUploadContiniousStreamingAsync(ApiSession apiSession, string folder, string fileName, CancellationToken cancellationToken);
+        Task SpaceUploadFileStreamAsync(ApiSession apiSession, SpaceUploadDataStreamRequest spaceUploadFileRequest, CancellationToken cancellationToken);
+        Task<ContiniousStreamingConnection> SpaceUploadContiniousStreamingAsync(ApiSession apiSession, SpaceUploadContiniousStreamRequest continiousStreamRequest, CancellationToken cancellationToken);
 
     }
 }
