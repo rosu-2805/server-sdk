@@ -10,7 +10,7 @@ namespace Morph.Server.Sdk.Model
     public class ServerPushStreaming : IDisposable
     {
         internal readonly ContiniousSteamingHttpContent steamingContent;
-        //Action onClose = null;
+        
         private bool _closed = false;
         volatile SemaphoreSlim SemaphoreSlim = new SemaphoreSlim(0, 1);
 
@@ -31,16 +31,14 @@ namespace Morph.Server.Sdk.Model
             {
 
                 this.steamingContent.CloseConnetion();
-                //if (onClose != null)
-                //{
+              
 
-                //    onClose();
                 SemaphoreSlim.Wait(10000);
                 if (DataException != null)
                 {
                     throw DataException;
                 }
-                //}
+                
             }
             finally
             {
@@ -50,23 +48,16 @@ namespace Morph.Server.Sdk.Model
             }
         }
 
-        public async Task WriteStream(Stream stream, CancellationToken cancellationToken)
-        {
-            //return onWriteStream(stream, cancellationToken); 
-            await steamingContent.WriteStream(stream, cancellationToken);
+        public async Task WriteStreamAsync(Stream stream, CancellationToken cancellationToken)
+        {         
+            await steamingContent.WriteStreamAsync(stream, cancellationToken);
         }
-
-        //internal void RegisterOnClose(Action onClose)
-        //{
-        //    this.onClose = onClose;
-
-        //}
 
         public Exception DataException { get; private set; }
 
         private object dataResult = null;
 
-        public TResult GetData<TResult>()
+        public TResult CloseAndGetData<TResult>()
         {
             Close();
 

@@ -8,43 +8,78 @@ namespace Morph.Server.Sdk.Helper
 {
     internal class ContiniousSteamingHttpContent : HttpContent
     {
+        /// <summary>
+        ///  message type for processing
+        /// </summary>
         internal enum MessageType
         {
+            /// <summary>
+            /// no new messages
+            /// </summary>
             None,
+            /// <summary>
+            /// push new stream to server
+            /// </summary>
             NewStream,
-            Close
+            /// <summary>
+            /// Close connection
+            /// </summary>
+            CloseConnection
         }
 
         private const int DefBufferSize = 4096;
         private readonly CancellationToken mainCancellation;
 
-        //ManualResetEventSlim resetEventSlim = new ManualResetEventSlim(true);
+        
+        /// <summary>
+        /// cross-thread flag, that new message need to be processed
+        /// </summary>
         volatile SemaphoreSlim hasData = new SemaphoreSlim(0, 1);
+        /// <summary>
+        /// cross-thread flag that new message has been processed
+        /// </summary>
         volatile SemaphoreSlim dataProcessed = new SemaphoreSlim(0, 1);
 
+        /// <summary>
+        /// stream to process
+        /// </summary>
         volatile Stream _stream;
-        volatile MessageType _messageType = MessageType.None;
+        /// <summary>
+        /// Message to process
+        /// </summary>
+        volatile MessageType _currentMessage = MessageType.None;
         private CancellationToken cancellationToken;
 
-        internal async Task WriteStream( Stream stream, CancellationToken cancellationToken)
+        internal async Task WriteStreamAsync( Stream stream, CancellationToken cancellationToken)
         {
+            if(_currentMessage != MessageType.None)
+            {
+                throw new System.Exception("Another message is processing by the ContiniousSteamingHttpContent handler. ");
+            }
 
             this._stream = stream;
             this.cancellationToken = cancellationToken;
-            this._messageType = MessageType.NewStream;
-            hasData.Release(1); //has data->1
+            this._currentMessage = MessageType.NewStream;
 
-            
+            // set flag that new data has been arrived
+            hasData.Release(1); //has data->1         
+            // await till all data will be send by another thread. Another thread will trigger dataProcessed semaphore
             await dataProcessed.WaitAsync(Timeout.Infinite, cancellationToken);
-       //     dataProcessed.Release();
+       
         }
 
         internal void CloseConnetion()
         {
-            this._messageType = MessageType.Close;
-            hasData.Release();
-            dataProcessed.Wait(5000);
-            //dataProcessed.Release();
+            // if cancellation token has been requested, it is not necessary to send message CloseConnection
+            if (!mainCancellation.IsCancellationRequested)
+            {
+                this._currentMessage = MessageType.CloseConnection;
+                // send message that data is ready
+                hasData.Release();
+                // wait until it has been processed
+                dataProcessed.Wait(5000);
+            }
+            
         }
 
         public ContiniousSteamingHttpContent(CancellationToken mainCancellation)
@@ -58,10 +93,12 @@ namespace Morph.Server.Sdk.Helper
             bool canLoop = true;
             while (canLoop)
             {
-                //TODO: add cancellation token
+                
+                // await new data
                 await hasData.WaitAsync(Timeout.Infinite, mainCancellation);
-                //  resetEventSlim.Wait();
-                switch (this._messageType) {
+                // data has been arrived. check _currentMessage field
+                switch (this._currentMessage) {
+                    // upload stream 
                     case MessageType.NewStream:
                     using (this._stream)
                     {
@@ -71,31 +108,18 @@ namespace Morph.Server.Sdk.Helper
                             await stream.WriteAsync(buffer, 0, bytesRead, cancellationToken).ConfigureAwait(false);
                         }
 
-
+                        // set that data has been processed
                         dataProcessed.Release(1);
 
-
-
-                        //var length = await _stream.ReadAsync(buffer, 0, buffer.Length, mainCancellation);
-
-                        //if (length <= 0) {
-                        //    dataProcessed.Release(); ;
-                        //    // hasData.Release();
-                        //    // resetEventSlim.Reset();
-                        //    break;
-                        //}
-
-                        //await stream.WriteAsync(buffer, 0, length, mainCancellation);
                     }; break;
-                    case MessageType.Close:
+                    case MessageType.CloseConnection:
+                        // close loop. dataProcessed flag will be triggered at the end of this function.
                         canLoop = false;
                       
                         break;
 
                 }
-                this._messageType = MessageType.None;
-
-              //  this._stream = null;
+                this._currentMessage = MessageType.None;              
                 
             }
             dataProcessed.Release(1);
@@ -104,6 +128,7 @@ namespace Morph.Server.Sdk.Helper
 
         protected override bool TryComputeLength(out long length)
         {
+            // continuous stream length is unknown
             length = 0;
             return false;
         }

@@ -186,17 +186,12 @@ namespace Morph.Server.Sdk.Client
                 {
                     new Task(async () =>
                       {
-                          //// TODO: dispose
-                          //serverPushStreaming.RegisterOnClose(() =>
-                          //{
-                          //    streamContent.CloseConnetion();                                      
-                          //});
                           try
                           {
                               try
                               {
                                   var response = await httpClient.SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
-                                  
+
                                   var result = await HandleResponse<TResult>(response);
                                   serverPushStreaming.SetApiResult(result);
                                   response.Dispose();
