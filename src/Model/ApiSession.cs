@@ -27,7 +27,7 @@ string.IsNullOrWhiteSpace(_spaceName) ? _defaultSpaceName : _spaceName.ToLower()
 
         ICanCloseSession _client;
         private string _spaceName;
-        private SemaphoreSlim _lock = new SemaphoreSlim(0, 1);
+        private SemaphoreSlim _lock = new SemaphoreSlim(1, 1);
 
         internal ApiSession(ICanCloseSession client)
         {
@@ -62,20 +62,7 @@ string.IsNullOrWhiteSpace(_spaceName) ? _defaultSpaceName : _spaceName.ToLower()
             await _lock.WaitAsync(cancellationToken);
             try
             {
-                using (var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken))
-                {
-                    linkedCts.CancelAfter(TimeSpan.FromSeconds(5));
-                    await _client.CloseSessionAsync(this, linkedCts.Token);
-
-                    // don't dispose client implicitly, just remove link to client
-                    if (_client.Config.AutoDisposeClientOnSessionClose)
-                    {
-                        _client.Dispose();
-                    }
-                    _client = null;
-
-                    IsClosed = true;
-                }
+                await _InternalCloseSessionAsync(cancellationToken);
             }
             finally
             {
@@ -83,6 +70,23 @@ string.IsNullOrWhiteSpace(_spaceName) ? _defaultSpaceName : _spaceName.ToLower()
             }
         }
 
+        private async Task _InternalCloseSessionAsync(CancellationToken cancellationToken)
+        {
+            using (var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken))
+            {
+                linkedCts.CancelAfter(TimeSpan.FromSeconds(5));
+                await _client.CloseSessionAsync(this, linkedCts.Token);
+
+                // don't dispose client implicitly, just remove link to client
+                if (_client.Config.AutoDisposeClientOnSessionClose)
+                {
+                    _client.Dispose();
+                }
+                _client = null;
+
+                IsClosed = true;
+            }
+        }
 
         public void Dispose()
         {
@@ -99,7 +103,7 @@ string.IsNullOrWhiteSpace(_spaceName) ? _defaultSpaceName : _spaceName.ToLower()
                             {
                                 try
                                 {
-                                    await this.CloseSessionAsync(CancellationToken.None);
+                                    await _InternalCloseSessionAsync(CancellationToken.None);
                                 }
                                 catch (Exception)
                                 {
