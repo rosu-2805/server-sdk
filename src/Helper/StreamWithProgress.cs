@@ -56,14 +56,14 @@ namespace Morph.Server.Sdk.Helper
             {
                 onTokenCancelled();
             }
-            var bytesRead = stream.Read(buffer, offset, count);            
+            var bytesRead = stream.Read(buffer, offset, count);
+            _readPosition += bytesRead;
             RaiseOnReadProgress(bytesRead);
             return bytesRead;            
         }
 
         private void RaiseOnReadProgress(int bytesRead)
-        {
-            _readPosition += bytesRead;
+        {            
             if (onReadProgress != null)
             {
                 var args = new StreamProgressEventArgs(bytesRead );
@@ -155,6 +155,7 @@ namespace Morph.Server.Sdk.Helper
                 onTokenCancelled();
             }
             var bytesRead = await stream.ReadAsync(buffer, offset, count, cancellationToken).ConfigureAwait(false);
+            _readPosition += bytesRead;
             RaiseOnReadProgress(bytesRead);
             return bytesRead;
         }
@@ -163,7 +164,8 @@ namespace Morph.Server.Sdk.Helper
             var @byte = stream.ReadByte();
             if (@byte != -1)
             {
-                RaiseOnReadProgress(1);
+                _readPosition += 1;
+                // RaiseOnReadProgress(1);
             }
             return @byte;
         }
