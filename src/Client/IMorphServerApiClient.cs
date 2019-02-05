@@ -12,15 +12,24 @@ using Morph.Server.Sdk.Model.Commands;
 
 namespace Morph.Server.Sdk.Client
 {
+
+    public interface IHasConfig
+    {
+        IClientConfiguration Config { get; }
+    }
+
+    internal interface ICanCloseSession: IHasConfig, IDisposable
+    {
+        Task CloseSessionAsync(ApiSession apiSession, CancellationToken cancellationToken);
+        
+    }
     
-    public interface IMorphServerApiClient:IDisposable
+    public interface IMorphServerApiClient: IHasConfig, IDisposable
     {
         event EventHandler<FileTransferProgressEventArgs> OnDataDownloadProgress;
         event EventHandler<FileTransferProgressEventArgs> OnDataUploadProgress;
-
-        IClientConfiguration Config { get; }
-
-        Task CloseSessionAsync(ApiSession apiSession, CancellationToken cancellationToken);
+        
+        
         
         Task<ServerStatus> GetServerStatusAsync(CancellationToken cancellationToken);
         Task<Model.TaskStatus> GetTaskStatusAsync(ApiSession apiSession, Guid taskId, CancellationToken cancellationToken);        
@@ -39,10 +48,10 @@ namespace Morph.Server.Sdk.Client
         Task SpaceDeleteFileAsync(ApiSession apiSession, string remoteFilePath, CancellationToken cancellationToken);
         Task<bool> SpaceFileExistsAsync(ApiSession apiSession, string remoteFilePath, CancellationToken cancellationToken);
 
-        Task<ServerStreamingData> SpaceOpenReadStreamingDataAsync(ApiSession apiSession, string remoteFilePath, CancellationToken cancellationToken);
-        Task<Stream> SpaceOpenFileStreamAsync(ApiSession apiSession, string remoteFilePath, CancellationToken cancellationToken);
+        Task<ServerStreamingData> SpaceOpenStreamingDataAsync(ApiSession apiSession, string remoteFilePath, CancellationToken cancellationToken);
+        Task<Stream> SpaceOpenDataStreamAsync(ApiSession apiSession, string remoteFilePath, CancellationToken cancellationToken);
 
-        Task SpaceUploadFileStreamAsync(ApiSession apiSession, SpaceUploadDataStreamRequest spaceUploadFileRequest, CancellationToken cancellationToken);
+        Task SpaceUploadDataStreamAsync(ApiSession apiSession, SpaceUploadDataStreamRequest spaceUploadFileRequest, CancellationToken cancellationToken);
         Task<ContiniousStreamingConnection> SpaceUploadContiniousStreamingAsync(ApiSession apiSession, SpaceUploadContiniousStreamRequest continiousStreamRequest, CancellationToken cancellationToken);
 
     }

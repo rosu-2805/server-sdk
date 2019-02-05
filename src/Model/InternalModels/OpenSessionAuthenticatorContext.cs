@@ -11,7 +11,7 @@ namespace Morph.Server.Sdk.Model.InternalModels
 
         public OpenSessionAuthenticatorContext
             (ILowLevelApiClient lowLevelApiClient,
-            IMorphServerApiClient morphServerApiClient,
+            ICanCloseSession morphServerApiClient,
             Func<HttpClientHandler, IRestClient> buildApiClient
             
             )
@@ -23,7 +23,7 @@ namespace Morph.Server.Sdk.Model.InternalModels
         }
 
         public ILowLevelApiClient LowLevelApiClient { get; }
-        public IMorphServerApiClient MorphServerApiClient { get; }
+        public ICanCloseSession MorphServerApiClient { get; }
         public Func<HttpClientHandler, IRestClient> BuildApiClient { get; }
         
     }

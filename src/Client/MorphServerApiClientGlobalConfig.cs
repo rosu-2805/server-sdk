@@ -28,10 +28,12 @@ namespace Morph.Server.Sdk.Client
 
         private const string DefaultClientType = "EMS-SDK";
 
+        public static TimeSpan SessionOpenTimeout { get; set; } = TimeSpan.FromSeconds(30);
+
         /// <summary>
         /// Default operation execution timeout
         /// </summary>
-        public static TimeSpan OperationTimeout { get; set; } = TimeSpan.FromSeconds(30);
+        public static TimeSpan OperationTimeout { get; set; } = TimeSpan.FromMinutes(2);
         /// <summary>
         /// Default File transfer operation timeout
         /// </summary>
@@ -49,6 +51,10 @@ namespace Morph.Server.Sdk.Client
         // "Morph.Server.Sdk/x.x.x.x"
         internal static string SDKVersionString { get; }
 
+        /// <summary>
+        /// dispose client when session is closed
+        /// </summary>
+        public static bool AutoDisposeClientOnSessionClose { get; set; } = true;
 
         static MorphServerApiClientGlobalConfig()
         {

@@ -16,16 +16,20 @@ namespace Morph.Server.Sdk.Model
         internal const string AuthHeaderName = "X-EasyMorph-Auth";
 
         internal bool IsClosed { get; set; }
-        public string SpaceName { get => 
-                string.IsNullOrWhiteSpace(_spaceName) ? _defaultSpaceName : _spaceName.ToLower();
-                internal set => _spaceName = value; }
+        public string SpaceName
+        {
+            get =>
+string.IsNullOrWhiteSpace(_spaceName) ? _defaultSpaceName : _spaceName.ToLower();
+            internal set => _spaceName = value;
+        }
         internal string AuthToken { get; set; }
         internal bool IsAnonymous { get; set; }
 
-        IMorphServerApiClient _client;
+        ICanCloseSession _client;
         private string _spaceName;
+        private SemaphoreSlim _lock = new SemaphoreSlim(0, 1);
 
-        internal ApiSession(IMorphServerApiClient client)
+        internal ApiSession(ICanCloseSession client)
         {
             _client = client;
             IsClosed = false;
@@ -52,25 +56,67 @@ namespace Morph.Server.Sdk.Model
         }
 
 
+        public async Task CloseSessionAsync(CancellationToken cancellationToken)
+        {
+
+            await _lock.WaitAsync(cancellationToken);
+            try
+            {
+                using (var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken))
+                {
+                    linkedCts.CancelAfter(TimeSpan.FromSeconds(5));
+                    await _client.CloseSessionAsync(this, linkedCts.Token);
+
+                    // don't dispose client implicitly, just remove link to client
+                    if (_client.Config.AutoDisposeClientOnSessionClose)
+                    {
+                        _client.Dispose();
+                    }
+                    _client = null;
+
+                    IsClosed = true;
+                }
+            }
+            finally
+            {
+                _lock.Release();
+            }
+        }
+
 
         public void Dispose()
         {
             try
             {
-                if (!IsClosed && _client!=null)
+                if (_lock != null)
                 {
-                    Task.Run(async () =>
+                    _lock.Wait(5000);
+                    try
                     {
-                        var cts = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(5));
-                        await _client.CloseSessionAsync(this, cts.Token);
-                        // don't dispose client implicitly, just remove link to client
-                        //_client.Dispose();
-                        _client = null;
+                        if (!IsClosed && _client != null)
+                        {
+                            Task.Run(async () =>
+                            {
+                                try
+                                {
+                                    await this.CloseSessionAsync(CancellationToken.None);
+                                }
+                                catch (Exception)
+                                {
+
+                                }
+                            }).Wait(TimeSpan.FromSeconds(5));
+
+
+                        }
+
                     }
-
-                        ).Wait(TimeSpan.FromSeconds(5));
-
-                    this.IsClosed = true;
+                    finally
+                    {
+                        _lock.Release();
+                        _lock.Dispose();
+                        _lock = null;
+                    }
                 }
             }
             catch (Exception)

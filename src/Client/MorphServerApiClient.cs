@@ -14,6 +14,7 @@ using System.Reflection;
 using System.IO;
 using Morph.Server.Sdk.Model.InternalModels;
 using Morph.Server.Sdk.Dto;
+using System.Collections.Concurrent;
 
 namespace Morph.Server.Sdk.Client
 {
@@ -22,8 +23,9 @@ namespace Morph.Server.Sdk.Client
     /// <summary>
     /// Morph Server api client V1
     /// </summary>
-    public class MorphServerApiClient : IMorphServerApiClient, IDisposable
+    public class MorphServerApiClient : IMorphServerApiClient, IDisposable, ICanCloseSession
     {
+
         public event EventHandler<FileTransferProgressEventArgs> OnDataDownloadProgress;
         public event EventHandler<FileTransferProgressEventArgs> OnDataUploadProgress;
 
@@ -32,6 +34,10 @@ namespace Morph.Server.Sdk.Client
 
         private readonly ILowLevelApiClient _lowLevelApiClient;
         private ClientConfiguration clientConfiguration = new ClientConfiguration();
+
+        private bool _disposed = false;
+        private object _lock = new object();
+
 
         public IClientConfiguration Config => clientConfiguration;
 
@@ -69,7 +75,7 @@ namespace Morph.Server.Sdk.Client
         /// Construct Api client
         /// </summary>
         /// <param name="apiHost">Server url</param>
-        public MorphServerApiClient(string apiHost)
+        public MorphServerApiClient(Uri apiHost)
         {
             if (apiHost == null)
             {
@@ -78,7 +84,7 @@ namespace Morph.Server.Sdk.Client
 
             var defaultConfig = new ClientConfiguration
             {
-                ApiUri = new Uri(apiHost)
+                ApiUri = apiHost
             };
             clientConfiguration = defaultConfig;
             _lowLevelApiClient = BuildApiClient(clientConfiguration);
@@ -125,7 +131,7 @@ namespace Morph.Server.Sdk.Client
             client.DefaultRequestHeaders.Add("X-Client-Sdk", config.SDKVersionString);
 
             client.DefaultRequestHeaders.Add("Connection", "Keep-Alive");
-            client.DefaultRequestHeaders.Add("Keep-Alive", "timeout=60");
+            client.DefaultRequestHeaders.Add("Keep-Alive", "timeout=120");
 
             client.MaxResponseContentBufferSize = 100 * 1024;
             client.DefaultRequestHeaders.CacheControl = new CacheControlHeaderValue
@@ -177,6 +183,11 @@ namespace Morph.Server.Sdk.Client
 
         internal virtual async Task<TResult> Wrapped<TResult>(Func<CancellationToken, Task<TResult>> fun, CancellationToken orginalCancellationToken, OperationType operationType)
         {
+            if (_disposed)
+            {
+                throw new ObjectDisposedException(nameof(MorphServerApiClient));
+            }
+
             TimeSpan maxExecutionTime;
             switch (operationType)
             {
@@ -184,26 +195,63 @@ namespace Morph.Server.Sdk.Client
                     maxExecutionTime = clientConfiguration.FileTransferTimeout; break;
                 case OperationType.ShortOperation:
                     maxExecutionTime = clientConfiguration.OperationTimeout; break;
+                case OperationType.SessionOpenAndRelated:
+                    maxExecutionTime = clientConfiguration.SessionOpenTimeout; break;
                 default: throw new NotImplementedException();
             }
-            
-            var derTokenSource = CancellationTokenSource.CreateLinkedTokenSource(orginalCancellationToken);
-            {
-                derTokenSource.CancelAfter(maxExecutionTime);
-                try
-                {
-                    return await fun(derTokenSource.Token);
-                }
 
-                catch (OperationCanceledException) when (!orginalCancellationToken.IsCancellationRequested && derTokenSource.IsCancellationRequested)
+            CancellationTokenSource derTokenSource =null;
+            try
+            {
+                derTokenSource = CancellationTokenSource.CreateLinkedTokenSource(orginalCancellationToken);
                 {
-                    throw new Exception($"Can't connect to host {clientConfiguration.ApiUri}.  Operation timeout ({maxExecutionTime})");
+                    derTokenSource.CancelAfter(maxExecutionTime);
+                    try
+                    {
+                        return await fun(derTokenSource.Token);
+                    }
+
+                    catch (OperationCanceledException) when (!orginalCancellationToken.IsCancellationRequested && derTokenSource.IsCancellationRequested)
+                    {
+                        if (operationType == OperationType.SessionOpenAndRelated)
+                        {
+                            throw new Exception($"Can't connect to host {clientConfiguration.ApiUri}.  Operation timeout ({maxExecutionTime})");
+                        }
+                        else
+                        {
+                            throw new Exception($"Operation timeout ({maxExecutionTime}) when processing command to host {clientConfiguration.ApiUri}");
+                        }
+                    }
                 }
-             
-               
             }
+            finally
+            {
+                if (derTokenSource != null)
+                {
+                    if (operationType == OperationType.FileTransfer)
+                    {
+                        RegisterForDisposing(derTokenSource);
+                    }
+                    else
+                    {
+                        derTokenSource.Dispose();
+                    }
+                }
+            }
+            
         }
 
+        private ConcurrentBag<CancellationTokenSource> _ctsForDisposing = new ConcurrentBag<CancellationTokenSource>();
+
+        private void RegisterForDisposing(CancellationTokenSource derTokenSource)
+        {
+            if (derTokenSource == null)
+            {
+                throw new ArgumentNullException(nameof(derTokenSource));
+            }
+
+            _ctsForDisposing.Add(derTokenSource);
+        }
 
         internal virtual void FailIfError<TDto>(ApiResult<TDto> apiResult)
         {
@@ -234,7 +282,7 @@ namespace Morph.Server.Sdk.Client
         /// <param name="apiSession">api session</param>
         /// <param name="cancellationToken"></param>
         /// <returns></returns>
-        public Task CloseSessionAsync(ApiSession apiSession, CancellationToken cancellationToken)
+        Task ICanCloseSession.CloseSessionAsync(ApiSession apiSession, CancellationToken cancellationToken)
         {
             if (apiSession == null)
             {
@@ -362,7 +410,7 @@ namespace Morph.Server.Sdk.Client
                 var apiResult = await _lowLevelApiClient.ServerGetStatusAsync(token);
                 return MapOrFail(apiResult, (dto) => ServerStatusMapper.MapFromDto(dto));
 
-            }, cancellationToken, OperationType.ShortOperation);
+            }, cancellationToken, OperationType.SessionOpenAndRelated);
         }
 
         public async Task<SpacesEnumerationList> GetSpacesListAsync(CancellationToken cancellationToken)
@@ -372,7 +420,7 @@ namespace Morph.Server.Sdk.Client
                 var apiResult = await _lowLevelApiClient.SpacesGetListAsync(token);
                 return MapOrFail(apiResult, (dto) => SpacesEnumerationMapper.MapFromDto(dto));
 
-            }, cancellationToken, OperationType.ShortOperation);
+            }, cancellationToken, OperationType.SessionOpenAndRelated);
         }
 
         private void DownloadProgress_StateChanged(object sender, FileTransferProgressEventArgs e)
@@ -519,8 +567,8 @@ namespace Morph.Server.Sdk.Client
 
             using (var linkedTokenSource = CancellationTokenSource.CreateLinkedTokenSource(ct))
             {
-                // no more than 20 sec for session opening
-                var timeout = TimeSpan.FromSeconds(20);
+                
+                var timeout = clientConfiguration.SessionOpenTimeout;
                 linkedTokenSource.CancelAfter(timeout);
                 var cancellationToken = linkedTokenSource.Token;
                 try
@@ -536,7 +584,7 @@ namespace Morph.Server.Sdk.Client
                     var session = await MorphServerAuthenticator.OpenSessionMultiplexedAsync(desiredSpace,
                         new OpenSessionAuthenticatorContext(
                             _lowLevelApiClient,
-                            this,
+                            this as ICanCloseSession,
                             (handler) => ConstructRestApiClient(BuildHttpClient(clientConfiguration, handler))),
                         openSessionRequest, cancellationToken);
 
@@ -575,7 +623,7 @@ namespace Morph.Server.Sdk.Client
         }
 
 
-        public Task<ServerStreamingData> SpaceOpenReadStreamingDataAsync(ApiSession apiSession, string remoteFilePath, CancellationToken cancellationToken)
+        public Task<ServerStreamingData> SpaceOpenStreamingDataAsync(ApiSession apiSession, string remoteFilePath, CancellationToken cancellationToken)
         {
             if (apiSession == null)
             {
@@ -597,13 +645,19 @@ namespace Morph.Server.Sdk.Client
 
         public void Dispose()
         {
-            if (_lowLevelApiClient != null)
+            lock (_lock)
             {
-                _lowLevelApiClient.Dispose();
+                if (_disposed)
+                    return;
+                if (_lowLevelApiClient != null)                
+                    _lowLevelApiClient.Dispose();
+                
+                Array.ForEach(_ctsForDisposing.ToArray(), z => z.Dispose());
+                _disposed = true;
             }
         }
 
-        public Task<Stream> SpaceOpenFileStreamAsync(ApiSession apiSession, string remoteFilePath, CancellationToken cancellationToken)
+        public Task<Stream> SpaceOpenDataStreamAsync(ApiSession apiSession, string remoteFilePath, CancellationToken cancellationToken)
         {
             if (apiSession == null)
             {
@@ -648,7 +702,7 @@ namespace Morph.Server.Sdk.Client
             
         }
 
-        public Task SpaceUploadFileStreamAsync(ApiSession apiSession, SpaceUploadDataStreamRequest spaceUploadFileRequest, CancellationToken cancellationToken)
+        public Task SpaceUploadDataStreamAsync(ApiSession apiSession, SpaceUploadDataStreamRequest spaceUploadFileRequest, CancellationToken cancellationToken)
         {
             if (apiSession == null)
             {

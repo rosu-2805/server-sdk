@@ -211,7 +211,7 @@ namespace Morph.Server.Sdk.Client
                               streamContent.Dispose();
                               content.Dispose();
                           }
-                          catch (Exception ex)
+                          catch (Exception)
                           {
                               //  dd
                           }

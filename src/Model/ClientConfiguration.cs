@@ -12,9 +12,12 @@ namespace Morph.Server.Sdk.Model
         public TimeSpan OperationTimeout { get; set; } = MorphServerApiClientGlobalConfig.OperationTimeout;
         public TimeSpan FileTransferTimeout { get; set; } = MorphServerApiClientGlobalConfig.FileTransferTimeout;
         public TimeSpan HttpClientTimeout { get; set; } = MorphServerApiClientGlobalConfig.HttpClientTimeout;
+        public TimeSpan SessionOpenTimeout { get; set; } = MorphServerApiClientGlobalConfig.SessionOpenTimeout;
 
         public string ClientId { get; set; } = MorphServerApiClientGlobalConfig.ClientId;
         public string ClientType { get; set; } = MorphServerApiClientGlobalConfig.ClientType;
+
+        public bool AutoDisposeClientOnSessionClose { get; set; } = MorphServerApiClientGlobalConfig.AutoDisposeClientOnSessionClose;
 
         public Uri ApiUri { get; set; }
         internal string SDKVersionString { get; set; } = MorphServerApiClientGlobalConfig.SDKVersionString;

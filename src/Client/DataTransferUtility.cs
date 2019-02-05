@@ -39,7 +39,7 @@ namespace Morph.Server.Sdk.Client
                     OverwriteExistingFile = overwriteExistingFile,
                     ServerFolder = serverFolder
                 };
-                await _morphServerApiClient.SpaceUploadFileStreamAsync(_apiSession, request, cancellationToken);
+                await _morphServerApiClient.SpaceUploadDataStreamAsync(_apiSession, request, cancellationToken);
                 return;
             }
         }
@@ -73,7 +73,7 @@ namespace Morph.Server.Sdk.Client
             {
                 using (Stream tempFileStream = File.Open(tempFile, FileMode.Create))
                 {
-                    using (var serverStreamingData = await _morphServerApiClient.SpaceOpenReadStreamingDataAsync(_apiSession, remoteFilePath, cancellationToken))
+                    using (var serverStreamingData = await _morphServerApiClient.SpaceOpenStreamingDataAsync(_apiSession, remoteFilePath, cancellationToken))
                     {
                         await serverStreamingData.Stream.CopyToAsync(tempFileStream, BufferSize, cancellationToken);
                     }
@@ -116,7 +116,7 @@ namespace Morph.Server.Sdk.Client
                 using (Stream tempFileStream = File.Open(tempFile, FileMode.Create))
                 {
 
-                    using (var serverStreamingData = await _morphServerApiClient.SpaceOpenReadStreamingDataAsync(_apiSession, remoteFilePath, cancellationToken))
+                    using (var serverStreamingData = await _morphServerApiClient.SpaceOpenStreamingDataAsync(_apiSession, remoteFilePath, cancellationToken))
                     {
                         destFileName = Path.Combine(targetLocalFolder, serverStreamingData.FileName);
 
@@ -166,7 +166,7 @@ namespace Morph.Server.Sdk.Client
                     OverwriteExistingFile = overwriteExistingFile,
                     ServerFolder = serverFolder
                 };
-                await _morphServerApiClient.SpaceUploadFileStreamAsync(_apiSession, request, cancellationToken);
+                await _morphServerApiClient.SpaceUploadDataStreamAsync(_apiSession, request, cancellationToken);
                 return;
             }
         }

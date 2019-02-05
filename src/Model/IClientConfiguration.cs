@@ -10,6 +10,12 @@ namespace Morph.Server.Sdk.Model
         TimeSpan OperationTimeout { get; }
         TimeSpan FileTransferTimeout { get; }
         TimeSpan HttpClientTimeout { get; }
+        TimeSpan SessionOpenTimeout { get; }
+
+        string ClientId { get; }
+        string ClientType { get; }
+
+        bool AutoDisposeClientOnSessionClose { get; }        
 
         Uri ApiUri { get; }
 #if NETSTANDARD2_0
