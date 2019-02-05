@@ -70,7 +70,11 @@ namespace Morph.Server.Sdk.Client
             var url = path + (urlParameters != null ? urlParameters.ToQueryString() : string.Empty);
             var httpRequestMessage = BuildHttpRequestMessage(httpMethod, url, stringContent, headersCollection);
 
-            using (var response = await httpClient.SendAsync(httpRequestMessage, HttpCompletionOption.ResponseContentRead, cancellationToken))
+            // for model binding request read and buffer full server response
+            // but for HttpHead content reading is not necessary and might raise error.
+            var httpCompletionOption = httpMethod != HttpMethod.Head ? HttpCompletionOption.ResponseContentRead : HttpCompletionOption.ResponseHeadersRead;
+            using (var response = await httpClient.SendAsync(httpRequestMessage, httpCompletionOption,
+                cancellationToken))
             {
                 return await HandleResponse<TResult>(response);
             }
