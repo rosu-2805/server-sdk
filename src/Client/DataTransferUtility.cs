@@ -59,13 +59,13 @@ namespace Morph.Server.Sdk.Client
                 throw new ArgumentNullException(nameof(targetLocalFilePath));
             }
 
-            string destFileName = Path.GetFileName(targetLocalFilePath);
+            
             var localFolder = Path.GetDirectoryName(targetLocalFilePath);
             var tempFile = Path.Combine(localFolder, Guid.NewGuid().ToString("D") + ".emtmp");
 
-            if (!overwriteExistingFile && File.Exists(destFileName))
+            if (!overwriteExistingFile && File.Exists(targetLocalFilePath))
             {
-                throw new Exception($"Destination file '{destFileName}' already exists.");
+                throw new Exception($"Destination file '{targetLocalFilePath}' already exists.");
             }
 
 
@@ -79,11 +79,11 @@ namespace Morph.Server.Sdk.Client
                     }
                 }
 
-                if (File.Exists(destFileName))
+                if (File.Exists(targetLocalFilePath))
                 {
-                    File.Delete(destFileName);
+                    File.Delete(targetLocalFilePath);
                 }
-                File.Move(tempFile, destFileName);
+                File.Move(tempFile, targetLocalFilePath);
 
             }
             finally
