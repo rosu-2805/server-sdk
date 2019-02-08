@@ -18,7 +18,7 @@ namespace Morph.Server.Sdk.Helper
         private readonly Action<StreamProgressEventArgs> onReadProgress;
         private readonly Action<StreamProgressEventArgs> onWriteProgress = null;
         private readonly Action onDisposed;
-        private readonly Action<TokenCancellationReason> onTokenCancelled;
+        private readonly Action<TokenCancellationReason, CancellationToken> onTokenCancelled;
         private readonly CancellationToken httpTimeoutToken;
         private DateTime _lastUpdate = DateTime.MinValue;
         private long _readPosition = 0;
@@ -31,7 +31,7 @@ namespace Morph.Server.Sdk.Helper
             CancellationToken mainTokem,
             Action<StreamProgressEventArgs> onReadProgress = null,
             Action onDisposed = null,
-            Action<TokenCancellationReason> onTokenCancelled = null
+            Action<TokenCancellationReason, CancellationToken> onTokenCancelled = null
 
             )
         {
@@ -62,7 +62,7 @@ namespace Morph.Server.Sdk.Helper
         {
             if (httpTimeoutToken.IsCancellationRequested)
             {
-                onTokenCancelled(TokenCancellationReason.HttpTimeoutToken);
+                onTokenCancelled(TokenCancellationReason.HttpTimeoutToken, httpTimeoutToken);
             }
             var bytesRead = stream.Read(buffer, offset, count);
 
@@ -136,11 +136,11 @@ namespace Morph.Server.Sdk.Helper
                 {
                     if (cancellationToken.IsCancellationRequested)
                     {
-                        onTokenCancelled(TokenCancellationReason.OperationCancellationToken);
+                        onTokenCancelled(TokenCancellationReason.OperationCancellationToken, cancellationToken);
                     }
                     else
                     {
-                        onTokenCancelled(TokenCancellationReason.HttpTimeoutToken);
+                        onTokenCancelled(TokenCancellationReason.HttpTimeoutToken, httpTimeoutToken);
                     }
                 }
                 await destination.WriteAsync(buffer, 0, bytesRead, cancellationToken).ConfigureAwait(false);
@@ -177,11 +177,11 @@ namespace Morph.Server.Sdk.Helper
             {
                 if (cancellationToken.IsCancellationRequested)
                 {
-                    onTokenCancelled(TokenCancellationReason.OperationCancellationToken);
+                    onTokenCancelled(TokenCancellationReason.OperationCancellationToken, cancellationToken);
                 }
                 else
                 {
-                    onTokenCancelled(TokenCancellationReason.HttpTimeoutToken);
+                    onTokenCancelled(TokenCancellationReason.HttpTimeoutToken, httpTimeoutToken);
                 }
             }
             var bytesRead = await stream.ReadAsync(buffer, offset, count, cancellationToken).ConfigureAwait(false);

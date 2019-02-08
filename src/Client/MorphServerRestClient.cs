@@ -338,12 +338,16 @@ namespace Morph.Server.Sdk.Client
                             }
                             response.Dispose();
                         },
-                        (tokenCancellationReason) =>
+                        (tokenCancellationReason, token) =>
                         {
                             // on tokenCancelled
                             if (tokenCancellationReason == TokenCancellationReason.HttpTimeoutToken)
                             {
                                 throw new Exception("Timeout");
+                            }
+                            if(tokenCancellationReason == TokenCancellationReason.OperationCancellationToken)
+                            {
+                                throw new OperationCanceledException(token);
                             }
 
                         });
