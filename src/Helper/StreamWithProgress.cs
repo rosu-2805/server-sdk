@@ -7,30 +7,38 @@ namespace Morph.Server.Sdk.Helper
 {
     internal class StreamWithProgress : Stream
     {
+        internal enum TokenCancellationReason
+        {
+            HttpTimeoutToken,
+            OperationCancellationToken
+        }
+
         private readonly Stream stream;
         private readonly long streamLength;
         private readonly Action<StreamProgressEventArgs> onReadProgress;
         private readonly Action<StreamProgressEventArgs> onWriteProgress = null;
         private readonly Action onDisposed;
-        private readonly Action onTokenCancelled;
+        private readonly Action<TokenCancellationReason> onTokenCancelled;
         private readonly CancellationToken httpTimeoutToken;
-
+        private DateTime _lastUpdate = DateTime.MinValue;
         private long _readPosition = 0;
+
+        private bool _disposed = false;
 
 
         public StreamWithProgress(Stream httpStream,
             long streamLength,
             CancellationToken mainTokem,
-            Action<StreamProgressEventArgs> onReadProgress = null,                        
+            Action<StreamProgressEventArgs> onReadProgress = null,
             Action onDisposed = null,
-            Action onTokenCancelled = null
+            Action<TokenCancellationReason> onTokenCancelled = null
 
             )
         {
             this.stream = httpStream ?? throw new ArgumentNullException(nameof(httpStream));
             this.streamLength = streamLength;
             this.onReadProgress = onReadProgress;
-            
+
             this.onDisposed = onDisposed;
             this.onTokenCancelled = onTokenCancelled;
             this.httpTimeoutToken = mainTokem;
@@ -54,29 +62,37 @@ namespace Morph.Server.Sdk.Helper
         {
             if (httpTimeoutToken.IsCancellationRequested)
             {
-                onTokenCancelled();
+                onTokenCancelled(TokenCancellationReason.HttpTimeoutToken);
             }
             var bytesRead = stream.Read(buffer, offset, count);
-            _readPosition += bytesRead;
-            RaiseOnReadProgress(bytesRead);
-            return bytesRead;            
+
+            IncrementReadProgress(bytesRead);
+            return bytesRead;
         }
 
-        private void RaiseOnReadProgress(int bytesRead)
-        {            
+        private void IncrementReadProgress(int bytesRead)
+        {
+            _readPosition += bytesRead;
+            var totalBytesRead = _readPosition;
+
             if (onReadProgress != null)
             {
-                var args = new StreamProgressEventArgs(bytesRead );
-                onReadProgress(args);
+                if (DateTime.Now - _lastUpdate > TimeSpan.FromMilliseconds(500) || bytesRead == 0)
+                {
+                    _lastUpdate = DateTime.Now;
+                    var args = new StreamProgressEventArgs(totalBytesRead, bytesRead);
+                    onReadProgress(args);
+
+                }
             }
         }
         private void RaiseOnWriteProgress(int bytesWrittens)
         {
-            if (onWriteProgress != null)
-            {
-                var args = new StreamProgressEventArgs(bytesWrittens);
-                onWriteProgress(args);
-            }
+            //if (onWriteProgress != null)
+            //{
+            //    var args = new StreamProgressEventArgs(bytesWrittens);
+            //    onWriteProgress(args);
+            //}
         }
 
         public override long Seek(long offset, SeekOrigin origin)
@@ -118,7 +134,14 @@ namespace Morph.Server.Sdk.Helper
             {
                 if (httpTimeoutToken.IsCancellationRequested)
                 {
-                    onTokenCancelled();
+                    if (cancellationToken.IsCancellationRequested)
+                    {
+                        onTokenCancelled(TokenCancellationReason.OperationCancellationToken);
+                    }
+                    else
+                    {
+                        onTokenCancelled(TokenCancellationReason.HttpTimeoutToken);
+                    }
                 }
                 await destination.WriteAsync(buffer, 0, bytesRead, cancellationToken).ConfigureAwait(false);
             }
@@ -147,16 +170,22 @@ namespace Morph.Server.Sdk.Helper
         {
             return stream.InitializeLifetimeService();
         }
-        
+
         public override async Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
         {
             if (httpTimeoutToken.IsCancellationRequested)
             {
-                onTokenCancelled();
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    onTokenCancelled(TokenCancellationReason.OperationCancellationToken);
+                }
+                else
+                {
+                    onTokenCancelled(TokenCancellationReason.HttpTimeoutToken);
+                }
             }
             var bytesRead = await stream.ReadAsync(buffer, offset, count, cancellationToken).ConfigureAwait(false);
-            _readPosition += bytesRead;
-            RaiseOnReadProgress(bytesRead);
+            IncrementReadProgress(bytesRead);
             return bytesRead;
         }
         public override int ReadByte()
@@ -164,8 +193,7 @@ namespace Morph.Server.Sdk.Helper
             var @byte = stream.ReadByte();
             if (@byte != -1)
             {
-                _readPosition += 1;
-                // RaiseOnReadProgress(1);
+                IncrementReadProgress(1);
             }
             return @byte;
         }
@@ -189,12 +217,18 @@ namespace Morph.Server.Sdk.Helper
 
         protected override void Dispose(bool disposing)
         {
+            
             if (disposing)
             {
-                stream.Dispose();
-                if (onDisposed != null)
+                if (!_disposed)
                 {
-                    onDisposed();
+                    _disposed = true;
+
+                    stream.Dispose();
+                    if (onDisposed != null)
+                    {
+                        onDisposed();
+                    }
                 }
             }
         }

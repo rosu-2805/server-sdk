@@ -105,7 +105,7 @@ string.IsNullOrWhiteSpace(_spaceName) ? _defaultSpaceName : _spaceName.ToLower()
                                 {
                                     await _InternalCloseSessionAsync(CancellationToken.None);
                                 }
-                                catch (Exception)
+                                catch (Exception ex)
                                 {
 
                                 }

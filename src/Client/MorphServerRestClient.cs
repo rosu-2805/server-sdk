@@ -14,6 +14,7 @@ using Morph.Server.Sdk.Model;
 using Morph.Server.Sdk.Model.InternalModels;
 using Morph.Server.Sdk.Dto;
 using Morph.Server.Sdk.Events;
+using static Morph.Server.Sdk.Helper.StreamWithProgress;
 
 namespace Morph.Server.Sdk.Client
 {
@@ -311,39 +312,39 @@ namespace Morph.Server.Sdk.Client
                         downloadProgress = new FileProgress(realFileName, contentLength.Value, onReceiveProgress);
                     }
                     downloadProgress?.ChangeState(FileProgressState.Starting);
-                    var totalProcessedBytes = 0;
+                    long totalProcessedBytes = 0;
 
                     {
                         // stream must be disposed by a caller
                         Stream streamToReadFrom = await response.Content.ReadAsStreamAsync();
-                        DateTime _lastUpdate = DateTime.MinValue;
+                      
 
                         var streamWithProgress = new StreamWithProgress(streamToReadFrom, contentLength.Value, cancellationToken,
                             e =>
                             {
+                                // on read progress handler
                                 if (downloadProgress != null)
                                 {
-                                    totalProcessedBytes += e.BytesProcessed;
-                                    if ((DateTime.Now - _lastUpdate > TimeSpan.FromMilliseconds(500)) || e.BytesProcessed == 0)
-                                    {
-                                        downloadProgress.SetProcessedBytes(totalProcessedBytes);
-                                        _lastUpdate = DateTime.Now;
-                                    }
-
+                                    totalProcessedBytes = e.TotalBytesRead;
+                                    downloadProgress.SetProcessedBytes(totalProcessedBytes);
                                 }
                             },
                         () =>
                         {
-
+                            // on disposed handler
                             if (downloadProgress != null && downloadProgress.ProcessedBytes != totalProcessedBytes)
                             {
                                 downloadProgress.ChangeState(FileProgressState.Cancelled);
                             }
                             response.Dispose();
                         },
-                        () =>
+                        (tokenCancellationReason) =>
                         {
-                            throw new Exception("Timeout");
+                            // on tokenCancelled
+                            if (tokenCancellationReason == TokenCancellationReason.HttpTimeoutToken)
+                            {
+                                throw new Exception("Timeout");
+                            }
 
                         });
                         return ApiResult<FetchFileStreamData>.Ok(new FetchFileStreamData(streamWithProgress, realFileName, contentLength));

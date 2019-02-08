@@ -4,15 +4,17 @@ namespace Morph.Server.Sdk.Helper
 {
     internal class StreamProgressEventArgs : EventArgs
     {        
-        public int BytesProcessed { get;  }             
-        
+        public long TotalBytesRead { get;  }
+        public int BytesRead { get; }
+
         public StreamProgressEventArgs()
         {
 
         }
-        public StreamProgressEventArgs(int bytesProcessed):this()
+        public StreamProgressEventArgs(long totalBytesRead, int bytesRead) :this()
         {
-            BytesProcessed = bytesProcessed;
+            TotalBytesRead = totalBytesRead;
+            BytesRead = bytesRead;
         }
     }
 }
