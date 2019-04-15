@@ -3,7 +3,7 @@ using System.IO;
 
 namespace Morph.Server.Sdk.Model.InternalModels
 {
-    internal sealed class FetchFileStreamData 
+    public sealed class FetchFileStreamData 
     {
         public FetchFileStreamData(Stream stream, string fileName, long? fileSize)
         {

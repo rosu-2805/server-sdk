@@ -3,7 +3,7 @@ using System.IO;
 
 namespace Morph.Server.Sdk.Model.InternalModels
 {
-    internal sealed class SendFileStreamData
+    public sealed class SendFileStreamData
     {
         public SendFileStreamData(Stream stream, string fileName, long fileSize)
         {

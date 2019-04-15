@@ -20,7 +20,7 @@ namespace Morph.Server.Sdk.Client
 {
 
 
-    internal class MorphServerRestClient : IRestClient
+    public class MorphServerRestClient : IRestClient
     {
         private HttpClient httpClient;
         public HttpClient HttpClient { get => httpClient; set => httpClient = value; }

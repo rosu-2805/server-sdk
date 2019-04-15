@@ -33,6 +33,7 @@ namespace Morph.Server.Sdk.Client
         protected readonly string _api_v1 = "api/v1/";
 
         private readonly ILowLevelApiClient _lowLevelApiClient;
+        protected readonly IRestClient RestClient;
         private ClientConfiguration clientConfiguration = new ClientConfiguration();
 
         private bool _disposed = false;
@@ -88,12 +89,14 @@ namespace Morph.Server.Sdk.Client
             };
             clientConfiguration = defaultConfig;
             _lowLevelApiClient = BuildApiClient(clientConfiguration);
+            RestClient = _lowLevelApiClient.RestClient;
         }
 
         public MorphServerApiClient(ClientConfiguration clientConfiguration)
         {
             this.clientConfiguration = clientConfiguration ?? throw new ArgumentNullException(nameof(clientConfiguration));
             _lowLevelApiClient = BuildApiClient(clientConfiguration);
+            RestClient = _lowLevelApiClient.RestClient;
         }
 
 
@@ -181,7 +184,7 @@ namespace Morph.Server.Sdk.Client
             }, cancellationToken, OperationType.ShortOperation);
         }
 
-        internal virtual async Task<TResult> Wrapped<TResult>(Func<CancellationToken, Task<TResult>> fun, CancellationToken orginalCancellationToken, OperationType operationType)
+        protected virtual async Task<TResult> Wrapped<TResult>(Func<CancellationToken, Task<TResult>> fun, CancellationToken orginalCancellationToken, OperationType operationType)
         {
             if (_disposed)
             {
@@ -198,7 +201,7 @@ namespace Morph.Server.Sdk.Client
                 case OperationType.SessionOpenAndRelated:
                     maxExecutionTime = clientConfiguration.SessionOpenTimeout; break;
                 default: throw new NotImplementedException();
-            }
+            }            
 
             CancellationTokenSource derTokenSource =null;
             try
@@ -253,7 +256,7 @@ namespace Morph.Server.Sdk.Client
             _ctsForDisposing.Add(derTokenSource);
         }
 
-        internal virtual void FailIfError<TDto>(ApiResult<TDto> apiResult)
+        protected virtual void FailIfError<TDto>(ApiResult<TDto> apiResult)
         {
             if (!apiResult.IsSucceed)
             {
@@ -263,7 +266,7 @@ namespace Morph.Server.Sdk.Client
 
 
 
-        internal virtual TDataModel MapOrFail<TDto, TDataModel>(ApiResult<TDto> apiResult, Func<TDto, TDataModel> maper)
+        protected virtual TDataModel MapOrFail<TDto, TDataModel>(ApiResult<TDto> apiResult, Func<TDto, TDataModel> maper)
         {
             if (apiResult.IsSucceed)
             {

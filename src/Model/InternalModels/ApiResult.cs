@@ -6,7 +6,7 @@ namespace Morph.Server.Sdk.Model.InternalModels
     /// Represents api result of DTO Model or Error (Exception)
     /// </summary>
     /// <typeparam name="T"></typeparam>
-    internal class ApiResult<T>
+    public class ApiResult<T>
     {
         public T Data { get; set; } = default(T);
         public Exception Error { get; set; } = default(Exception);

@@ -3,7 +3,7 @@
 namespace Morph.Server.Sdk.Dto
 {
     [DataContractAttribute]
-    internal sealed class NoContentRequest
+    public sealed class NoContentRequest
     {
 
     }

@@ -13,17 +13,17 @@ namespace Morph.Server.Sdk.Model
     public class ApiSession : IDisposable
     {
         protected readonly string _defaultSpaceName = "default";
-        internal const string AuthHeaderName = "X-EasyMorph-Auth";
+        public const string AuthHeaderName = "X-EasyMorph-Auth";
 
-        internal bool IsClosed { get; set; }
+        public bool IsClosed { get; internal set; }
         public string SpaceName
         {
             get =>
 string.IsNullOrWhiteSpace(_spaceName) ? _defaultSpaceName : _spaceName.ToLower();
             internal set => _spaceName = value;
         }
-        internal string AuthToken { get; set; }
-        internal bool IsAnonymous { get; set; }
+        public string AuthToken { get;  internal set; }
+        public bool IsAnonymous { get; internal set; }
 
         ICanCloseSession _client;
         private string _spaceName;

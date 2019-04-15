@@ -1,6 +1,6 @@
 ﻿namespace Morph.Server.Sdk.Model.InternalModels
 {
-    internal enum OperationType
+    public enum OperationType
     {
         ShortOperation = 1,
         FileTransfer = 2,

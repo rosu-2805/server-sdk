@@ -4,7 +4,7 @@ using System.Collections.Generic;
 
 namespace Morph.Server.Sdk.Model.InternalModels
 {
-    internal class HeadersCollection
+    public class HeadersCollection
     {
         private Dictionary<string, string> _headers = new Dictionary<string, string>();
         public HeadersCollection()

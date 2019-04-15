@@ -2,7 +2,7 @@
 
 namespace Morph.Server.Sdk.Model.InternalModels
 {
-    internal class ContiniousStreamingRequest
+    public class ContiniousStreamingRequest
     {
         public ContiniousStreamingRequest(string fileName)
         {

@@ -9,7 +9,7 @@ using Morph.Server.Sdk.Model;
 
 namespace Morph.Server.Sdk.Client
 {
-    internal interface IRestClient : IDisposable
+    public interface IRestClient : IDisposable
     {
         HttpClient HttpClient { get; set; }
         Task<ApiResult<TResult>> GetAsync<TResult>(string url, NameValueCollection urlParameters, HeadersCollection headersCollection, CancellationToken cancellationToken)

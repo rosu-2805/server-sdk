@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace Morph.Server.Sdk.Model.InternalModels
 {
-    internal class ServerPushStreaming : IDisposable
+    public class ServerPushStreaming : IDisposable
     {
         internal readonly ContiniousSteamingHttpContent steamingContent;
         
