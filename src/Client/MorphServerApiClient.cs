@@ -100,7 +100,7 @@ namespace Morph.Server.Sdk.Client
         }
 
 
-        private IRestClient ConstructRestApiClient(HttpClient httpClient)
+        protected virtual IRestClient ConstructRestApiClient(HttpClient httpClient)
         {
             if (httpClient == null)
             {
