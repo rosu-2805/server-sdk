@@ -9,7 +9,7 @@ namespace Morph.Server.Sdk.Dto.Errors
 {
 
     [DataContract]
-    internal class ErrorResponse
+    public class ErrorResponse
     {
         [DataMember]
         public Error error { get; set; }

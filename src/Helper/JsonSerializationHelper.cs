@@ -12,7 +12,7 @@ using System.Threading.Tasks;
 
 namespace Morph.Server.Sdk.Helper
 {
-    internal static class JsonSerializationHelper
+    public static class JsonSerializationHelper
     {
         public static T Deserialize<T>(string input)
             where T: new()

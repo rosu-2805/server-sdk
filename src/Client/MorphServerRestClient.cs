@@ -81,7 +81,7 @@ namespace Morph.Server.Sdk.Client
             }
         }
 
-        private static async Task<ApiResult<TResult>> HandleResponse<TResult>(HttpResponseMessage response)
+        private  async Task<ApiResult<TResult>> HandleResponse<TResult>(HttpResponseMessage response)
             where TResult : new()
         {
             if (response.IsSuccessStatusCode)
@@ -114,23 +114,23 @@ namespace Morph.Server.Sdk.Client
 
 
 
-        private static async Task<Exception> BuildExceptionFromResponse(HttpResponseMessage response)
+        private async Task<Exception> BuildExceptionFromResponse(HttpResponseMessage response)
         {
 
-            var content = await response.Content.ReadAsStringAsync();
-            if (!string.IsNullOrWhiteSpace(content))
+            var rawContent = await response.Content.ReadAsStringAsync();
+            if (!string.IsNullOrWhiteSpace(rawContent))
             {
                 ErrorResponse errorResponse = null;
                 try
                 {
-                    errorResponse = JsonSerializationHelper.Deserialize<ErrorResponse>(content);
+                    errorResponse = DeserializeErrorResponse(rawContent);
                 }
                 catch (Exception)
                 {
-                    return new ResponseParseException("An error occurred while deserializing the response", content);
+                    return new ResponseParseException("An error occurred while deserializing the response", rawContent);
                 }
                 if (errorResponse.error == null)
-                    return new ResponseParseException("An error occurred while deserializing the response", content);
+                    return new ResponseParseException("An error occurred while deserializing the response", rawContent);
 
                 switch (errorResponse.error.code)
                 {
@@ -139,7 +139,7 @@ namespace Morph.Server.Sdk.Client
                     case ReadableErrorTopCode.Forbidden: return new MorphApiForbiddenException(errorResponse.error.message);
                     case ReadableErrorTopCode.Unauthorized: return new MorphApiUnauthorizedException(errorResponse.error.message);
                     case ReadableErrorTopCode.BadArgument: return new MorphApiBadArgumentException(FieldErrorsMapper.MapFromDto(errorResponse.error), errorResponse.error.message);
-                    default: return new MorphClientGeneralException(errorResponse.error.code, errorResponse.error.message);
+                    default: return BuildCustomExceptionFromErrorResponse(rawContent, errorResponse);
                 }
             }
 
@@ -156,6 +156,16 @@ namespace Morph.Server.Sdk.Client
                 }
 
             }
+        }
+
+        protected virtual ErrorResponse DeserializeErrorResponse(string rawContent)
+        {
+            return JsonSerializationHelper.Deserialize<ErrorResponse>(rawContent);
+        }
+
+        protected virtual Exception BuildCustomExceptionFromErrorResponse(string rawContent, ErrorResponse errorResponse)
+        {
+            return new MorphClientGeneralException(errorResponse.error.code, errorResponse.error.message);
         }
 
         public void Dispose()
