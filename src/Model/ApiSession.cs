@@ -9,7 +9,9 @@ using System.Threading.Tasks;
 
 namespace Morph.Server.Sdk.Model
 {
-
+    /// <summary>
+    /// Disposable api session
+    /// </summary>
     public class ApiSession : IDisposable
     {
         protected readonly string _defaultSpaceName = "default";
@@ -29,24 +31,32 @@ string.IsNullOrWhiteSpace(_spaceName) ? _defaultSpaceName : _spaceName.ToLower()
         private string _spaceName;
         private SemaphoreSlim _lock = new SemaphoreSlim(1, 1);
 
+       /// <summary>
+       /// Api session constructor
+       /// </summary>
+       /// <param name="client">reference to client </param>
         internal ApiSession(ICanCloseSession client)
         {
-            _client = client;
+            _client = client ?? throw new ArgumentNullException(nameof(client));
             IsClosed = false;
             IsAnonymous = false;
 
         }
 
 
-        internal static ApiSession Anonymous(string spaceName)
+        internal static ApiSession Anonymous(ICanCloseSession client, string spaceName)
         {
+            if (client == null)
+            {
+                throw new ArgumentNullException(nameof(client));
+            }
 
             if (string.IsNullOrWhiteSpace(spaceName))
             {
                 throw new ArgumentException("Value is empty {0}", nameof(spaceName));
             }
 
-            return new ApiSession(null)
+            return new ApiSession(client)
             {
                 IsAnonymous = true,
                 IsClosed = false,
@@ -72,19 +82,32 @@ string.IsNullOrWhiteSpace(_spaceName) ? _defaultSpaceName : _spaceName.ToLower()
 
         private async Task _InternalCloseSessionAsync(CancellationToken cancellationToken)
         {
-            using (var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken))
+            // don't close if session is already closed or anon.            
+            if(IsClosed || _client == null || IsAnonymous)
             {
-                linkedCts.CancelAfter(TimeSpan.FromSeconds(5));
-                await _client.CloseSessionAsync(this, linkedCts.Token);
+                return;
+            }
+            try
+            {
 
-                // don't dispose client implicitly, just remove link to client
-                if (_client.Config.AutoDisposeClientOnSessionClose)
+                using (var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken))
                 {
-                    _client.Dispose();
-                }
-                _client = null;
+                    linkedCts.CancelAfter(TimeSpan.FromSeconds(5));
+                    await _client.CloseSessionAsync(this, linkedCts.Token);
 
-                IsClosed = true;
+                    // don't dispose client implicitly, just remove link to client
+                    if (_client.Config.AutoDisposeClientOnSessionClose)
+                    {
+                        _client.Dispose();
+                    }
+                    _client = null;
+
+                    IsClosed = true;
+                }
+            }
+            catch (Exception)
+            {
+                // 
             }
         }
 

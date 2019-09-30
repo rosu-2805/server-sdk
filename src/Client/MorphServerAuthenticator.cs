@@ -25,7 +25,7 @@ namespace Morph.Server.Sdk.Client
             {
                 // anon space
                 case SpaceAccessRestriction.None:
-                    return ApiSession.Anonymous(openSessionRequest.SpaceName);
+                    return ApiSession.Anonymous(context.MorphServerApiClient, openSessionRequest.SpaceName);
 
                 // password protected space                
                 case SpaceAccessRestriction.BasicPassword:
@@ -41,7 +41,7 @@ namespace Morph.Server.Sdk.Client
                     //  if space is public or password is not set - open anon session
                     if (desiredSpace.IsPublic || string.IsNullOrWhiteSpace(openSessionRequest.Password))
                     {
-                        return ApiSession.Anonymous(openSessionRequest.SpaceName);
+                        return ApiSession.Anonymous(context.MorphServerApiClient, openSessionRequest.SpaceName);
                     }
                     // otherwise open session via space password
                     else
