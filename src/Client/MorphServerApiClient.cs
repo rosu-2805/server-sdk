@@ -204,7 +204,7 @@ namespace Morph.Server.Sdk.Client
                 default: throw new NotImplementedException();
             }
 
-            orginalCancellationToken.ThrowIfCancellationRequested();
+            
             CancellationTokenSource derTokenSource =null;
             try
             {
