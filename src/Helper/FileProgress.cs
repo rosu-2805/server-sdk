@@ -22,18 +22,15 @@ namespace Morph.Server.Sdk.Helper
         public void ChangeState(FileProgressState state)
         {
             State = state;
-            if (StateChanged != null)
+            StateChanged?.Invoke(this, new FileEventArgs
             {
-                StateChanged(this, new FileEventArgs
-                {
-                    ProcessedBytes = ProcessedBytes,
-                    State = state,
-                    Guid = _guid,
-                    FileName = FileName,
-                    FileSize = FileSize
+                ProcessedBytes = ProcessedBytes,
+                State = state,
+                Guid = _guid,
+                FileName = FileName,
+                FileSize = FileSize
 
-                });
-            }
+            });
         }
         public void SetProcessedBytes(long np)
         {

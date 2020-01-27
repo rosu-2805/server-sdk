@@ -6,11 +6,9 @@ using System.Threading.Tasks;
 
 namespace Morph.Server.Sdk.Model
 {
-    public enum FileProgressState
+    public class OpenSessionRequest
     {
-        Starting,
-        Processing,
-        Finishing,
-        Cancelled
+        public string SpaceName{ get; set; }
+        public string Password { get; set; }
     }
 }
