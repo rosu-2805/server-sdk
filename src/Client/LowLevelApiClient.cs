@@ -92,6 +92,19 @@ namespace Morph.Server.Sdk.Client
 
         }
 
+        public Task<ApiResult<SpaceTaskDto>> TaskChangeModeAsync(ApiSession apiSession, Guid taskId, SpaceTaskChangeModeRequestDto requestDto, CancellationToken cancellationToken)
+        {
+            if (apiSession == null)
+            {
+                throw new ArgumentNullException(nameof(apiSession));
+            }
+
+            var spaceName = apiSession.SpaceName;
+            var url = UrlHelper.JoinUrl("space", spaceName, "tasks", taskId.ToString("D"), "changeMode");
+
+            return apiClient.PostAsync<SpaceTaskChangeModeRequestDto, SpaceTaskDto>(url, requestDto, null, apiSession.ToHeadersCollection(), cancellationToken);
+        }
+
         public Task<ApiResult<ServerStatusDto>> ServerGetStatusAsync(CancellationToken cancellationToken)
         {
             var url = "server/status";
@@ -290,6 +303,8 @@ namespace Morph.Server.Sdk.Client
 
             return apiClient.PushContiniousStreamingDataAsync<NoContentResult>(HttpMethod.Put, url, new ContiniousStreamingRequest(fileName), null, apiSession.ToHeadersCollection(), cancellationToken);
         }
+
+       
     }
 }
 

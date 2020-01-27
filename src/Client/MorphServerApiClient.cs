@@ -191,6 +191,7 @@ namespace Morph.Server.Sdk.Client
                 throw new ObjectDisposedException(nameof(MorphServerApiClient));
             }
 
+            
             TimeSpan maxExecutionTime;
             switch (operationType)
             {
@@ -201,8 +202,9 @@ namespace Morph.Server.Sdk.Client
                 case OperationType.SessionOpenAndRelated:
                     maxExecutionTime = clientConfiguration.SessionOpenTimeout; break;
                 default: throw new NotImplementedException();
-            }            
+            }
 
+            orginalCancellationToken.ThrowIfCancellationRequested();
             CancellationTokenSource derTokenSource =null;
             try
             {
@@ -348,6 +350,39 @@ namespace Morph.Server.Sdk.Client
             {
                 var apiResult = await _lowLevelApiClient.GetTaskStatusAsync(apiSession, taskId, token);
                 return MapOrFail(apiResult, (dto) => TaskStatusMapper.MapFromDto(dto));
+
+            }, cancellationToken, OperationType.ShortOperation);
+
+        }
+
+        /// <summary>
+        /// Change task mode
+        /// </summary>
+        /// <param name="apiSession">api session</param>
+        /// <param name="taskId">task guid</param>
+        /// <param name="taskChangeModeRequest"></param>
+        /// <param name="cancellationToken">cancellation token</param>
+        /// <returns>Returns task status</returns>
+        public Task<SpaceTask> TaskChangeModeAsync(ApiSession apiSession, Guid taskId, TaskChangeModeRequest taskChangeModeRequest,  CancellationToken cancellationToken)
+        {
+            if (apiSession == null)
+            {
+                throw new ArgumentNullException(nameof(apiSession));
+            }
+
+            if (taskChangeModeRequest is null)
+            {
+                throw new ArgumentNullException(nameof(taskChangeModeRequest));
+            }
+
+            return Wrapped(async (token) =>
+            {
+                var request = new SpaceTaskChangeModeRequestDto
+                {
+                    TaskEnabled = taskChangeModeRequest.TaskEnabled
+                };
+                var apiResult = await _lowLevelApiClient.TaskChangeModeAsync(apiSession, taskId, request, token);
+                return MapOrFail(apiResult, (dto) => SpaceTaskMapper.MapFull(dto));
 
             }, cancellationToken, OperationType.ShortOperation);
 

@@ -37,7 +37,9 @@ namespace Morph.Server.Sdk.Client
         
         Task<RunningTaskStatus> StartTaskAsync(ApiSession apiSession, StartTaskRequest startTaskRequest, CancellationToken cancellationToken);
         Task StopTaskAsync(ApiSession apiSession, Guid taskId, CancellationToken cancellationToken);
-        
+
+
+        Task<SpaceTask> TaskChangeModeAsync(ApiSession apiSession, Guid taskId, TaskChangeModeRequest taskChangeModeRequest, CancellationToken cancellationToken);
         Task<ValidateTasksResult> ValidateTasksAsync(ApiSession apiSession, string projectPath, CancellationToken cancellationToken);
         Task<SpacesEnumerationList> GetSpacesListAsync(CancellationToken cancellationToken);
         Task<SpaceStatus> GetSpaceStatusAsync(ApiSession apiSession, CancellationToken cancellationToken);

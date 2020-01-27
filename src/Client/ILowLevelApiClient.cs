@@ -18,6 +18,7 @@ namespace Morph.Server.Sdk.Client
         Task<ApiResult<TaskStatusDto>> GetTaskStatusAsync(ApiSession apiSession, Guid taskId, CancellationToken cancellationToken);
         Task<ApiResult<SpaceTasksListDto>> GetTasksListAsync(ApiSession apiSession, CancellationToken cancellationToken);
         Task<ApiResult<SpaceTaskDto>> GetTaskAsync(ApiSession apiSession, Guid taskId, CancellationToken cancellationToken);
+        Task<ApiResult<SpaceTaskDto>> TaskChangeModeAsync(ApiSession apiSession, Guid taskId, SpaceTaskChangeModeRequestDto requestDto, CancellationToken cancellationToken);
 
         // RUN-STOP Task
         Task<ApiResult<RunningTaskStatusDto>> GetRunningTaskStatusAsync(ApiSession apiSession, Guid taskId, CancellationToken cancellationToken);
