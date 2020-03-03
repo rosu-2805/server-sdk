@@ -73,7 +73,8 @@ namespace Morph.Server.Sdk.Client
 
             // for model binding request read and buffer full server response
             // but for HttpHead content reading is not necessary and might raise error.
-            var httpCompletionOption = httpMethod != HttpMethod.Head ? HttpCompletionOption.ResponseContentRead : HttpCompletionOption.ResponseHeadersRead;
+            //var httpCompletionOption = httpMethod != HttpMethod.Head ? HttpCompletionOption.ResponseContentRead : HttpCompletionOption.ResponseHeadersRead;
+            var httpCompletionOption = HttpCompletionOption.ResponseHeadersRead;
             using (var response = await httpClient.SendAsync(httpRequestMessage, httpCompletionOption,
                 cancellationToken))
             {
