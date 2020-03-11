@@ -1,37 +1,74 @@
-﻿using Morph.Server.Sdk.Dto;
-using Morph.Server.Sdk.Exceptions;
-using Morph.Server.Sdk.Helper;
-using Morph.Server.Sdk.Model;
+﻿using Morph.Server.Sdk.Model;
 using System;
-using System.IO;
 using System.Net.Http;
 using System.Net.Http.Headers;
-using System.Runtime.Serialization.Json;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Net;
 using Morph.Server.Sdk.Events;
-using System.Collections.Specialized;
 using Morph.Server.Sdk.Dto.Commands;
-using Morph.Server.Sdk.Model.Errors;
 using Morph.Server.Sdk.Mappers;
 using Morph.Server.Sdk.Model.Commands;
 using System.Linq;
-using Morph.Server.Sdk.Dto.Errors;
 using System.Collections.Generic;
+using System.Reflection;
+using System.IO;
+using Morph.Server.Sdk.Model.InternalModels;
+using Morph.Server.Sdk.Dto;
+using System.Collections.Concurrent;
 
 namespace Morph.Server.Sdk.Client
 {
+
+
     /// <summary>
     /// Morph Server api client V1
     /// </summary>
-    public class MorphServerApiClient : IMorphServerApiClient, IDisposable
+    public class MorphServerApiClient : IMorphServerApiClient, IDisposable, ICanCloseSession
     {
-        protected readonly Uri _apiHost;
-        protected readonly string UserAgent = "MorphServerApiClient/1.3.5";
-        protected HttpClient _httpClient;
+
+        public event EventHandler<FileTransferProgressEventArgs> OnDataDownloadProgress;
+        public event EventHandler<FileTransferProgressEventArgs> OnDataUploadProgress;
+
+        protected readonly string _userAgent = "MorphServerApiClient/next";
         protected readonly string _api_v1 = "api/v1/";
+
+        private readonly ILowLevelApiClient _lowLevelApiClient;
+        protected readonly IRestClient RestClient;
+        private ClientConfiguration clientConfiguration = new ClientConfiguration();
+
+        private bool _disposed = false;
+        private object _lock = new object();
+
+
+        public IClientConfiguration Config => clientConfiguration;
+
+        internal ILowLevelApiClient BuildApiClient(ClientConfiguration configuration)
+        {
+            if (configuration == null)
+            {
+                throw new ArgumentNullException(nameof(configuration));
+            }
+
+#if NETSTANDARD2_0
+            // handler will be disposed automatically
+            HttpClientHandler aHandler = new HttpClientHandler()
+            {
+                ClientCertificateOptions = ClientCertificateOption.Automatic,
+                ServerCertificateCustomValidationCallback = configuration.ServerCertificateCustomValidationCallback
+            };
+#elif NET45
+            // handler will be disposed automatically
+            HttpClientHandler aHandler = new HttpClientHandler()
+            {
+                ClientCertificateOptions = ClientCertificateOption.Automatic                    
+            };
+#else
+    Not implemented                        
+#endif
+            var httpClient = BuildHttpClient(configuration, aHandler);
+            var restClient = ConstructRestApiClient(httpClient);
+            return new LowLevelApiClient(restClient);
+        }
 
 
 
@@ -39,34 +76,43 @@ namespace Morph.Server.Sdk.Client
         /// Construct Api client
         /// </summary>
         /// <param name="apiHost">Server url</param>
-        public MorphServerApiClient(string apiHost)
+        public MorphServerApiClient(Uri apiHost)
         {
-            if (!apiHost.EndsWith("/"))
-                apiHost += "/";
-            _apiHost = new Uri(apiHost);
-
-        }
-
-        protected HttpClient GetHttpClient()
-        {
-            if (_httpClient == null)
+            if (apiHost == null)
             {
-                // handler will be disposed automatically
-                HttpClientHandler aHandler = new HttpClientHandler()
-                {
-                    ClientCertificateOptions = ClientCertificateOption.Automatic
-                };
-
-                _httpClient = ConstructHttpClient(_apiHost, aHandler);
+                throw new ArgumentNullException(nameof(apiHost));
             }
-            return _httpClient;
+
+            var defaultConfig = new ClientConfiguration
+            {
+                ApiUri = apiHost
+            };
+            clientConfiguration = defaultConfig;
+            _lowLevelApiClient = BuildApiClient(clientConfiguration);
+            RestClient = _lowLevelApiClient.RestClient;
+        }
+
+        public MorphServerApiClient(ClientConfiguration clientConfiguration)
+        {
+            this.clientConfiguration = clientConfiguration ?? throw new ArgumentNullException(nameof(clientConfiguration));
+            _lowLevelApiClient = BuildApiClient(clientConfiguration);
+            RestClient = _lowLevelApiClient.RestClient;
         }
 
 
-        public event EventHandler<FileEventArgs> FileProgress;
+        protected virtual IRestClient ConstructRestApiClient(HttpClient httpClient)
+        {
+            if (httpClient == null)
+            {
+                throw new ArgumentNullException(nameof(httpClient));
+            }
+
+            return new MorphServerRestClient(httpClient);
+        }
 
 
-        protected HttpClient ConstructHttpClient(Uri apiHost, HttpClientHandler httpClientHandler)
+
+        protected HttpClient BuildHttpClient(ClientConfiguration config, HttpClientHandler httpClientHandler)
         {
             if (httpClientHandler == null)
             {
@@ -74,7 +120,7 @@ namespace Morph.Server.Sdk.Client
             }
 
             var client = new HttpClient(httpClientHandler, true);
-            client.BaseAddress = new Uri(apiHost, new Uri(_api_v1, UriKind.Relative));
+            client.BaseAddress = new Uri(config.ApiUri, new Uri(_api_v1, UriKind.Relative));
 
             client.DefaultRequestHeaders.Accept.Clear();
             client.DefaultRequestHeaders.Accept.Add(
@@ -82,8 +128,13 @@ namespace Morph.Server.Sdk.Client
                 {
                     CharSet = "utf-8"
                 });
-            client.DefaultRequestHeaders.Add("User-Agent", UserAgent);
-            client.DefaultRequestHeaders.Add("X-Client-Type", "EMS-CMD");
+            client.DefaultRequestHeaders.Add("User-Agent", _userAgent);
+            client.DefaultRequestHeaders.Add("X-Client-Type", config.ClientType);
+            client.DefaultRequestHeaders.Add("X-Client-Id", config.ClientId);
+            client.DefaultRequestHeaders.Add("X-Client-Sdk", config.SDKVersionString);
+
+            client.DefaultRequestHeaders.Add("Connection", "Keep-Alive");
+            client.DefaultRequestHeaders.Add("Keep-Alive", "timeout=120");
 
             client.MaxResponseContentBufferSize = 100 * 1024;
             client.DefaultRequestHeaders.CacheControl = new CacheControlHeaderValue
@@ -94,114 +145,169 @@ namespace Morph.Server.Sdk.Client
 
 
 
-            client.Timeout = TimeSpan.FromMinutes(15);
+            client.Timeout = config.HttpClientTimeout;
 
             return client;
         }
-
-
-
-
-        protected static async Task<T> HandleResponse<T>(HttpResponseMessage response)
-        {
-            if (response.IsSuccessStatusCode)
-            {
-                var content = await response.Content.ReadAsStringAsync();
-                var result = JsonSerializationHelper.Deserialize<T>(content);
-                return result;
-            }
-            else
-            {
-                await HandleErrorResponse(response);
-                return default(T);
-
-            }
-
-        }
-
-        protected async Task HandleResponse(HttpResponseMessage response)
-        {
-            if (!response.IsSuccessStatusCode)
-            {
-                await HandleErrorResponse(response);
-            }
-
-        }
-
-        private static async Task HandleErrorResponse(HttpResponseMessage response)
-        {
-
-            var content = await response.Content.ReadAsStringAsync();
-            if (!string.IsNullOrWhiteSpace(content))
-            {
-                ErrorResponse errorResponse = null;
-                try
-                {
-                    errorResponse = JsonSerializationHelper.Deserialize<ErrorResponse>(content);
-                }
-                catch (Exception)
-                {
-                    throw new ResponseParseException("An error occurred while deserializing the response", content);
-                }
-                if (errorResponse.error == null)
-                    throw new ResponseParseException("An error occurred while deserializing the response", content);
-
-                switch (errorResponse.error.code)
-                {
-                    case ReadableErrorTopCode.Conflict: throw new MorphApiConflictException(errorResponse.error.message);
-                    case ReadableErrorTopCode.NotFound: throw new MorphApiNotFoundException(errorResponse.error.message);
-                    case ReadableErrorTopCode.Forbidden: throw new MorphApiForbiddenException(errorResponse.error.message);
-                    case ReadableErrorTopCode.Unauthorized: throw new MorphApiUnauthorizedException(errorResponse.error.message);
-                    case ReadableErrorTopCode.BadArgument: throw new MorphApiBadArgumentException(FieldErrorsMapper.MapFromDto(errorResponse.error), errorResponse.error.message);
-                    default: throw new MorphClientGeneralException(errorResponse.error.code, errorResponse.error.message);
-                }
-            }
-
-            else
-            {
-                switch (response.StatusCode)
-                {
-                    case HttpStatusCode.Conflict: throw new MorphApiConflictException(response.ReasonPhrase ?? "Conflict");
-                    case HttpStatusCode.NotFound: throw new MorphApiNotFoundException(response.ReasonPhrase ?? "Not found");
-                    case HttpStatusCode.Forbidden: throw new MorphApiForbiddenException(response.ReasonPhrase ?? "Forbidden");
-                    case HttpStatusCode.Unauthorized: throw new MorphApiUnauthorizedException(response.ReasonPhrase ?? "Unauthorized");
-                    case HttpStatusCode.BadRequest: throw new MorphClientGeneralException("Unknown", response.ReasonPhrase ?? "Unknown error");
-                    default: throw new ResponseParseException(response.ReasonPhrase, null);
-                }
-
-            }
-        }
+                     
 
         /// <summary>
         /// Start Task like "fire and forget"
         /// </summary>
-        /// <param name="apiSession">api session</param>
-        /// <param name="taskId">tast guid</param>
-        /// <param name="cancellationToken"></param>
-        /// <param name="taskParameters"></param>
-        /// <returns></returns>
-        public async Task<RunningTaskStatus> StartTaskAsync(ApiSession apiSession, Guid taskId, CancellationToken cancellationToken, IEnumerable<TaskParameterBase> taskParameters = null)
+        public Task<RunningTaskStatus> StartTaskAsync(ApiSession apiSession, StartTaskRequest startTaskRequest, CancellationToken cancellationToken)
         {
             if (apiSession == null)
             {
                 throw new ArgumentNullException(nameof(apiSession));
             }
 
-            var spaceName = apiSession.SpaceName;
-            var url = UrlHelper.JoinUrl("space", spaceName, "runningtasks", taskId.ToString("D"), "payload");
-            var dto = new TaskStartRequestDto();
-            if (taskParameters != null)
+            if (startTaskRequest == null)
             {
-                dto.TaskParameters = taskParameters.Select(TaskParameterMapper.ToDto).ToList();
-            }
-            var request = JsonSerializationHelper.SerializeAsStringContent(dto);
-            using (var response = await GetHttpClient().SendAsync(BuildHttpRequestMessage(HttpMethod.Post, url, request, apiSession), cancellationToken))
-            {
-                var info = await HandleResponse<RunningTaskStatusDto>(response);
-                return RunningTaskStatusMapper.RunningTaskStatusFromDto(info);
+                throw new ArgumentNullException(nameof(startTaskRequest));
             }
 
+            return Wrapped(async (token) =>
+            {
+                var requestDto = new TaskStartRequestDto();
+                if (startTaskRequest.TaskParameters != null)
+                {
+                    requestDto.TaskParameters = startTaskRequest.TaskParameters.Select(TaskParameterMapper.ToDto).ToList();
+                }
+
+                if (!startTaskRequest.TaskId.HasValue)
+                {
+                    throw new Exception("TaskId must be set.");
+                }
+                var apiResult = await _lowLevelApiClient.StartTaskAsync(apiSession, startTaskRequest.TaskId.Value, requestDto, token);
+                return MapOrFail(apiResult, (dto) => RunningTaskStatusMapper.RunningTaskStatusFromDto(dto));
+
+            }, cancellationToken, OperationType.ShortOperation);
         }
+
+        protected virtual async Task<TResult> Wrapped<TResult>(Func<CancellationToken, Task<TResult>> fun, CancellationToken orginalCancellationToken, OperationType operationType)
+        {
+            if (_disposed)
+            {
+                throw new ObjectDisposedException(nameof(MorphServerApiClient));
+            }
+
+            
+            TimeSpan maxExecutionTime;
+            switch (operationType)
+            {
+                case OperationType.FileTransfer:
+                    maxExecutionTime = clientConfiguration.FileTransferTimeout; break;
+                case OperationType.ShortOperation:
+                    maxExecutionTime = clientConfiguration.OperationTimeout; break;
+                case OperationType.SessionOpenAndRelated:
+                    maxExecutionTime = clientConfiguration.SessionOpenTimeout; break;
+                default: throw new NotImplementedException();
+            }
+
+            
+            CancellationTokenSource derTokenSource =null;
+            try
+            {
+                derTokenSource = CancellationTokenSource.CreateLinkedTokenSource(orginalCancellationToken);
+                {
+                    derTokenSource.CancelAfter(maxExecutionTime);
+                    try
+                    {
+                        return await fun(derTokenSource.Token);
+                    }
+
+                    catch (OperationCanceledException) when (!orginalCancellationToken.IsCancellationRequested && derTokenSource.IsCancellationRequested)
+                    {
+                        if (operationType == OperationType.SessionOpenAndRelated)
+                        {
+                            throw new Exception($"Can't connect to host {clientConfiguration.ApiUri}.  Operation timeout ({maxExecutionTime})");
+                        }
+                        else
+                        {
+                            throw new Exception($"Operation timeout ({maxExecutionTime}) when processing command to host {clientConfiguration.ApiUri}");
+                        }
+                    }
+                }
+            }
+            finally
+            {
+                if (derTokenSource != null)
+                {
+                    if (operationType == OperationType.FileTransfer)
+                    {
+                        RegisterForDisposing(derTokenSource);
+                    }
+                    else
+                    {
+                        derTokenSource.Dispose();
+                    }
+                }
+            }
+            
+        }
+
+        private ConcurrentBag<CancellationTokenSource> _ctsForDisposing = new ConcurrentBag<CancellationTokenSource>();
+
+        private void RegisterForDisposing(CancellationTokenSource derTokenSource)
+        {
+            if (derTokenSource == null)
+            {
+                throw new ArgumentNullException(nameof(derTokenSource));
+            }
+
+            _ctsForDisposing.Add(derTokenSource);
+        }
+
+        protected virtual void FailIfError<TDto>(ApiResult<TDto> apiResult)
+        {
+            if (!apiResult.IsSucceed)
+            {
+                throw apiResult.Error;
+            }
+        }
+
+
+
+        protected virtual TDataModel MapOrFail<TDto, TDataModel>(ApiResult<TDto> apiResult, Func<TDto, TDataModel> maper)
+        {
+            if (apiResult.IsSucceed)
+            {
+                return maper(apiResult.Data);
+            }
+            else
+            {
+                throw apiResult.Error;
+            }
+        }
+
+
+        /// <summary>
+        /// Close opened session
+        /// </summary>
+        /// <param name="apiSession">api session</param>
+        /// <param name="cancellationToken"></param>
+        /// <returns></returns>
+        Task ICanCloseSession.CloseSessionAsync(ApiSession apiSession, CancellationToken cancellationToken)
+        {
+            if (apiSession == null)
+            {
+                throw new ArgumentNullException(nameof(apiSession));
+            }
+            if (apiSession.IsClosed)
+                return Task.FromResult(0);
+            if (apiSession.IsAnonymous)
+                return Task.FromResult(0);
+
+            return Wrapped(async (token) =>
+            {
+                var apiResult = await _lowLevelApiClient.AuthLogoutAsync(apiSession, token);
+                // if task fail - do nothing. server will close this session after inactivity period
+                return Task.FromResult(0);
+
+            }, cancellationToken, OperationType.ShortOperation);
+
+        }
+
 
         /// <summary>
         /// Gets status of the task (Running/Not running) and payload
@@ -210,23 +316,20 @@ namespace Morph.Server.Sdk.Client
         /// <param name="taskId">task guid</param>
         /// <param name="cancellationToken">cancellation token</param>
         /// <returns>Returns task status</returns>
-        private async Task<RunningTaskStatus> GetRunningTaskStatusAsync(ApiSession apiSession, Guid taskId, CancellationToken cancellationToken)
+        private Task<RunningTaskStatus> GetRunningTaskStatusAsync(ApiSession apiSession, Guid taskId, CancellationToken cancellationToken)
         {
             if (apiSession == null)
             {
                 throw new ArgumentNullException(nameof(apiSession));
             }
 
-            var spaceName = apiSession.SpaceName;
-            var nvc = new NameValueCollection();
-            nvc.Add("_", DateTime.Now.Ticks.ToString());
-            var url = UrlHelper.JoinUrl("space", spaceName, "runningtasks", taskId.ToString("D")) + nvc.ToQueryString();
-
-            using (var response = await GetHttpClient().SendAsync(BuildHttpRequestMessage(HttpMethod.Get, url, null, apiSession), cancellationToken))
+            return Wrapped(async (token) =>
             {
-                var info = await HandleResponse<RunningTaskStatusDto>(response);
-                return RunningTaskStatusMapper.RunningTaskStatusFromDto(info);
-            }
+                var apiResult = await _lowLevelApiClient.GetRunningTaskStatusAsync(apiSession, taskId, token);
+                return MapOrFail(apiResult, (dto) => RunningTaskStatusMapper.RunningTaskStatusFromDto(dto));
+
+            }, cancellationToken, OperationType.ShortOperation);
+
         }
 
 
@@ -237,24 +340,78 @@ namespace Morph.Server.Sdk.Client
         /// <param name="taskId">task guid</param>
         /// <param name="cancellationToken">cancellation token</param>
         /// <returns>Returns task status</returns>
-        public async Task<Model.TaskStatus> GetTaskStatusAsync(ApiSession apiSession, Guid taskId, CancellationToken cancellationToken)
+        public Task<Model.TaskStatus> GetTaskStatusAsync(ApiSession apiSession, Guid taskId, CancellationToken cancellationToken)
         {
             if (apiSession == null)
             {
                 throw new ArgumentNullException(nameof(apiSession));
             }
-            var spaceName = apiSession.SpaceName;
-            var nvc = new NameValueCollection();
-            nvc.Add("_", DateTime.Now.Ticks.ToString());
-            var url = UrlHelper.JoinUrl("space", spaceName, "tasks", taskId.ToString("D")) + nvc.ToQueryString();
-
-            using (var response = await GetHttpClient().SendAsync(BuildHttpRequestMessage(HttpMethod.Get, url, null, apiSession), cancellationToken))
+            return Wrapped(async (token) =>
             {
-                var dto = await HandleResponse<TaskStatusDto>(response);
-                var data = TaskStatusMapper.MapFromDto(dto);
-                return data;
-            }
+                var apiResult = await _lowLevelApiClient.GetTaskStatusAsync(apiSession, taskId, token);
+                return MapOrFail(apiResult, (dto) => TaskStatusMapper.MapFromDto(dto));
+
+            }, cancellationToken, OperationType.ShortOperation);
+
         }
+
+        /// <summary>
+        /// Change task mode
+        /// </summary>
+        /// <param name="apiSession">api session</param>
+        /// <param name="taskId">task guid</param>
+        /// <param name="taskChangeModeRequest"></param>
+        /// <param name="cancellationToken">cancellation token</param>
+        /// <returns>Returns task status</returns>
+        public Task<SpaceTask> TaskChangeModeAsync(ApiSession apiSession, Guid taskId, TaskChangeModeRequest taskChangeModeRequest,  CancellationToken cancellationToken)
+        {
+            if (apiSession == null)
+            {
+                throw new ArgumentNullException(nameof(apiSession));
+            }
+
+            if (taskChangeModeRequest is null)
+            {
+                throw new ArgumentNullException(nameof(taskChangeModeRequest));
+            }
+
+            return Wrapped(async (token) =>
+            {
+                var request = new SpaceTaskChangeModeRequestDto
+                {
+                    TaskEnabled = taskChangeModeRequest.TaskEnabled
+                };
+                var apiResult = await _lowLevelApiClient.TaskChangeModeAsync(apiSession, taskId, request, token);
+                return MapOrFail(apiResult, (dto) => SpaceTaskMapper.MapFull(dto));
+
+            }, cancellationToken, OperationType.ShortOperation);
+
+        }
+
+
+        /// <summary>
+        /// Retrieves space status
+        /// </summary>
+        /// <param name="apiSession">api session</param>
+        /// <param name="cancellationToken"></param>
+        /// <returns></returns>
+        public Task<SpaceStatus> GetSpaceStatusAsync(ApiSession apiSession, CancellationToken cancellationToken)
+        {
+            if (apiSession == null)
+            {
+                throw new ArgumentNullException(nameof(apiSession));
+            }
+
+            return Wrapped(async (token) =>
+            {
+                var apiResult = await _lowLevelApiClient.SpacesGetSpaceStatusAsync(apiSession, apiSession.SpaceName, token);
+                return MapOrFail(apiResult, (dto) => SpaceStatusMapper.MapFromDto(dto));
+
+            }, cancellationToken, OperationType.ShortOperation);
+
+        }
+
+
 
         /// <summary>
         /// Stops the Task
@@ -270,321 +427,47 @@ namespace Morph.Server.Sdk.Client
                 throw new ArgumentNullException(nameof(apiSession));
             }
 
-            var spaceName = apiSession.SpaceName;
-            var url = UrlHelper.JoinUrl("space", spaceName, "runningtasks", taskId.ToString("D"));
-            using (var response = await GetHttpClient().SendAsync(BuildHttpRequestMessage(HttpMethod.Delete, url, null, apiSession), cancellationToken))
+            await Wrapped(async (token) =>
             {
-                await HandleResponse(response);
-            }
+                var apiResult = await _lowLevelApiClient.StopTaskAsync(apiSession, taskId, token);
+                FailIfError(apiResult);
+                return Task.FromResult(0);
+
+            }, cancellationToken, OperationType.ShortOperation);
+
         }
 
         /// <summary>
         /// Returns server status. May raise exception if server is unreachable
         /// </summary>
         /// <returns></returns>
-        public async Task<ServerStatus> GetServerStatusAsync(CancellationToken cancellationToken)
+        public Task<ServerStatus> GetServerStatusAsync(CancellationToken cancellationToken)
         {
-            return await GetDataWithCancelAfter(async (token) =>
+            return Wrapped(async (token) =>
             {
-                var nvc = new NameValueCollection();
-                nvc.Add("_", DateTime.Now.Ticks.ToString());
+                var apiResult = await _lowLevelApiClient.ServerGetStatusAsync(token);
+                return MapOrFail(apiResult, (dto) => ServerStatusMapper.MapFromDto(dto));
 
-                var url = "server/status" + nvc.ToQueryString();
-                using (var response = await GetHttpClient().GetAsync(url, token))
-                {
-                    var dto = await HandleResponse<ServerStatusDto>(response);
-                    var result = ServerStatusMapper.MapFromDto(dto);
-                    return result;
-
-                }
-            }, TimeSpan.FromSeconds(20), cancellationToken);
-        }
-
-        /// <summary>
-        /// Download file from server
-        /// </summary>
-        /// <param name="apiSession">api session</param>
-        /// <param name="remoteFilePath">Path to the remote file. Like /some/folder/file.txt </param>
-        /// <param name="streamToWriteTo">stream for writing. You should dispose the stream by yourself</param>
-        /// <param name="cancellationToken">cancellation token</param>
-        /// <returns>returns file info</returns>
-        public async Task<DownloadFileInfo> DownloadFileAsync(ApiSession apiSession, string remoteFilePath, Stream streamToWriteTo, CancellationToken cancellationToken)
-        {
-            if (apiSession == null)
-            {
-                throw new ArgumentNullException(nameof(apiSession));
-            }
-
-            DownloadFileInfo fileInfo = null;
-            await DownloadFileAsync(apiSession, remoteFilePath, (fi) => { fileInfo = fi; return true; }, streamToWriteTo, cancellationToken);
-            return fileInfo;
-        }
-        /// <summary>
-        /// Download file from server
-        /// </summary>
-        /// <param name="apiSession">api session</param>
-        /// <param name="remoteFilePath"> Path to the remote file. Like /some/folder/file.txt </param>
-        /// <param name="handleFile">delegate to check file info before accessing to the file stream</param>
-        /// <param name="streamToWriteTo">stream for writing. Writing will be executed only if handleFile delegate returns true</param>
-        /// <param name="cancellationToken"></param>
-        /// <returns></returns>
-        public async Task DownloadFileAsync(ApiSession apiSession, string remoteFilePath, Func<DownloadFileInfo, bool> handleFile, Stream streamToWriteTo, CancellationToken cancellationToken)
-        {
-            if (apiSession == null)
-            {
-                throw new ArgumentNullException(nameof(apiSession));
-            }
-
-            var spaceName = apiSession.SpaceName;
-            var nvc = new NameValueCollection();
-            nvc.Add("_", DateTime.Now.Ticks.ToString());
-            var url = UrlHelper.JoinUrl("space", spaceName, "files", remoteFilePath) + nvc.ToQueryString();
-            // it's necessary to add HttpCompletionOption.ResponseHeadersRead to disable caching
-            using (HttpResponseMessage response = await GetHttpClient()
-                .SendAsync(BuildHttpRequestMessage(HttpMethod.Get, url, null, apiSession), HttpCompletionOption.ResponseHeadersRead, cancellationToken))
-                if (response.IsSuccessStatusCode)
-                {
-                    using (Stream streamToReadFrom = await response.Content.ReadAsStreamAsync())
-                    {
-                        var contentDisposition = response.Content.Headers.ContentDisposition;
-                        DownloadFileInfo dfi = null;
-                        if (contentDisposition != null)
-                        {
-                            dfi = new DownloadFileInfo
-                            {
-                                // need to fix double quotes, that may come from server response
-                                // FileNameStar contains file name encoded in UTF8
-                                FileName = (contentDisposition.FileNameStar ?? contentDisposition.FileName).TrimStart('\"').TrimEnd('\"')
-                            };
-                        }
-                        var contentLength = response.Content.Headers.ContentLength;
-                        var fileProgress = new FileProgress(dfi.FileName, contentLength.Value);
-                        fileProgress.StateChanged += DownloadProgress_StateChanged;
-
-                        var bufferSize = 4096;
-                        if (handleFile(dfi))
-                        {
-
-                            var buffer = new byte[bufferSize];
-                            var size = contentLength.Value;
-                            var processed = 0;
-                            var lastUpdate = DateTime.MinValue;
-
-                            fileProgress.ChangeState(FileProgressState.Starting);
-
-                            while (true)
-                            {
-                                // cancel download if cancellation token triggered
-                                if (cancellationToken.IsCancellationRequested)
-                                {
-                                    fileProgress.ChangeState(FileProgressState.Cancelled);
-                                    throw new OperationCanceledException();
-                                }
-
-                                var length = await streamToReadFrom.ReadAsync(buffer, 0, buffer.Length);
-                                if (length <= 0) break;
-                                await streamToWriteTo.WriteAsync(buffer, 0, length);
-                                processed += length;
-                                if (DateTime.Now - lastUpdate > TimeSpan.FromMilliseconds(250))
-                                {
-                                    fileProgress.SetProcessedBytes(processed);
-                                    fileProgress.ChangeState(FileProgressState.Processing);
-                                    lastUpdate = DateTime.Now;
-                                }
-
-                            }
-
-                            fileProgress.ChangeState(FileProgressState.Finishing);
-
-                        }
-
-                    }
-                }
-                else
-                {
-                    // TODO: check
-                    await HandleErrorResponse(response);
-
-                }
-
-
-        }
-
-        /// <summary>
-        /// Uploads file to the server 
-        /// </summary>
-        /// <param name="apiSession">api session</param>
-        /// <param name="localFilePath">path to the local file</param>
-        /// <param name="destFolderPath">detination folder like /path/to/folder </param>
-        /// <param name="cancellationToken">cancellation token</param>
-        /// <param name="overwriteFileifExists">overwrite file</param>
-        /// <returns></returns>
-        public async Task UploadFileAsync(ApiSession apiSession, string localFilePath, string destFolderPath, CancellationToken cancellationToken, bool overwriteFileifExists = false)
-        {
-            if (apiSession == null)
-            {
-                throw new ArgumentNullException(nameof(apiSession));
-            }
-
-            if (!File.Exists(localFilePath))
-                throw new FileNotFoundException(string.Format("File '{0}' not found", localFilePath));
-            var fileSize = new System.IO.FileInfo(localFilePath).Length;
-            var fileName = Path.GetFileName(localFilePath);
-            using (var fsSource = new FileStream(localFilePath, FileMode.Open, FileAccess.Read))
-            {
-                await UploadFileAsync(apiSession, fsSource, fileName, fileSize, destFolderPath, cancellationToken, overwriteFileifExists);
-                return;
-            }
-
-        }
-
-
-        /// <summary>
-        /// Uploads local file to the server folder. 
-        /// </summary>
-        /// <param name="apiSession">api session</param>
-        /// <param name="localFilePath">path to the local file</param>
-        /// <param name="destFolderPath">destination folder like /path/to/folder </param>
-        /// <param name="destFileName">destination filename. If it's empty then original file name will be used</param>
-        /// <param name="cancellationToken">cancellation token</param>
-        /// <param name="overwriteFileifExists">overwrite file</param>
-        /// <returns></returns>
-        public async Task UploadFileAsync(ApiSession apiSession, string localFilePath, string destFolderPath, string destFileName, CancellationToken cancellationToken, bool overwriteFileifExists = false)
-        {
-            if (apiSession == null)
-            {
-                throw new ArgumentNullException(nameof(apiSession));
-            }
-
-            if (!File.Exists(localFilePath))
-            {
-                throw new FileNotFoundException(string.Format("File '{0}' not found", localFilePath));
-            }
-            var fileName = String.IsNullOrWhiteSpace(destFileName) ? Path.GetFileName(localFilePath) : destFileName;
-            var fileSize = new FileInfo(localFilePath).Length;
-            using (var fsSource = new FileStream(localFilePath, FileMode.Open, FileAccess.Read))
-            {
-                await UploadFileAsync(apiSession, fsSource, fileName, fileSize, destFolderPath, cancellationToken, overwriteFileifExists);
-                return;
-            }
-
-        }
-
-
-        protected HttpRequestMessage BuildHttpRequestMessage(HttpMethod httpMethod, string url, HttpContent content, ApiSession apiSession)
-        {
-            var requestMessage = new HttpRequestMessage()
-            {
-                Content = content,
-                Method = httpMethod,
-                RequestUri = new Uri(url, UriKind.Relative)
-            };
-            if (apiSession != null && !apiSession.IsAnonymous && !apiSession.IsClosed)
-            {
-                requestMessage.Headers.Add(ApiSession.AuthHeaderName, apiSession.AuthToken);
-            }
-            return requestMessage;
-        }
-
-
-        /// <summary>
-        /// Upload file stream to the server
-        /// </summary>
-        /// <param name="apiSession">api session</param>
-        /// <param name="inputStream">stream for read from</param>
-        /// <param name="fileName">file name</param>
-        /// <param name="fileSize">file size in bytes</param>
-        /// <param name="destFolderPath">destination folder like /path/to/folder </param>
-        /// <param name="cancellationToken">cancellation tokern</param>
-        /// <param name="overwriteFileifExists"></param>
-        /// <returns></returns>
-        public async Task UploadFileAsync(ApiSession apiSession, Stream inputStream, string fileName, long fileSize, string destFolderPath, CancellationToken cancellationToken, bool overwriteFileifExists = false)
-        {
-            if (apiSession == null)
-            {
-                throw new ArgumentNullException(nameof(apiSession));
-            }
-
-            try
-            {
-                var spaceName = apiSession.SpaceName;
-                string boundary = "EasyMorphCommandClient--------" + Guid.NewGuid().ToString("N");
-                string url = UrlHelper.JoinUrl("space", spaceName, "files", destFolderPath);
-
-                using (var content = new MultipartFormDataContent(boundary))
-                {
-                    var downloadProgress = new FileProgress(fileName, fileSize);
-                    downloadProgress.StateChanged += DownloadProgress_StateChanged;
-                    using (cancellationToken.Register(() => downloadProgress.ChangeState(FileProgressState.Cancelled)))
-                    {
-                        using (var streamContent = new ProgressStreamContent(inputStream, downloadProgress))
-                        {
-                            content.Add(streamContent, "files", Path.GetFileName(fileName));
-
-                            var requestMessage = BuildHttpRequestMessage(overwriteFileifExists ? HttpMethod.Put : HttpMethod.Post, url, content, apiSession);
-                            using (requestMessage)
-                            {
-                                using (var response = await GetHttpClient().SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, cancellationToken))
-                                {
-                                    await HandleResponse(response);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            catch (Exception ex)
-            when (ex.InnerException != null && ex.InnerException is WebException)
-            {
-                var einner = ex.InnerException as WebException;
-                if (einner.Status == WebExceptionStatus.ConnectionClosed)
-                    throw new MorphApiNotFoundException("Specified folder not found");
-
-            }
-        }
-
-        private void DownloadProgress_StateChanged(object sender, FileEventArgs e)
-        {
-            if (FileProgress != null)
-            {
-                FileProgress(this, e);
-            }
-
-        }
-
-
-        protected async Task<T> GetDataWithCancelAfter<T>(Func<CancellationToken, Task<T>> action, TimeSpan timeout,  CancellationToken cancellationToken)
-        {
-            using (var linkedTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken))
-            {                                
-                linkedTokenSource.CancelAfter(timeout);
-                try
-                {
-                    return await action(linkedTokenSource.Token);
-                }
-
-                catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested && linkedTokenSource.IsCancellationRequested)
-                {
-                    throw new Exception($"Can't connect to host {_apiHost}.  Operation timeout ({timeout})");
-                }
-            }
+            }, cancellationToken, OperationType.SessionOpenAndRelated);
         }
 
         public async Task<SpacesEnumerationList> GetSpacesListAsync(CancellationToken cancellationToken)
         {
-            return await GetDataWithCancelAfter(async (token) =>
+            return await Wrapped(async (token) =>
             {
-                var nvc = new NameValueCollection();
-                nvc.Add("_", DateTime.Now.Ticks.ToString());
-                var url = "spaces/list" + nvc.ToQueryString();
-                using (var response = await GetHttpClient().GetAsync(url, token))
-                {
-                    var dto = await HandleResponse<SpacesEnumerationDto>(response);
-                    return SpacesEnumerationMapper.MapFromDto(dto);
-                }
-            }, TimeSpan.FromSeconds(20), cancellationToken);
+                var apiResult = await _lowLevelApiClient.SpacesGetListAsync(token);
+                return MapOrFail(apiResult, (dto) => SpacesEnumerationMapper.MapFromDto(dto));
 
+            }, cancellationToken, OperationType.SessionOpenAndRelated);
         }
+
+        private void DownloadProgress_StateChanged(object sender, FileTransferProgressEventArgs e)
+        {
+            OnDataDownloadProgress?.Invoke(this, e);
+        }
+
+
+
 
 
         /// <summary>
@@ -594,25 +477,21 @@ namespace Morph.Server.Sdk.Client
         /// <param name="folderPath">folder path like /path/to/folder</param>
         /// <param name="cancellationToken"></param>
         /// <returns></returns>
-        public async Task<SpaceBrowsingInfo> BrowseSpaceAsync(ApiSession apiSession, string folderPath, CancellationToken cancellationToken)
+        public Task<SpaceBrowsingInfo> SpaceBrowseAsync(ApiSession apiSession, string folderPath, CancellationToken cancellationToken)
         {
             if (apiSession == null)
             {
                 throw new ArgumentNullException(nameof(apiSession));
             }
 
-            var spaceName = apiSession.SpaceName;
-            var nvc = new NameValueCollection();
-            nvc.Add("_", DateTime.Now.Ticks.ToString());
-
-            var url = UrlHelper.JoinUrl("space", spaceName, "browse", folderPath) + nvc.ToQueryString();
-            using (var response = await GetHttpClient().SendAsync(BuildHttpRequestMessage(HttpMethod.Get, url, null, apiSession), cancellationToken))
+            return Wrapped(async (token) =>
             {
-                var dto = await HandleResponse<SpaceBrowsingResponseDto>(response);
-                return SpaceBrowsingMapper.MapFromDto(dto);
+                var apiResult = await _lowLevelApiClient.WebFilesBrowseSpaceAsync(apiSession, folderPath, token);
+                return MapOrFail(apiResult, (dto) => SpaceBrowsingMapper.MapFromDto(dto));
 
-            }
+            }, cancellationToken, OperationType.ShortOperation);
         }
+
 
         /// <summary>
         /// Checks if file exists
@@ -622,22 +501,24 @@ namespace Morph.Server.Sdk.Client
         /// <param name="fileName">file name </param>
         /// <param name="cancellationToken"></param>
         /// <returns>Returns true if file exists.</returns>
-        public async Task<bool> FileExistsAsync(ApiSession apiSession, string serverFolder, string fileName, CancellationToken cancellationToken)
+        public Task<bool> SpaceFileExistsAsync(ApiSession apiSession, string serverFilePath, CancellationToken cancellationToken)
         {
             if (apiSession == null)
             {
                 throw new ArgumentNullException(nameof(apiSession));
             }
 
-            if (string.IsNullOrWhiteSpace(fileName))
-                throw new ArgumentException(nameof(fileName));
-            var browseResult = await this.BrowseSpaceAsync(apiSession, serverFolder, cancellationToken);
+            if (string.IsNullOrWhiteSpace(serverFilePath))
+            {
+                throw new ArgumentException(nameof(serverFilePath));
+            }
 
-            return browseResult.FileExists(fileName);
+            return Wrapped(async (token) =>
+            {
+                var apiResult = await _lowLevelApiClient.WebFileExistsAsync(apiSession, serverFilePath, token);
+                return MapOrFail(apiResult, (dto) => dto);
+            }, cancellationToken, OperationType.ShortOperation);
         }
-
-
-
 
 
         /// <summary>
@@ -648,48 +529,26 @@ namespace Morph.Server.Sdk.Client
         /// <param name="fileName">file name</param>
         /// <param name="cancellationToken"></param>
         /// <returns></returns>
-        public async Task DeleteFileAsync(ApiSession apiSession, string serverFolder, string fileName, CancellationToken cancellationToken)
+        public Task SpaceDeleteFileAsync(ApiSession apiSession, string serverFilePath, CancellationToken cancellationToken)
         {
             if (apiSession == null)
             {
                 throw new ArgumentNullException(nameof(apiSession));
             }
 
-            var spaceName = apiSession.SpaceName;
-            var url = UrlHelper.JoinUrl("space", spaceName, "files", serverFolder, fileName);
-
-            using (HttpResponseMessage response = await GetHttpClient().SendAsync(BuildHttpRequestMessage(HttpMethod.Delete, url, null, apiSession), cancellationToken))
+            return Wrapped(async (token) =>
             {
-                await HandleResponse(response);
-            }
+                var apiResult = await _lowLevelApiClient.WebFilesDeleteFileAsync(apiSession, serverFilePath, token);
+                FailIfError(apiResult);
+                return Task.FromResult(0);
+
+            }, cancellationToken, OperationType.ShortOperation);
 
         }
 
 
-        /// <summary>
-        /// Retrieves space status
-        /// </summary>
-        /// <param name="apiSession">api session</param>
-        /// <param name="cancellationToken"></param>
-        /// <returns></returns>
-        public async Task<SpaceStatus> GetSpaceStatusAsync(ApiSession apiSession, CancellationToken cancellationToken)
-        {
-            if (apiSession == null)
-            {
-                throw new ArgumentNullException(nameof(apiSession));
-            }
 
-            var spaceName = apiSession.SpaceName;
-            var url = UrlHelper.JoinUrl("spaces", spaceName, "status");
 
-            using (HttpResponseMessage response = await GetHttpClient().SendAsync(BuildHttpRequestMessage(HttpMethod.Get, url, null, apiSession), cancellationToken))
-            {
-                var dto = await HandleResponse<SpaceStatusDto>(response);
-                var entity = SpaceStatusMapper.MapFromDto(dto);
-                return entity;
-            }
-
-        }
 
 
         /// <summary>
@@ -699,7 +558,7 @@ namespace Morph.Server.Sdk.Client
         /// <param name="projectPath">project path like /path/to/project.morph </param>
         /// <param name="cancellationToken"></param>
         /// <returns></returns>
-        public async Task<ValidateTasksResult> ValidateTasksAsync(ApiSession apiSession, string projectPath, CancellationToken cancellationToken)
+        public Task<ValidateTasksResult> ValidateTasksAsync(ApiSession apiSession, string projectPath, CancellationToken cancellationToken)
         {
             if (apiSession == null)
             {
@@ -707,101 +566,24 @@ namespace Morph.Server.Sdk.Client
             }
 
             if (string.IsNullOrWhiteSpace(projectPath))
-                throw new ArgumentException(nameof(projectPath));
-            var spaceName = apiSession.SpaceName;
-            var url = "commands/validatetasks";
-            var request = new ValidateTasksRequestDto
             {
-                SpaceName = spaceName,
-                ProjectPath = projectPath
-            };
-            using (var response = await GetHttpClient().SendAsync(BuildHttpRequestMessage(HttpMethod.Post, url, JsonSerializationHelper.SerializeAsStringContent(request), apiSession), cancellationToken))
-            {
-
-                var dto = await HandleResponse<ValidateTasksResponseDto>(response);
-                var entity = ValidateTasksResponseMapper.MapFromDto(dto);
-                return entity;
-
+                throw new ArgumentException("projectPath is empty", nameof(projectPath));
             }
-        }
 
-
-
-
-        protected static async Task<string> internalGetAuthNonceAsync(HttpClient httpClient, CancellationToken cancellationToken)
-        {
-            var url = "auth/nonce";
-            using (var response = await httpClient.PostAsync(url, JsonSerializationHelper.SerializeAsStringContent(new GenerateNonceRequestDto()), cancellationToken))
+            return Wrapped(async (token) =>
             {
-                var dto = await HandleResponse<GenerateNonceResponseDto>(response);
-                return dto.Nonce;
-
-            }
-        }
-
-        protected async Task<string> internalAuthLoginAsync(string clientNonce, string serverNonce, string spaceName, string passwordHash, CancellationToken cancellationToken)
-        {
-            var url = "auth/login";
-            var requestDto = new LoginRequestDto
-            {
-                ClientSeed = clientNonce,
-                Password = passwordHash,
-                Provider = "Space",
-                UserName = spaceName,
-                RequestToken = serverNonce
-            };
-
-            using (var response = await GetHttpClient().PostAsync(url, JsonSerializationHelper.SerializeAsStringContent(requestDto), cancellationToken))
-            {
-                var responseDto = await HandleResponse<LoginResponseDto>(response);
-                return responseDto.Token;
-            }
-        }
-        protected static async Task<string> internalAuthExternalWindowAsync(HttpClient httpClient, string spaceName, string serverNonce, CancellationToken cancellationToken)
-        {
-            var url = "auth/external/windows";
-            var requestDto = new WindowsExternalLoginRequestDto
-            {
-                RequestToken = serverNonce,
-                SpaceName = spaceName
-            };
-
-            using (var response = await httpClient.PostAsync(url, JsonSerializationHelper.SerializeAsStringContent(requestDto), cancellationToken))
-            {
-                var responseDto = await HandleResponse<LoginResponseDto>(response);
-                return responseDto.Token;
-            }
-        }
-
-
-        protected async Task<ApiSession> OpenSessionViaWindowsAuthenticationAsync(string spaceName, CancellationToken cancellationToken)
-        {
-            if (string.IsNullOrEmpty(spaceName))
-            {
-                throw new ArgumentException("Space name is not set", nameof(spaceName));
-            }
-            // handler will be disposed automatically
-            HttpClientHandler aHandler = new HttpClientHandler()
-            {
-                ClientCertificateOptions = ClientCertificateOption.Automatic,
-                UseDefaultCredentials = true
-            };
-
-            using (var httpClient = ConstructHttpClient(_apiHost, aHandler))
-            {
-
-                var serverNonce = await internalGetAuthNonceAsync(httpClient, cancellationToken);
-                var token = await internalAuthExternalWindowAsync(httpClient, spaceName, serverNonce, cancellationToken);
-
-                return new ApiSession(this)
+                var request = new ValidateTasksRequestDto
                 {
-                    AuthToken = token,
-                    IsAnonymous = false,
-                    IsClosed = false,
-                    SpaceName = spaceName
+                    SpaceName = apiSession.SpaceName,
+                    ProjectPath = projectPath
                 };
-            }
+                var apiResult = await _lowLevelApiClient.ValidateTasksAsync(apiSession, request, token);
+                return MapOrFail(apiResult, (dto) => ValidateTasksResponseMapper.MapFromDto(dto));
+
+            }, cancellationToken, OperationType.ShortOperation);
+
         }
+
 
 
         /// <summary>
@@ -823,161 +605,174 @@ namespace Morph.Server.Sdk.Client
 
             using (var linkedTokenSource = CancellationTokenSource.CreateLinkedTokenSource(ct))
             {
-                // no more than 20 sec for session opening
-                var timeout = TimeSpan.FromSeconds(20);
+                
+                var timeout = clientConfiguration.SessionOpenTimeout;
                 linkedTokenSource.CancelAfter(timeout);
                 var cancellationToken = linkedTokenSource.Token;
                 try
                 {
-                    var spacesListResult = await GetSpacesListAsync(cancellationToken);
+                    var spacesListApiResult = await _lowLevelApiClient.SpacesGetListAsync(cancellationToken);
+                    var spacesListResult = MapOrFail(spacesListApiResult, (dto) => SpacesEnumerationMapper.MapFromDto(dto));
+
                     var desiredSpace = spacesListResult.Items.FirstOrDefault(x => x.SpaceName.Equals(openSessionRequest.SpaceName, StringComparison.OrdinalIgnoreCase));
                     if (desiredSpace == null)
                     {
                         throw new Exception($"Server has no space '{openSessionRequest.SpaceName}'");
                     }
-                    // space access restriction is supported since server 3.9.2
-                    // for previous versions api will return SpaceAccessRestriction.NotSupported 
-                    // a special fall-back mechanize need to be used to open session in such case
-                    switch (desiredSpace.SpaceAccessRestriction)
-                    {
-                        // anon space
-                        case SpaceAccessRestriction.None:
-                            return ApiSession.Anonymous(openSessionRequest.SpaceName);
+                    var session = await MorphServerAuthenticator.OpenSessionMultiplexedAsync(desiredSpace,
+                        new OpenSessionAuthenticatorContext(
+                            _lowLevelApiClient,
+                            this as ICanCloseSession,
+                            (handler) => ConstructRestApiClient(BuildHttpClient(clientConfiguration, handler))),
+                        openSessionRequest, cancellationToken);
 
-                        // password protected space                
-                        case SpaceAccessRestriction.BasicPassword:
-                            return await OpenSessionViaSpacePasswordAsync(openSessionRequest.SpaceName, openSessionRequest.Password, cancellationToken);
-
-                        // windows authentication
-                        case SpaceAccessRestriction.WindowsAuthentication:
-                            return await OpenSessionViaWindowsAuthenticationAsync(openSessionRequest.SpaceName, cancellationToken);
-
-                        // fallback
-                        case SpaceAccessRestriction.NotSupported:
-
-                            //  if space is public or password is not set - open anon session
-                            if (desiredSpace.IsPublic || string.IsNullOrWhiteSpace(openSessionRequest.Password))
-                            {
-                                return ApiSession.Anonymous(openSessionRequest.SpaceName);
-                            }
-                            // otherwise open session via space password
-                            else
-                            {
-                                return await OpenSessionViaSpacePasswordAsync(openSessionRequest.SpaceName, openSessionRequest.Password, cancellationToken);
-                            }
-
-                        default:
-                            throw new Exception("Space access restriction method is not supported by this client.");
-                    }
+                    return session;
                 }
                 catch (OperationCanceledException) when (!ct.IsCancellationRequested && linkedTokenSource.IsCancellationRequested)
                 {
-                    throw new Exception($"Can't connect to host {_apiHost}.  Operation timeout ({timeout})");
+                    throw new Exception($"Can't connect to host {clientConfiguration.ApiUri}.  Operation timeout ({timeout})");
                 }
             }
 
         }
 
-        /// <summary>
-        /// Open a new authenticated session via password
-        /// </summary>
-        /// <param name="spaceName">space name</param>
-        /// <param name="password">space password</param>
-        /// <param name="cancellationToken"></param>
-        /// <returns></returns>
-        public async Task<ApiSession> OpenSessionViaSpacePasswordAsync(string spaceName, string password, CancellationToken cancellationToken)
+
+
+
+        public Task<SpaceTasksList> GetTasksListAsync(ApiSession apiSession, CancellationToken cancellationToken)
         {
-            if (string.IsNullOrEmpty(spaceName))
+            return Wrapped(async (token) =>
             {
-                throw new ArgumentException("Space name is not set.", nameof(spaceName));
-            }
+                var apiResult = await _lowLevelApiClient.GetTasksListAsync(apiSession, token);
+                return MapOrFail(apiResult, (dto) => SpaceTasksListsMapper.MapFromDto(dto));
 
-            if (password == null)
-            {
-                throw new ArgumentNullException(nameof(password));
-            }
+            }, cancellationToken, OperationType.ShortOperation);
 
-            var passwordHash = CryptographyHelper.CalculateSha256HEX(password);
-            var serverNonce = await internalGetAuthNonceAsync(GetHttpClient(), cancellationToken);
-            var clientNonce = ConvertHelper.ByteArrayToHexString(CryptographyHelper.GenerateRandomSequence(16));
-            var all = passwordHash + serverNonce + clientNonce;
-            var allHash = CryptographyHelper.CalculateSha256HEX(all);
-
-
-            var token = await internalAuthLoginAsync(clientNonce, serverNonce, spaceName, allHash, cancellationToken);
-
-            return new ApiSession(this)
-            {
-                AuthToken = token,
-                IsAnonymous = false,
-                IsClosed = false,
-                SpaceName = spaceName
-            };
         }
 
-        /// <summary>
-        /// Close opened session
-        /// </summary>
-        /// <param name="apiSession">api session</param>
-        /// <param name="cancellationToken"></param>
-        /// <returns></returns>
-        public async Task CloseSessionAsync(ApiSession apiSession, CancellationToken cancellationToken)
+        public Task<SpaceTask> GetTaskAsync(ApiSession apiSession, Guid taskId, CancellationToken cancellationToken)
+        {
+            return Wrapped(async (token) =>
+            {
+                var apiResult = await _lowLevelApiClient.GetTaskAsync(apiSession, taskId, token);
+                return MapOrFail(apiResult, (dto) => SpaceTaskMapper.MapFull(dto));
+
+            }, cancellationToken, OperationType.ShortOperation);
+        }
+
+
+        public Task<ServerStreamingData> SpaceOpenStreamingDataAsync(ApiSession apiSession, string remoteFilePath, CancellationToken cancellationToken)
         {
             if (apiSession == null)
             {
                 throw new ArgumentNullException(nameof(apiSession));
             }
-            if (apiSession.IsClosed)
-                return;
-            if (apiSession.IsAnonymous)
-                return;
 
-
-            var url = "auth/logout";
-
-            using (var response = await GetHttpClient().SendAsync(BuildHttpRequestMessage(HttpMethod.Post, url, null, apiSession), cancellationToken))
+            return Wrapped(async (token) =>
             {
+                Action<FileTransferProgressEventArgs> onReceiveProgress = (data) =>
+                {
+                    OnDataDownloadProgress?.Invoke(this, data);
+                };
+                var apiResult = await _lowLevelApiClient.WebFilesDownloadFileAsync(apiSession, remoteFilePath, onReceiveProgress, token);
+                return MapOrFail(apiResult, (data) => new ServerStreamingData(data.Stream, data.FileName, data.FileSize)
+                );
 
-                await HandleResponse(response);
-
-            }
-
-
-        }
-
-        public async Task<SpaceTasksList> GetTasksListAsync(ApiSession apiSession, CancellationToken cancellationToken)
-        {
-            var nvc = new NameValueCollection();
-            nvc.Add("_", DateTime.Now.Ticks.ToString());
-            var url = UrlHelper.JoinUrl("space", apiSession.SpaceName, "tasks");
-            using (var response = await GetHttpClient().SendAsync(BuildHttpRequestMessage(HttpMethod.Get, url, null, apiSession), cancellationToken))
-            {
-                var dto = await HandleResponse<SpaceTasksListDto>(response);
-                return SpaceTasksListsMapper.MapFromDto(dto);
-            }
-        }
-
-        public async Task<SpaceTask> GetTaskAsync(ApiSession apiSession, Guid taskId, CancellationToken cancellationToken)
-        {
-            var nvc = new NameValueCollection();
-            nvc.Add("_", DateTime.Now.Ticks.ToString());
-            var url = UrlHelper.JoinUrl("space", apiSession.SpaceName, "tasks", taskId.ToString("D"));
-            using (var response = await GetHttpClient().SendAsync(BuildHttpRequestMessage(HttpMethod.Get, url, null, apiSession), cancellationToken))
-            {
-                var dto = await HandleResponse<SpaceTaskDto>(response);
-                return SpaceTaskMapper.MapFull(dto);
-            }
+            }, cancellationToken, OperationType.FileTransfer);
         }
 
         public void Dispose()
         {
-            if (_httpClient != null)
+            lock (_lock)
             {
-                _httpClient.Dispose();
-                _httpClient = null;
+                if (_disposed)
+                    return;
+                if (_lowLevelApiClient != null)                
+                    _lowLevelApiClient.Dispose();
+                
+                Array.ForEach(_ctsForDisposing.ToArray(), z => z.Dispose());
+                _disposed = true;
             }
+        }
+
+        public Task<Stream> SpaceOpenDataStreamAsync(ApiSession apiSession, string remoteFilePath, CancellationToken cancellationToken)
+        {
+            if (apiSession == null)
+            {
+                throw new ArgumentNullException(nameof(apiSession));
+            }
+
+            return Wrapped(async (token) =>
+            {
+                Action<FileTransferProgressEventArgs> onReceiveProgress = (data) =>
+                {
+                    OnDataDownloadProgress?.Invoke(this, data);
+                };
+                var apiResult = await _lowLevelApiClient.WebFilesDownloadFileAsync(apiSession, remoteFilePath, onReceiveProgress, token);
+                return MapOrFail(apiResult, (data) => data.Stream);
+
+            }, cancellationToken, OperationType.FileTransfer);
+        }
+
+        public Task<ContiniousStreamingConnection> SpaceUploadContiniousStreamingAsync(ApiSession apiSession, SpaceUploadContiniousStreamRequest continiousStreamRequest, CancellationToken cancellationToken)
+        {
+            if (apiSession == null)
+            {
+                throw new ArgumentNullException(nameof(apiSession));
+            }
+
+            if (continiousStreamRequest == null)
+            {
+                throw new ArgumentNullException(nameof(continiousStreamRequest));
+            }
+
+            return Wrapped(async (token) =>
+            {
+                var apiResult =
+                  continiousStreamRequest.OverwriteExistingFile ?
+                    await _lowLevelApiClient.WebFilesOpenContiniousPutStreamAsync(apiSession, continiousStreamRequest.ServerFolder, continiousStreamRequest.FileName, token) :
+                    await _lowLevelApiClient.WebFilesOpenContiniousPostStreamAsync(apiSession, continiousStreamRequest.ServerFolder, continiousStreamRequest.FileName, token);
+
+                var connection = MapOrFail(apiResult, c => c);
+                return new ContiniousStreamingConnection(connection);
+
+            }, cancellationToken, OperationType.FileTransfer);
+            
+        }
+
+        public Task SpaceUploadDataStreamAsync(ApiSession apiSession, SpaceUploadDataStreamRequest spaceUploadFileRequest, CancellationToken cancellationToken)
+        {
+            if (apiSession == null)
+            {
+                throw new ArgumentNullException(nameof(apiSession));
+            }
+
+            if (spaceUploadFileRequest == null)
+            {
+                throw new ArgumentNullException(nameof(spaceUploadFileRequest));
+            }
+
+            return Wrapped(async (token) =>
+            {
+                Action<FileTransferProgressEventArgs> onSendProgress = (data) =>
+                {
+                    OnDataUploadProgress?.Invoke(this, data);
+                };
+                var sendStreamData = new SendFileStreamData(
+                    spaceUploadFileRequest.DataStream, 
+                    spaceUploadFileRequest.FileName, 
+                    spaceUploadFileRequest.FileSize);
+                var apiResult =
+                    spaceUploadFileRequest.OverwriteExistingFile ?
+                    await _lowLevelApiClient.WebFilesPutFileStreamAsync(apiSession, spaceUploadFileRequest.ServerFolder, sendStreamData, onSendProgress, token) :
+                    await _lowLevelApiClient.WebFilesPostFileStreamAsync(apiSession, spaceUploadFileRequest.ServerFolder, sendStreamData, onSendProgress, token);
+                FailIfError(apiResult);
+                return Task.FromResult(0);
+
+            }, cancellationToken, OperationType.FileTransfer);
         }
     }
 
-
 }
+
+

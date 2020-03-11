@@ -10,23 +10,6 @@ namespace Morph.Server.Sdk.Model
     {
         public string SpaceName { get; internal set; }
         public bool IsPublic { get; internal set; }
-        public IReadOnlyList<SpacePermission> SpacePermissions { get; internal set; }
-    }
-
-
-    public enum SpacePermission
-    {
-        TasksList,
-        TaskLogView,
-        TaskLogDeletion,
-        TaskCreate,
-        TaskModify,
-        TaskExecution,
-        TaskDeletion,
-
-        FilesList,
-        FileUpload,
-        FileDownload,
-        FileDeletion,
+        public IReadOnlyList<UserSpacePermission> UserPermissions { get; internal set; }
     }
 }

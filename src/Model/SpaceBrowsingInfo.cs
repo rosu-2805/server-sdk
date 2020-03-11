@@ -13,8 +13,7 @@ namespace Morph.Server.Sdk.Model
     {
         public ulong FreeSpaceBytes { get; set; }
         public string SpaceName { get; set; }
-        public WebFilesAccesMode WebFilesAccesMode { get; set; }
-
+        
         public List<SpaceFolderInfo> Folders { get; set; }        
         public List<SpaceFileInfo> Files { get; set; }
         public List<SpaceNavigation> NavigationChain { get; set; }
@@ -31,20 +30,7 @@ namespace Morph.Server.Sdk.Model
            return  Files.Any(x => String.Equals(fileName, x.Name, StringComparison.OrdinalIgnoreCase));
         }
 
-        public bool CanDownloadFiles
-        {
-            get
-            {
-                return WebFilesAccesMode == WebFilesAccesMode.FullAccess || WebFilesAccesMode == WebFilesAccesMode.OnlyDownload;
-            }
-        }
-        public bool CanUploadFiles
-        {
-            get
-            {
-                return WebFilesAccesMode == WebFilesAccesMode.FullAccess || WebFilesAccesMode == WebFilesAccesMode.OnlyUpload;
-            }
-        }
+
 
     }
 

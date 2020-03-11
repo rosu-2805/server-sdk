@@ -16,7 +16,8 @@ namespace Morph.Server.Sdk.Mappers
             {
                 StatusMessage = dto.StatusMessage,
                 Version = Version.Parse(dto.Version),
-                StatusCode = Parse(dto.StatusCode)
+                StatusCode = Parse(dto.StatusCode),
+                InstanceRunId = !String.IsNullOrWhiteSpace(dto.InstanceRunId)? Guid.Parse(dto.InstanceRunId) : new Guid?()
             };
         }
 

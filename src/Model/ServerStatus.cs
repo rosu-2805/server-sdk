@@ -20,6 +20,11 @@ namespace Morph.Server.Sdk.Model
         /// Server version
         /// </summary>
         public Version Version { get; set; }
+
+        /// <summary>
+        /// Server Instance RunId
+        /// </summary>
+        public Guid? InstanceRunId { get; set; } 
     }
 
 

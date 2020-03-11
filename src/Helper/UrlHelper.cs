@@ -1,11 +1,11 @@
 ﻿using System;
 using System.Linq;
 
-namespace Morph.Server.Sdk.Client
+namespace Morph.Server.Sdk.Helper
 {
-    internal static class UrlHelper
+    public static class UrlHelper
     {
-        internal static string JoinUrl(params string[] urlParts)
+        public static string JoinUrl(params string[] urlParts)
         {
             var result = string.Empty;
             for (var i = 0; i < urlParts.Length; i++)

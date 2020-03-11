@@ -1,4 +1,5 @@
-﻿using Morph.Server.Sdk.Dto.Commands;
+﻿using Morph.Server.Sdk.Dto;
+using Morph.Server.Sdk.Dto.Commands;
 using Morph.Server.Sdk.Exceptions;
 using System;
 using System.Collections.Generic;
@@ -11,12 +12,18 @@ using System.Threading.Tasks;
 
 namespace Morph.Server.Sdk.Helper
 {
-    internal static class JsonSerializationHelper
+    public static class JsonSerializationHelper
     {
         public static T Deserialize<T>(string input)
+            where T: new()
         {
             try
             {
+                var tType = typeof(T);
+                if ( tType == typeof(NoContentResult))
+                {
+                    return new T();
+                }
                 var serializer = new DataContractJsonSerializer(typeof(T));
                 var d = Encoding.UTF8.GetBytes(input);
                 using (var ms = new MemoryStream(d))
@@ -43,11 +50,6 @@ namespace Morph.Server.Sdk.Helper
 
         }
 
-        public static StringContent SerializeAsStringContent<T>(T obj)
-        {
-            var serialized = Serialize(obj);
-            var result = new StringContent(serialized, Encoding.UTF8, "application/json");
-            return result;
-        }
+        
     }
 }
