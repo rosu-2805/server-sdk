@@ -15,7 +15,7 @@ namespace Morph.Server.Sdk.Model
 
     public sealed class SpacesLookupResult : LookupResultItem<SpaceEnumerationItem>
     {
-
+        public string SpaceName { get; set; }
     }
 
 }

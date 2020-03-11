@@ -22,8 +22,6 @@ namespace Morph.Server.Sdk.Dto
     [DataContract]
     internal class LookupResultItemDto<T>
     {
-        [DataMember(Name = "spaceName")]
-        public string SpaceName { get; set; }
 
         [DataMember(Name = "error")]
         public Error Error { get; set; }
@@ -34,6 +32,7 @@ namespace Morph.Server.Sdk.Dto
     [DataContract]
     internal class SpacesLookupResultDto: LookupResultItemDto<SpaceEnumerationItemDto>
     {
-
+        [DataMember(Name = "spaceName")]
+        public string SpaceName { get; set; }
     }
 }
