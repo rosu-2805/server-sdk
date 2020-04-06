@@ -57,6 +57,12 @@ namespace Morph.Server.Sdk.Client
 
         }
 
+        public Task<ApiResult<SpacesLookupResponseDto>> SpacesLookupAsync(SpacesLookupRequestDto requestDto, CancellationToken cancellationToken)
+        {
+            var url = "spaces/list/lookup";
+            return apiClient.PostAsync<SpacesLookupRequestDto,SpacesLookupResponseDto>(url, requestDto,null, new HeadersCollection(), cancellationToken);
+        }
+
         public Task<ApiResult<SpaceTaskDto>> GetTaskAsync(ApiSession apiSession, Guid taskId, CancellationToken cancellationToken)
         {
             if (apiSession == null)
