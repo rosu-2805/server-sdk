@@ -639,7 +639,7 @@ namespace Morph.Server.Sdk.Client
                                 if (lookup.Error != null)
                                 {
                                     // seems that space not found.
-                                    throw new Exception($"Space lookup failed. {lookup.Error.message}");
+                                    throw new Exception($"Unable to open session. {lookup.Error.message}");
                                 }
                                 else
                                 {
@@ -657,7 +657,7 @@ namespace Morph.Server.Sdk.Client
 
                     if (desiredSpace == null)
                     {
-                        throw new Exception($"Server has no space '{openSessionRequest.SpaceName}'");
+                        throw new Exception($"Unable to open session. Server has no space '{openSessionRequest.SpaceName}'");
                     }
                     var session = await MorphServerAuthenticator.OpenSessionMultiplexedAsync(desiredSpace,
                         new OpenSessionAuthenticatorContext(
