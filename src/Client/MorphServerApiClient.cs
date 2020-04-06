@@ -15,6 +15,7 @@ using System.IO;
 using Morph.Server.Sdk.Model.InternalModels;
 using Morph.Server.Sdk.Dto;
 using System.Collections.Concurrent;
+using Morph.Server.Sdk.Exceptions;
 
 namespace Morph.Server.Sdk.Client
 {
@@ -149,7 +150,7 @@ namespace Morph.Server.Sdk.Client
 
             return client;
         }
-                     
+
 
         /// <summary>
         /// Start Task like "fire and forget"
@@ -191,7 +192,7 @@ namespace Morph.Server.Sdk.Client
                 throw new ObjectDisposedException(nameof(MorphServerApiClient));
             }
 
-            
+
             TimeSpan maxExecutionTime;
             switch (operationType)
             {
@@ -204,8 +205,8 @@ namespace Morph.Server.Sdk.Client
                 default: throw new NotImplementedException();
             }
 
-            
-            CancellationTokenSource derTokenSource =null;
+
+            CancellationTokenSource derTokenSource = null;
             try
             {
                 derTokenSource = CancellationTokenSource.CreateLinkedTokenSource(orginalCancellationToken);
@@ -243,7 +244,7 @@ namespace Morph.Server.Sdk.Client
                     }
                 }
             }
-            
+
         }
 
         private ConcurrentBag<CancellationTokenSource> _ctsForDisposing = new ConcurrentBag<CancellationTokenSource>();
@@ -363,7 +364,7 @@ namespace Morph.Server.Sdk.Client
         /// <param name="taskChangeModeRequest"></param>
         /// <param name="cancellationToken">cancellation token</param>
         /// <returns>Returns task status</returns>
-        public Task<SpaceTask> TaskChangeModeAsync(ApiSession apiSession, Guid taskId, TaskChangeModeRequest taskChangeModeRequest,  CancellationToken cancellationToken)
+        public Task<SpaceTask> TaskChangeModeAsync(ApiSession apiSession, Guid taskId, TaskChangeModeRequest taskChangeModeRequest, CancellationToken cancellationToken)
         {
             if (apiSession == null)
             {
@@ -457,6 +458,16 @@ namespace Morph.Server.Sdk.Client
             {
                 var apiResult = await _lowLevelApiClient.SpacesGetListAsync(token);
                 return MapOrFail(apiResult, (dto) => SpacesEnumerationMapper.MapFromDto(dto));
+
+            }, cancellationToken, OperationType.SessionOpenAndRelated);
+        }
+
+        public async Task<SpacesLookupResponse> SpacesLookupAsync(SpacesLookupRequest request, CancellationToken cancellationToken)
+        {
+            return await Wrapped(async (token) =>
+            {
+                var apiResult = await _lowLevelApiClient.SpacesLookupAsync(SpacesLookupMapper.ToDto(request), token);
+                return MapOrFail(apiResult, (dto) => SpacesLookupMapper.MapFromDto(dto));
 
             }, cancellationToken, OperationType.SessionOpenAndRelated);
         }
@@ -605,19 +616,48 @@ namespace Morph.Server.Sdk.Client
 
             using (var linkedTokenSource = CancellationTokenSource.CreateLinkedTokenSource(ct))
             {
-                
+
                 var timeout = clientConfiguration.SessionOpenTimeout;
                 linkedTokenSource.CancelAfter(timeout);
                 var cancellationToken = linkedTokenSource.Token;
                 try
                 {
+                    // tring to resolve space and space auth method.
+                    // Method 1. using get all spaces method
                     var spacesListApiResult = await _lowLevelApiClient.SpacesGetListAsync(cancellationToken);
-                    var spacesListResult = MapOrFail(spacesListApiResult, (dto) => SpacesEnumerationMapper.MapFromDto(dto));
+                    SpaceEnumerationItem desiredSpace = null;
+                    if (!spacesListApiResult.IsSucceed && spacesListApiResult.Error is MorphApiForbiddenException)
+                    {
+                        // space listing disabled has been disabled be server admin. 
+                        // Method 2. Using spaces lookup (new endpoint since next version of EM Server 4.3)
+                        var lookupApiResult = await _lowLevelApiClient.SpacesLookupAsync(new SpacesLookupRequestDto() { SpaceNames = { openSessionRequest.SpaceName } }, cancellationToken);
+                        desiredSpace = MapOrFail(lookupApiResult,
+                            (dto) =>
+                            {
+                                // response have at least 1 element with requested space.
+                                var lookup = dto.Values.First();
+                                if (lookup.Error != null)
+                                {
+                                    // seems that space not found.
+                                    throw new Exception($"Unable to open session. {lookup.Error.message}");
+                                }
+                                else
+                                {
+                                    // otherwise return space
+                                    return SpacesEnumerationMapper.MapItemFromDto(lookup.Data);
+                                }
+                            }
+                            );
+                    }
+                    else
+                    {
+                        var spacesListResult = MapOrFail(spacesListApiResult, (dto) => SpacesEnumerationMapper.MapFromDto(dto));
+                        desiredSpace = spacesListResult.Items.FirstOrDefault(x => x.SpaceName.Equals(openSessionRequest.SpaceName, StringComparison.OrdinalIgnoreCase));
+                    }
 
-                    var desiredSpace = spacesListResult.Items.FirstOrDefault(x => x.SpaceName.Equals(openSessionRequest.SpaceName, StringComparison.OrdinalIgnoreCase));
                     if (desiredSpace == null)
                     {
-                        throw new Exception($"Server has no space '{openSessionRequest.SpaceName}'");
+                        throw new Exception($"Unable to open session. Server has no space '{openSessionRequest.SpaceName}'");
                     }
                     var session = await MorphServerAuthenticator.OpenSessionMultiplexedAsync(desiredSpace,
                         new OpenSessionAuthenticatorContext(
@@ -687,9 +727,9 @@ namespace Morph.Server.Sdk.Client
             {
                 if (_disposed)
                     return;
-                if (_lowLevelApiClient != null)                
+                if (_lowLevelApiClient != null)
                     _lowLevelApiClient.Dispose();
-                
+
                 Array.ForEach(_ctsForDisposing.ToArray(), z => z.Dispose());
                 _disposed = true;
             }
@@ -737,7 +777,7 @@ namespace Morph.Server.Sdk.Client
                 return new ContiniousStreamingConnection(connection);
 
             }, cancellationToken, OperationType.FileTransfer);
-            
+
         }
 
         public Task SpaceUploadDataStreamAsync(ApiSession apiSession, SpaceUploadDataStreamRequest spaceUploadFileRequest, CancellationToken cancellationToken)
@@ -759,8 +799,8 @@ namespace Morph.Server.Sdk.Client
                     OnDataUploadProgress?.Invoke(this, data);
                 };
                 var sendStreamData = new SendFileStreamData(
-                    spaceUploadFileRequest.DataStream, 
-                    spaceUploadFileRequest.FileName, 
+                    spaceUploadFileRequest.DataStream,
+                    spaceUploadFileRequest.FileName,
                     spaceUploadFileRequest.FileSize);
                 var apiResult =
                     spaceUploadFileRequest.OverwriteExistingFile ?
