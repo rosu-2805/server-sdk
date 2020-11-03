@@ -1,4 +1,5 @@
 ﻿using Morph.Server.Sdk.Dto;
+using Morph.Server.Sdk.Dto.Errors;
 using Morph.Server.Sdk.Model;
 using System;
 using System.Linq;
@@ -11,12 +12,12 @@ namespace Morph.Server.Sdk.Mappers
         {
             return new SpacesEnumerationList()
             {
-                Items = dto.Values?.Select(Map)?.ToList()                
+                Items = dto.Values?.Select(MapItemFromDto)?.ToList()                
             };
         }
 
        
-        private static SpaceEnumerationItem Map(SpaceEnumerationItemDto dto)
+        public static SpaceEnumerationItem MapItemFromDto(SpaceEnumerationItemDto dto)
         {
             return new SpaceEnumerationItem
             {
@@ -38,4 +39,5 @@ namespace Morph.Server.Sdk.Mappers
             }
         }
     }
+
 }

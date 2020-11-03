@@ -6,10 +6,12 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Morph.Server.Sdk.Helper
 {
+    
     internal class ProgressStreamContent : HttpContent
     {
         private const int DefBufferSize = 4096;
@@ -32,7 +34,9 @@ namespace Morph.Server.Sdk.Helper
 
         protected override async Task SerializeToStreamAsync(Stream stream, TransportContext context)
         {
-            var buffer = new byte[_bufSize];
+            
+
+               var buffer = new byte[_bufSize];
             var size = _stream.Length;
             var processed = 0;
 
@@ -48,10 +52,9 @@ namespace Morph.Server.Sdk.Helper
                     await stream.WriteAsync(buffer, 0, length);
                     processed += length;                    
 
-                    if (DateTime.Now - _lastUpdate > TimeSpan.FromMilliseconds(250))
+                    if (DateTime.Now - _lastUpdate > TimeSpan.FromMilliseconds(500))
                     {
-                        _fileProgress.SetProcessedBytes(processed);
-                        _fileProgress.ChangeState(FileProgressState.Processing);
+                        _fileProgress.SetProcessedBytes(processed);                        
                         _lastUpdate = DateTime.Now;
                     }
                 }

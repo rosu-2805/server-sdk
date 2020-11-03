@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 namespace Morph.Server.Sdk.Dto.Errors
 {
     [DataContract]
-    internal class InnerError
+    public class InnerError
     {
         [DataMember]
         public string code { get; set; }

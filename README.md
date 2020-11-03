@@ -1,4 +1,4 @@
-## EasyMorph Sever .NET SDK
+## EasyMorph Server .NET SDK
 
 This library allows you to interact with EasyMorph Server from a .NET application.
 

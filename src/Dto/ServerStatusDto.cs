@@ -16,5 +16,7 @@ namespace Morph.Server.Sdk.Dto
         public string StatusMessage { get; set; }
         [DataMember(Name = "version")]
         public string Version { get; set; }
+        [DataMember(Name = "instanceRunId")]
+        public string InstanceRunId { get; set; }
     }
 }
