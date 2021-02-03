@@ -53,6 +53,7 @@ Session is valid for a limited period of time and may be closed by inactivity or
 
 ```MorphServerApiClient``` able to detect required authentication method automatically. 
 
+This sample shows how to construct client, open session, get data, close session and dispose client:
 
 ``` C#
     OpenSessionRequest openSessionRequest = new OpenSessionRequest
