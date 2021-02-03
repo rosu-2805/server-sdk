@@ -85,7 +85,7 @@ Pay attention, that setting ```ClientConfiguration.AutoDisposeClientOnSessionClo
 
 ###  Spaces API
 ##### List of all spaces
-This session free method returns an entire list of all Server Spaces. 
+This method returns an entire list of all Server Spaces. 
 ``` C#
     var result = await apiClient.GetSpacesListAsync(cancellationToken);
     foreach(space in result.Items){
