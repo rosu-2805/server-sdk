@@ -37,17 +37,17 @@ There is at least one predefined space named `Default`.
 Space names are case-insensitive.
 
 #### Sessions and Authentication
-Server Space can use such kinds of authentication methods:
-* Anonymous
-* Password Protected
-* Active Directory
+Server Space can use one of the authentication method (User access restriction):
+* Anonymous (No restriction)
+* Space Password 
+* Windows Authentication
   
 
-Accessing to any Space resource requires a valid ```ApiSession``` entity. Basically, there are two types of session: anonymous and real.
+Accessing to any Space resource requires a valid ```ApiSession``` entity. Basically, there are two types of session: anonymous and a real one.
 * *Anonymous* - just contain a Space name, isn't really opening. 
 Anonymous session is valid to access spaces with no protection.
-* *Real session* - session is actually created at the Server when a user sends a valid credentials. 
-It is automatically renewed each time when you're using this session to access Server.
+* *Real session* - session is actually created at the Server when user sends a valid credentials. 
+It is automatically renewed each time when session used to interact with Server.
 Session is valid for a limited period of time and may be closed by inactivity or manually.
 
 
