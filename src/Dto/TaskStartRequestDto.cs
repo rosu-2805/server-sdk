@@ -10,6 +10,8 @@ namespace Morph.Server.Sdk.Dto
     [DataContract]
     internal class TaskStartRequestDto
     {
+        [DataMember(Name = "taskId")]
+        public Guid TaskId { get; set; }
         [DataMember(Name = "taskParameters")]
         public IList<TaskParameterRequestDto> TaskParameters { get; set; } = new List<TaskParameterRequestDto>();
     }

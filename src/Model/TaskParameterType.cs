@@ -14,6 +14,13 @@ namespace Morph.Server.Sdk.Model
         Calculated,
         [Description("Folder path")]
         FolderPath,
+        [Description("Checkbox")]
+        Checkbox,
+        [Description("Fixed list")]
+        FixedList,
+        [Description("Multiple choice")]
+        MultipleChoice
+
     }
 
 

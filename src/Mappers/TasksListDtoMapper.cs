@@ -9,9 +9,9 @@ namespace Morph.Server.Sdk.Mappers
 {
 
 
-    internal static class SpaceTasksListsMapper
+    internal static class TasksListDtoMapper
     {
-        public static SpaceTasksList MapFromDto(SpaceTasksListDto dto)
+        public static SpaceTasksList MapFromDto(TasksListDto dto)
         {
             return new SpaceTasksList()
             {

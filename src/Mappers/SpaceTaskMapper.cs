@@ -6,64 +6,35 @@ using System.Linq;
 
 namespace Morph.Server.Sdk.Mappers
 {
-
-    internal static class RunningTaskStatusMapper
-    {
-        public static RunningTaskStatus RunningTaskStatusFromDto(RunningTaskStatusDto dto)
-        {
-            return new RunningTaskStatus
-            {
-                Id = Guid.Parse(dto.Id),
-                IsRunning = dto.IsRunning,
-                ProjectName = dto.ProjectName,                
-                Errors = dto.Errors?.Select(SpaceTaskMapper.MapFromRunningTaskErrorInfoDto)?.ToList() ?? new List<ErrorInfo>()
-            };
-        }
-    }
-
     internal static class SpaceTaskMapper
     {
 
-        public static ErrorInfo MapFromRunningTaskErrorInfoDto(RunningTaskErrorInfoDto dto)
-        {
-            return new ErrorInfo
-            {
-                Description = dto.Description,
-                Location = dto.Location
-            };
-        }
-        public static SpaceTasksListItem MapItem(SpaceTasksListItemDto dto)
+       
+        public static SpaceTasksListItem MapItem(TaskShortDto dto)
         {
             return new SpaceTasksListItem
             {
                 Enabled = dto.Enabled,
-                Id = Guid.Parse(dto.JobId),
-                IsRunning = dto.IsRunning,
+                Id = Guid.Parse(dto.Id),
                 TaskName = dto.Name,
                 Note = dto.Note,
-                ProjectPath = dto.ProjectFile,
-                StatusText = dto.StatusText,
-                TaskState = TaskStatusMapper.ParseTaskState(dto.Status)
+                ProjectPath = dto.ProjectFile
             };
         }
 
-        public static SpaceTask MapFull(SpaceTaskDto dto)
+        public static SpaceTask MapFull(TaskFullDto fullDto)
         {
             var rsult =  new SpaceTask
             {
-                Enabled = dto.Enabled,
-                Id = Guid.Parse(dto.JobId),
-                IsRunning = dto.IsRunning,
-                TaskName = dto.Name,
-                Note = dto.Note,
-                ProjectPath = dto.ProjectFile,
-                StatusText = dto.StatusText,
-                TaskState = TaskStatusMapper.ParseTaskState(dto.Status),
-                
+                Enabled = fullDto.Enabled,
+                Id = Guid.Parse(fullDto.Id),
+                TaskName = fullDto.Name,
+                Note = fullDto.Note,
+                ProjectPath = fullDto.ProjectFile,
             };
-            if(dto.JobParameters  != null)
+            if(fullDto.Parameters  != null)
             {
-                rsult.TaskParameters = dto.JobParameters.Select(TaskParameterMapper.FromDto).ToList();
+                rsult.TaskParameters = fullDto.Parameters.Select(TaskParameterMapper.FromDto).ToList();
             }
             return rsult;            
         }
