@@ -3,6 +3,8 @@ namespace Morph.Server.Sdk.Model
     public abstract class ComputationState
     {
        
+        public abstract bool IsRunning { get; }
+        
         public sealed class Starting:ComputationState
         {
 
@@ -11,7 +13,8 @@ namespace Morph.Server.Sdk.Model
                 
             }
 
-            
+
+            public override bool IsRunning => true;
         }
         
         public sealed class Running:ComputationState
@@ -21,6 +24,7 @@ namespace Morph.Server.Sdk.Model
             {
                 
             }
+            public override bool IsRunning => true;
         }
         
         public sealed class Stopping:ComputationState
@@ -30,6 +34,7 @@ namespace Morph.Server.Sdk.Model
             {
                 
             }
+            public override bool IsRunning => true;
         }
         
         
@@ -48,15 +53,8 @@ namespace Morph.Server.Sdk.Model
                 ResultObtainingToken = resultObtainingToken;
                 
             }
+            public override bool IsRunning => false;
         }
     }
-    // public enum ComputationStateDto
-    // {
-    //     Enqueued,
-    //     Starting,
-    //     Running,
-    //     Stopping,
-    //     Finished,
-    //     Unknown
-    // }
+    
 }
