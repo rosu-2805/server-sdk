@@ -117,9 +117,7 @@ To get a list of tasks in Space, use ```GetTasksListAsync```.
   var result = await client.GetTasksListAsync(apiSession, cancellationToken );
   foreach(var task in result.Items){
   // do somethig with task
-      if(task.TaskState == TaskState.Failed){
-        // task failed
-      }
+    
   }
 ```
 If you want to get more details about a task (e.g. task parameters), use the `GetTaskAsync` method.
@@ -135,7 +133,7 @@ Use ```TaskChangeModeAsync```.
         cancellationToken);
 ```
 
-##### Starting the Task
+##### Starting the Workflow
 
 To run the task:
 
@@ -147,18 +145,17 @@ To run the task:
         new TaskParameterBase{ Name ="String parameter", Value ="string parameter value" }
     };
     var result2 = await apiClient.StartTaskAsync(apiSession,
-        new StartTaskRequest { TaskId = taskId, TaskParameters = taskParameters }, cancellationToken);
+        new StartTaskRequest(taskId) { TaskParameters = taskParameters }, cancellationToken);
 ```
 The caller gets control back immediately after the task is started. If you attempt to start a task that is already running, no exception is generated.
 
 
-##### Stopping the Task
+##### Stopping the Worflow
 
-To stop the task, call ```StopTaskAsync```:
-``` C#
-  
-    var taskGuid = Guid.Parse("691ea42e-9e6b-438e-84d6-b743841c970e");
-    await client.StopTaskAsync(apiSession, taskGuid, cancellationToken );
+To stop the workflow, call ```CancelComputationAsync``` with ```computationId``` obtaining during ```StartTaskAsync``` call :
+``` C#  
+    
+    await client.StopTaskAsync(apiSession, computationId, cancellationToken );
 ```
 The caller gets control back immediately after the task is instructed to stop.
 
@@ -171,13 +168,8 @@ Allows to get the task info (including the task parameters)
           
         Console.WriteLine("Info about task:");
         Console.WriteLine(string.Format("Id:'{0}'", task.Id));
-        Console.WriteLine(string.Format("Name:'{0}'", task.TaskName));
-        Console.WriteLine(string.Format("IsRunning:'{0}'", task.IsRunning));                
-        Console.WriteLine(string.Format("Enabled:'{0}'", task.Enabled));
-        Console.WriteLine(string.Format("Note:'{0}'", task.Note));
-        Console.WriteLine(string.Format("ProjectPath:'{0}'", task.ProjectPath));
-        Console.WriteLine(string.Format("StatusText:'{0}'", task.StatusText));
-        Console.WriteLine(string.Format("TaskState:'{0}'", task.TaskState));
+        Console.WriteLine(string.Format("Name:'{0}'", task.TaskName));                
+        Console.WriteLine(string.Format("Note:'{0}'", task.Note));        
         Console.WriteLine("Task Parameters:");
         foreach (var parameter in task.TaskParameters)
         {
@@ -191,29 +183,6 @@ Allows to get the task info (including the task parameters)
     }
 
 ```
-
-
-#### Retrieving task status 
-
-To check the task state (running/ not running / failed) and to retrieve task errors, call `GetTaskStatusAsync`:
-
-``` C#
-    try 
-    {      
-        var taskGuid = Guid.Parse("691ea42e-9e6b-438e-84d6-b743841c970e");
-        var status = await client.GetTaskStatusAsync(apiSession, taskGuid, cancellationToken );
-        if(status.IsRunning){
-            Console.WriteLine(string.Format("Task {0} is running", status.TaskName));
-        }
-    }
-    catch(MorphApiNotFoundException notFound){
-        Console.WriteLine("Task not found");
-    }
-
-```
-
-
-####
 
 ### Files API
 
