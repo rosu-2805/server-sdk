@@ -152,7 +152,7 @@ The caller gets control back immediately after the task is started. If you attem
 
 ##### Stopping the Worflow
 
-To stop the workflow, call ```CancelComputationAsync``` with ```computationId``` obtaining during ```StartTaskAsync``` call :
+To stop the workflow, call ```CancelComputationAsync``` with ```computationId``` obtained during the ```StartTaskAsync``` call :
 ``` C#  
     
     await client.StopTaskAsync(apiSession, computationId, cancellationToken );
