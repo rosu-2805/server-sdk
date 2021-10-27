@@ -38,17 +38,7 @@ namespace Morph.Server.Sdk.Client
             return apiClient.PostAsync<NoContentRequest, NoContentResult>(url, null, null, apiSession.ToHeadersCollection(), cancellationToken);
         }
 
-        public Task<ApiResult<RunningTaskStatusDto>> GetRunningTaskStatusAsync(ApiSession apiSession, Guid taskId, CancellationToken cancellationToken)
-        {
-            if (apiSession == null)
-            {
-                throw new ArgumentNullException(nameof(apiSession));
-            }
-
-            var spaceName = apiSession.SpaceName;
-            var url = UrlHelper.JoinUrl("space", spaceName, "runningtasks", taskId.ToString("D"));
-            return apiClient.GetAsync<RunningTaskStatusDto>(url, null, apiSession.ToHeadersCollection(), cancellationToken);
-        }
+    
 
         public Task<ApiResult<SpacesEnumerationDto>> SpacesGetListAsync(CancellationToken cancellationToken)
         {
@@ -63,7 +53,7 @@ namespace Morph.Server.Sdk.Client
             return apiClient.PostAsync<SpacesLookupRequestDto,SpacesLookupResponseDto>(url, requestDto,null, new HeadersCollection(), cancellationToken);
         }
 
-        public Task<ApiResult<SpaceTaskDto>> GetTaskAsync(ApiSession apiSession, Guid taskId, CancellationToken cancellationToken)
+        public Task<ApiResult<TaskFullDto>> GetTaskAsync(ApiSession apiSession, Guid taskId, CancellationToken cancellationToken)
         {
             if (apiSession == null)
             {
@@ -71,10 +61,10 @@ namespace Morph.Server.Sdk.Client
             }
 
             var url = UrlHelper.JoinUrl("space", apiSession.SpaceName, "tasks", taskId.ToString("D"));
-            return apiClient.GetAsync<SpaceTaskDto>(url, null, apiSession.ToHeadersCollection(), cancellationToken);
+            return apiClient.GetAsync<TaskFullDto>(url, null, apiSession.ToHeadersCollection(), cancellationToken);
         }
 
-        public Task<ApiResult<SpaceTasksListDto>> GetTasksListAsync(ApiSession apiSession, CancellationToken cancellationToken)
+        public Task<ApiResult<TasksListDto>> GetTasksListAsync(ApiSession apiSession, CancellationToken cancellationToken)
         {
             if (apiSession == null)
             {
@@ -82,23 +72,13 @@ namespace Morph.Server.Sdk.Client
             }
 
             var url = UrlHelper.JoinUrl("space", apiSession.SpaceName, "tasks");
-            return apiClient.GetAsync<SpaceTasksListDto>(url, null, apiSession.ToHeadersCollection(), cancellationToken);
+            return apiClient.GetAsync<TasksListDto>(url, null, apiSession.ToHeadersCollection(), cancellationToken);
         }
 
 
-        public Task<ApiResult<TaskStatusDto>> GetTaskStatusAsync(ApiSession apiSession, Guid taskId, CancellationToken cancellationToken)
-        {
-            if (apiSession == null)
-            {
-                throw new ArgumentNullException(nameof(apiSession));
-            }
-            var spaceName = apiSession.SpaceName;
-            var url = UrlHelper.JoinUrl("space", spaceName, "tasks", taskId.ToString("D"));
-            return apiClient.GetAsync<TaskStatusDto>(url, null, apiSession.ToHeadersCollection(), cancellationToken);
+     
 
-        }
-
-        public Task<ApiResult<SpaceTaskDto>> TaskChangeModeAsync(ApiSession apiSession, Guid taskId, SpaceTaskChangeModeRequestDto requestDto, CancellationToken cancellationToken)
+        public Task<ApiResult<TaskFullDto>> TaskChangeModeAsync(ApiSession apiSession, Guid taskId, SpaceTaskChangeModeRequestDto requestDto, CancellationToken cancellationToken)
         {
             if (apiSession == null)
             {
@@ -108,7 +88,7 @@ namespace Morph.Server.Sdk.Client
             var spaceName = apiSession.SpaceName;
             var url = UrlHelper.JoinUrl("space", spaceName, "tasks", taskId.ToString("D"), "changeMode");
 
-            return apiClient.PostAsync<SpaceTaskChangeModeRequestDto, SpaceTaskDto>(url, requestDto, null, apiSession.ToHeadersCollection(), cancellationToken);
+            return apiClient.PostAsync<SpaceTaskChangeModeRequestDto, TaskFullDto>(url, requestDto, null, apiSession.ToHeadersCollection(), cancellationToken);
         }
 
         public Task<ApiResult<ServerStatusDto>> ServerGetStatusAsync(CancellationToken cancellationToken)
@@ -117,7 +97,7 @@ namespace Morph.Server.Sdk.Client
             return apiClient.GetAsync<ServerStatusDto>(url, null, new HeadersCollection(), cancellationToken);
         }
 
-        public Task<ApiResult<RunningTaskStatusDto>> StartTaskAsync(ApiSession apiSession, Guid taskId, TaskStartRequestDto taskStartRequestDto, CancellationToken cancellationToken)
+        public Task<ApiResult<ComputationDetailedItemDto>> StartTaskAsync(ApiSession apiSession, TaskStartRequestDto taskStartRequestDto, CancellationToken cancellationToken)
         {
             if (apiSession == null)
             {
@@ -125,22 +105,51 @@ namespace Morph.Server.Sdk.Client
             }
 
             var spaceName = apiSession.SpaceName;
-            var url = UrlHelper.JoinUrl("space", spaceName, "runningtasks", taskId.ToString("D"), "payload");
+            var url = UrlHelper.JoinUrl("space", spaceName, "computations", "start", "task");
             
-            return apiClient.PostAsync<TaskStartRequestDto, RunningTaskStatusDto>(url, taskStartRequestDto, null, apiSession.ToHeadersCollection(), cancellationToken);
+            return apiClient.PostAsync<TaskStartRequestDto, ComputationDetailedItemDto>(url, taskStartRequestDto, null, apiSession.ToHeadersCollection(), cancellationToken);
         }
 
-        public Task<ApiResult<NoContentResult>> StopTaskAsync(ApiSession apiSession, Guid taskId, CancellationToken cancellationToken)
+        public Task<ApiResult<ComputationDetailedItemDto>> GetComputationDetailsAsync(ApiSession apiSession, string computationId, CancellationToken cancellationToken)
         {
-            if (apiSession == null)
-            {
-                throw new ArgumentNullException(nameof(apiSession));
-            }
+            if (apiSession == null) throw new ArgumentNullException(nameof(apiSession));
+            if (computationId == null) throw new ArgumentNullException(nameof(computationId));
 
             var spaceName = apiSession.SpaceName;
-            var url = UrlHelper.JoinUrl("space", spaceName, "runningtasks", taskId.ToString("D"));
-            return apiClient.DeleteAsync<NoContentResult>(url, null, apiSession.ToHeadersCollection(), cancellationToken);
+            var url = UrlHelper.JoinUrl("space", spaceName, "computations", computationId);
+            return apiClient.GetAsync<ComputationDetailedItemDto>(url, null, apiSession.ToHeadersCollection(), cancellationToken);
         }
+
+        public Task CancelComputationAsync(ApiSession apiSession, string computationId, CancellationToken cancellationToken)
+        {
+            if (apiSession == null) throw new ArgumentNullException(nameof(apiSession));
+            if (computationId == null) throw new ArgumentNullException(nameof(computationId));
+
+            var spaceName = apiSession.SpaceName;
+            var url = UrlHelper.JoinUrl("space", spaceName, "computations", computationId);
+            return apiClient.DeleteAsync<NoContentRequest>(url, null, apiSession.ToHeadersCollection(), cancellationToken);
+        }
+
+        public Task<ApiResult<WorkflowResultDetailsDto>> GetWorkflowResultDetailsAsync(ApiSession apiSession, string resultToken, CancellationToken cancellationToken)
+        {
+            if (apiSession == null) throw new ArgumentNullException(nameof(apiSession));
+            if (resultToken == null) throw new ArgumentNullException(nameof(resultToken));
+
+            var spaceName = apiSession.SpaceName;
+            var url = UrlHelper.JoinUrl("space", spaceName, "workflows-result", resultToken, "details");
+            return apiClient.GetAsync<WorkflowResultDetailsDto>(url, null, apiSession.ToHeadersCollection(), cancellationToken);
+        }
+
+        public Task AcknowledgeWorkflowResultAsync(ApiSession apiSession, string resultToken, CancellationToken cancellationToken)
+        {
+            if (apiSession == null) throw new ArgumentNullException(nameof(apiSession));
+            if (resultToken == null) throw new ArgumentNullException(nameof(resultToken));
+
+            var spaceName = apiSession.SpaceName;
+            var url = UrlHelper.JoinUrl("space", spaceName, "workflows-result", resultToken, "ack");
+            return apiClient.PostAsync<NoContentRequest, NoContentResult>(url, null, null, apiSession.ToHeadersCollection(), cancellationToken);
+        }
+
 
         public Task<ApiResult<ValidateTasksResponseDto>> ValidateTasksAsync(ApiSession apiSession, ValidateTasksRequestDto validateTasksRequestDto, CancellationToken cancellationToken)
         {

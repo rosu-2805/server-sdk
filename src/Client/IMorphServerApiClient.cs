@@ -32,11 +32,21 @@ namespace Morph.Server.Sdk.Client
         
         
         Task<ServerStatus> GetServerStatusAsync(CancellationToken cancellationToken);
-        Task<Model.TaskStatus> GetTaskStatusAsync(ApiSession apiSession, Guid taskId, CancellationToken cancellationToken);        
+                
         Task<ApiSession> OpenSessionAsync(OpenSessionRequest openSessionRequest, CancellationToken cancellationToken);
         
-        Task<RunningTaskStatus> StartTaskAsync(ApiSession apiSession, StartTaskRequest startTaskRequest, CancellationToken cancellationToken);
-        Task StopTaskAsync(ApiSession apiSession, Guid taskId, CancellationToken cancellationToken);
+        /*COMPUTATIONS*/
+        Task<ComputationDetailedItem> StartTaskAsync(ApiSession apiSession, StartTaskRequest startTaskRequest, CancellationToken cancellationToken);
+        Task<ComputationDetailedItem> GetComputationDetailsAsync(ApiSession apiSession, string computationId , CancellationToken cancellationToken);
+        Task CancelComputationAsync(ApiSession apiSession, string computationId , CancellationToken cancellationToken);
+
+        Task<WorkflowResultDetails> GetWorkflowResultDetailsAsync(ApiSession apiSession, string resultToken,
+            CancellationToken cancellationToken);
+        
+        Task AcknowledgeWorkflowResultAsync(ApiSession apiSession, string resultToken, CancellationToken cancellationToken);
+        
+        
+        
 
 
         Task<SpaceTask> TaskChangeModeAsync(ApiSession apiSession, Guid taskId, TaskChangeModeRequest taskChangeModeRequest, CancellationToken cancellationToken);

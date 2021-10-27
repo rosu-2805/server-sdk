@@ -155,7 +155,7 @@ namespace Morph.Server.Sdk.Client
         /// <summary>
         /// Start Task like "fire and forget"
         /// </summary>
-        public Task<RunningTaskStatus> StartTaskAsync(ApiSession apiSession, StartTaskRequest startTaskRequest, CancellationToken cancellationToken)
+        public Task<ComputationDetailedItem> StartTaskAsync(ApiSession apiSession, StartTaskRequest startTaskRequest, CancellationToken cancellationToken)
         {
             if (apiSession == null)
             {
@@ -169,18 +169,72 @@ namespace Morph.Server.Sdk.Client
 
             return Wrapped(async (token) =>
             {
-                var requestDto = new TaskStartRequestDto();
-                if (startTaskRequest.TaskParameters != null)
+                var requestDto = new TaskStartRequestDto()
                 {
-                    requestDto.TaskParameters = startTaskRequest.TaskParameters.Select(TaskParameterMapper.ToDto).ToList();
-                }
+                    TaskId = startTaskRequest.TaskId,
+                    TaskParameters = startTaskRequest.TaskParameters?.Select(TaskParameterMapper.ToDto)?.ToList()
+                };
 
-                if (!startTaskRequest.TaskId.HasValue)
-                {
-                    throw new Exception("TaskId must be set.");
-                }
-                var apiResult = await _lowLevelApiClient.StartTaskAsync(apiSession, startTaskRequest.TaskId.Value, requestDto, token);
-                return MapOrFail(apiResult, (dto) => RunningTaskStatusMapper.RunningTaskStatusFromDto(dto));
+                var apiResult = await _lowLevelApiClient.StartTaskAsync(apiSession, requestDto, token);
+                return MapOrFail(apiResult, ComputationDetailedItemMapper.FromDto);
+
+            }, cancellationToken, OperationType.ShortOperation);
+        }
+
+        public Task<ComputationDetailedItem> GetComputationDetailsAsync(ApiSession apiSession, string computationId, CancellationToken cancellationToken)
+        {
+            if (apiSession == null)
+            {
+                throw new ArgumentNullException(nameof(apiSession));
+            }
+
+
+            return Wrapped(async (token) =>
+            {
+                var apiResult = await _lowLevelApiClient.GetComputationDetailsAsync(apiSession, computationId, token);
+                return MapOrFail(apiResult, ComputationDetailedItemMapper.FromDto);
+
+            }, cancellationToken, OperationType.ShortOperation);
+        }
+
+        public Task CancelComputationAsync(ApiSession apiSession, string computationId, CancellationToken cancellationToken)
+        {
+            if (apiSession == null)
+            {
+                throw new ArgumentNullException(nameof(apiSession));
+            }
+
+
+            return Wrapped(async (token) =>
+            {
+                await _lowLevelApiClient.CancelComputationAsync(apiSession, computationId, token);
+                return Task.FromResult(0);
+
+            }, cancellationToken, OperationType.ShortOperation);
+        }
+
+        public Task<WorkflowResultDetails> GetWorkflowResultDetailsAsync(ApiSession apiSession, string resultToken, CancellationToken cancellationToken)
+        {
+            if (apiSession == null)
+            {
+                throw new ArgumentNullException(nameof(apiSession));
+            }
+
+
+            return Wrapped(async (token) =>
+            {
+                var apiResult = await _lowLevelApiClient.GetWorkflowResultDetailsAsync(apiSession, resultToken, token);
+                return MapOrFail(apiResult, WorkflowResultDetailsMapper.FromDto);
+
+            }, cancellationToken, OperationType.ShortOperation);
+        }
+
+        public Task AcknowledgeWorkflowResultAsync(ApiSession apiSession, string resultToken, CancellationToken cancellationToken)
+        {
+            return Wrapped(async (token) =>
+            {
+                await _lowLevelApiClient.AcknowledgeWorkflowResultAsync(apiSession, resultToken, token);
+                return Task.FromResult(0);
 
             }, cancellationToken, OperationType.ShortOperation);
         }
@@ -310,52 +364,10 @@ namespace Morph.Server.Sdk.Client
         }
 
 
-        /// <summary>
-        /// Gets status of the task (Running/Not running) and payload
-        /// </summary>
-        /// <param name="apiSession">api session</param>
-        /// <param name="taskId">task guid</param>
-        /// <param name="cancellationToken">cancellation token</param>
-        /// <returns>Returns task status</returns>
-        private Task<RunningTaskStatus> GetRunningTaskStatusAsync(ApiSession apiSession, Guid taskId, CancellationToken cancellationToken)
-        {
-            if (apiSession == null)
-            {
-                throw new ArgumentNullException(nameof(apiSession));
-            }
-
-            return Wrapped(async (token) =>
-            {
-                var apiResult = await _lowLevelApiClient.GetRunningTaskStatusAsync(apiSession, taskId, token);
-                return MapOrFail(apiResult, (dto) => RunningTaskStatusMapper.RunningTaskStatusFromDto(dto));
-
-            }, cancellationToken, OperationType.ShortOperation);
-
-        }
+      
 
 
-        /// <summary>
-        /// Gets status of the task
-        /// </summary>
-        /// <param name="apiSession">api session</param>
-        /// <param name="taskId">task guid</param>
-        /// <param name="cancellationToken">cancellation token</param>
-        /// <returns>Returns task status</returns>
-        public Task<Model.TaskStatus> GetTaskStatusAsync(ApiSession apiSession, Guid taskId, CancellationToken cancellationToken)
-        {
-            if (apiSession == null)
-            {
-                throw new ArgumentNullException(nameof(apiSession));
-            }
-            return Wrapped(async (token) =>
-            {
-                var apiResult = await _lowLevelApiClient.GetTaskStatusAsync(apiSession, taskId, token);
-                return MapOrFail(apiResult, (dto) => TaskStatusMapper.MapFromDto(dto));
-
-            }, cancellationToken, OperationType.ShortOperation);
-
-        }
-
+      
         /// <summary>
         /// Change task mode
         /// </summary>
@@ -414,29 +426,7 @@ namespace Morph.Server.Sdk.Client
 
 
 
-        /// <summary>
-        /// Stops the Task
-        /// </summary>
-        /// <param name="apiSession">api session</param>
-        /// <param name="taskId"></param>
-        /// <param name="cancellationToken">cancellation token</param>
-        /// <returns></returns>
-        public async Task StopTaskAsync(ApiSession apiSession, Guid taskId, CancellationToken cancellationToken)
-        {
-            if (apiSession == null)
-            {
-                throw new ArgumentNullException(nameof(apiSession));
-            }
-
-            await Wrapped(async (token) =>
-            {
-                var apiResult = await _lowLevelApiClient.StopTaskAsync(apiSession, taskId, token);
-                FailIfError(apiResult);
-                return Task.FromResult(0);
-
-            }, cancellationToken, OperationType.ShortOperation);
-
-        }
+       
 
         /// <summary>
         /// Returns server status. May raise exception if server is unreachable
@@ -684,7 +674,7 @@ namespace Morph.Server.Sdk.Client
             return Wrapped(async (token) =>
             {
                 var apiResult = await _lowLevelApiClient.GetTasksListAsync(apiSession, token);
-                return MapOrFail(apiResult, (dto) => SpaceTasksListsMapper.MapFromDto(dto));
+                return MapOrFail(apiResult, (dto) => TasksListDtoMapper.MapFromDto(dto));
 
             }, cancellationToken, OperationType.ShortOperation);
 

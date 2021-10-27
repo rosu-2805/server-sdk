@@ -4,13 +4,13 @@ using System.Runtime.Serialization;
 namespace Morph.Server.Sdk.Dto
 {
     [DataContract]
-    internal class SpaceTasksListDto
+    internal class TasksListDto
     {
         [DataMember(Name = "values")]
-        public List<SpaceTasksListItemDto> Values { get; set; }
-        public SpaceTasksListDto()
+        public List<TaskShortDto> Values { get; set; }
+        public TasksListDto()
         {
-            Values = new List<SpaceTasksListItemDto>();
+            Values = new List<TaskShortDto>();
         }
     }
 }
