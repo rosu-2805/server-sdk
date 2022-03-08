@@ -1,7 +1,7 @@
 ## EasyMorph Server .NET SDK
 
 This library allows interacting with [EasyMorph Server](https://easymorph.com/server.html) from a .NET application.
-
+ 
 
 EasyMorph Server runs on schedule projects created using desktop editions of EasyMorph (including the free edition). Project schedule and parameters are set up via task properties. Every task belongs to a space. The Server has at least one space named `Default`.
 
