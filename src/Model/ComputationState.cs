@@ -1,3 +1,5 @@
+using System;
+
 namespace Morph.Server.Sdk.Model
 {
     public abstract class ComputationState
@@ -39,7 +41,13 @@ namespace Morph.Server.Sdk.Model
         
         
         
-        
+        /// <summary>
+        /// computation is in retrying state
+        /// </summary>
+        public sealed class Retrying :ComputationState
+        {
+            public override bool IsRunning => true;
+        }
         
         public sealed class Finished:ComputationState
         {
@@ -52,6 +60,17 @@ namespace Morph.Server.Sdk.Model
             {
                 ResultObtainingToken = resultObtainingToken;
                 
+            }
+            public override bool IsRunning => false;
+        }
+        
+        public sealed class Unknown:ComputationState
+        {
+            public string RawState { get; }
+
+            public Unknown(string rawState)
+            {
+                RawState = rawState ?? throw new ArgumentNullException(nameof(rawState));
             }
             public override bool IsRunning => false;
         }
