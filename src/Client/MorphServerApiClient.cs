@@ -57,7 +57,7 @@ namespace Morph.Server.Sdk.Client
                 ClientCertificateOptions = ClientCertificateOption.Automatic,
                 ServerCertificateCustomValidationCallback = configuration.ServerCertificateCustomValidationCallback
             };
-#elif NET45
+#elif NETFRAMEWORK
             // handler will be disposed automatically
             HttpClientHandler aHandler = new HttpClientHandler()
             {
