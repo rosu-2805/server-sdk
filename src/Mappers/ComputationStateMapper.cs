@@ -14,9 +14,10 @@ namespace Morph.Server.Sdk.Mappers
                 case "starting": return new ComputationState.Starting();
                 case "running": return new ComputationState.Running();
                 case "stopping": return new ComputationState.Stopping();
+                case "retrying": return new ComputationState.Retrying();
                 case "finished": return new ComputationState.Finished(dto.Data.ResultObtainingToken);
-                default: throw new NotSupportedException($"Not supported ComputationStateDto ({dto.Type})");
-                
+                default:
+                    return new ComputationState.Unknown(dto.Type);
             }
         }
     }

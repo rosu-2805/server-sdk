@@ -57,7 +57,7 @@ namespace Morph.Server.Sdk.Client
                 ClientCertificateOptions = ClientCertificateOption.Automatic,
                 ServerCertificateCustomValidationCallback = configuration.ServerCertificateCustomValidationCallback
             };
-#elif NET45
+#elif NETFRAMEWORK
             // handler will be disposed automatically
             HttpClientHandler aHandler = new HttpClientHandler()
             {
@@ -461,12 +461,17 @@ namespace Morph.Server.Sdk.Client
 
             }, cancellationToken, OperationType.SessionOpenAndRelated);
         }
+       
 
-        private void DownloadProgress_StateChanged(object sender, FileTransferProgressEventArgs e)
+        protected void TriggerOnDataDownloadProgress(FileTransferProgressEventArgs e)
         {
             OnDataDownloadProgress?.Invoke(this, e);
         }
 
+        protected void TriggerOnDataUploadProgress(FileTransferProgressEventArgs e)
+        {
+            OnDataUploadProgress?.Invoke(this, e);
+        }
 
 
 
@@ -700,10 +705,7 @@ namespace Morph.Server.Sdk.Client
 
             return Wrapped(async (token) =>
             {
-                Action<FileTransferProgressEventArgs> onReceiveProgress = (data) =>
-                {
-                    OnDataDownloadProgress?.Invoke(this, data);
-                };
+                Action<FileTransferProgressEventArgs> onReceiveProgress = TriggerOnDataDownloadProgress;
                 var apiResult = await _lowLevelApiClient.WebFilesDownloadFileAsync(apiSession, remoteFilePath, onReceiveProgress, token);
                 return MapOrFail(apiResult, (data) => new ServerStreamingData(data.Stream, data.FileName, data.FileSize)
                 );
@@ -734,10 +736,7 @@ namespace Morph.Server.Sdk.Client
 
             return Wrapped(async (token) =>
             {
-                Action<FileTransferProgressEventArgs> onReceiveProgress = (data) =>
-                {
-                    OnDataDownloadProgress?.Invoke(this, data);
-                };
+                Action<FileTransferProgressEventArgs> onReceiveProgress = TriggerOnDataDownloadProgress;
                 var apiResult = await _lowLevelApiClient.WebFilesDownloadFileAsync(apiSession, remoteFilePath, onReceiveProgress, token);
                 return MapOrFail(apiResult, (data) => data.Stream);
 
@@ -784,10 +783,7 @@ namespace Morph.Server.Sdk.Client
 
             return Wrapped(async (token) =>
             {
-                Action<FileTransferProgressEventArgs> onSendProgress = (data) =>
-                {
-                    OnDataUploadProgress?.Invoke(this, data);
-                };
+                Action<FileTransferProgressEventArgs> onSendProgress = TriggerOnDataUploadProgress;
                 var sendStreamData = new SendFileStreamData(
                     spaceUploadFileRequest.DataStream,
                     spaceUploadFileRequest.FileName,
