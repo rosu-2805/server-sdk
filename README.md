@@ -11,7 +11,7 @@ This document describes SDK which covers part of REST API v1 ( `http://[host:por
 
 ### EasyMorph Server API client
 #### Supported platforms:
- * Windows (.NET framework version 4.5 or higher) 
+ * Windows (.NET framework version 4.7.2 or higher) 
  * Windows (.NET Standard 2.0 compatible framework required)
  * Linux   (.NET Standard 2.0 compatible framework required)
 
