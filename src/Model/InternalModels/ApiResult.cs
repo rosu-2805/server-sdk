@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Net.Http.Headers;
 
 namespace Morph.Server.Sdk.Model.InternalModels
 {
@@ -8,28 +9,33 @@ namespace Morph.Server.Sdk.Model.InternalModels
     /// <typeparam name="T"></typeparam>
     public class ApiResult<T>
     {
-        public T Data { get; set; } = default(T);
-        public Exception Error { get; set; } = default(Exception);
-        public bool IsSucceed { get { return Error == null; } }
-        public static ApiResult<T> Fail(Exception exception)
+        public virtual T Data { get; protected set; } = default(T);
+        public virtual Exception Error { get; protected set; } = default(Exception);
+        public virtual bool IsSucceed { get { return Error == null; } }
+
+        public virtual HttpContentHeaders ResponseHeaders { get; protected set; } =  default(HttpContentHeaders);
+        public static ApiResult<T> Fail(Exception exception, HttpContentHeaders httpContentHeaders)
         {
             return new ApiResult<T>()
             {
                 Data = default(T),
-                Error = exception
+                Error = exception,
+                ResponseHeaders = httpContentHeaders
             };
+
         }
 
-        public static ApiResult<T> Ok(T data)
+        public static ApiResult<T> Ok(T data, HttpContentHeaders httpContentHeaders)
         {
             return new ApiResult<T>()
             {
                 Data = data,
-                Error = null
+                Error = null,
+                ResponseHeaders = httpContentHeaders
             };
         }
 
-        public void ThrowIfFailed()
+        public virtual void ThrowIfFailed()
         {
             if (!IsSucceed && Error != null)
             {

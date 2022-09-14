@@ -12,7 +12,7 @@ namespace Morph.Server.Sdk.Model
     /// <summary>
     /// Disposable api session
     /// </summary>
-    public class ApiSession : IDisposable
+    public  class ApiSession : IDisposable
     {
         protected readonly string _defaultSpaceName = "default";
         public const string AuthHeaderName = "X-EasyMorph-Auth";
@@ -35,7 +35,7 @@ string.IsNullOrWhiteSpace(_spaceName) ? _defaultSpaceName : _spaceName.ToLower()
        /// Api session constructor
        /// </summary>
        /// <param name="client">reference to client </param>
-        internal ApiSession(ICanCloseSession client)
+        public ApiSession(ICanCloseSession client)
         {
             _client = client ?? throw new ArgumentNullException(nameof(client));
             IsClosed = false;

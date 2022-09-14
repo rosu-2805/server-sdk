@@ -61,13 +61,13 @@ namespace Morph.Server.Sdk.Client
             // handler will be disposed automatically
             HttpClientHandler aHandler = new HttpClientHandler()
             {
-                ClientCertificateOptions = ClientCertificateOption.Automatic                    
+                ClientCertificateOptions = ClientCertificateOption.Automatic
             };
 #else
     Not implemented                        
 #endif
             var httpClient = BuildHttpClient(configuration, aHandler);
-            var restClient = ConstructRestApiClient(httpClient);
+            var restClient = ConstructRestApiClient(httpClient, BuildBaseAddress(configuration), clientConfiguration);
             return new LowLevelApiClient(restClient);
         }
 
@@ -101,19 +101,26 @@ namespace Morph.Server.Sdk.Client
         }
 
 
-        protected virtual IRestClient ConstructRestApiClient(HttpClient httpClient)
+        protected virtual IRestClient ConstructRestApiClient(HttpClient httpClient, Uri baseAddress, ClientConfiguration clientConfiguration)
         {
             if (httpClient == null)
             {
                 throw new ArgumentNullException(nameof(httpClient));
             }
 
-            return new MorphServerRestClient(httpClient);
+            return new MorphServerRestClient(httpClient, baseAddress, clientConfiguration.HttpSecurityState);
         }
 
 
+        protected virtual Uri BuildBaseAddress(ClientConfiguration config)
+        {
+           var baseAddress = new Uri(config.ApiUri, new Uri(_api_v1, UriKind.Relative));
+           return baseAddress;
 
-        protected HttpClient BuildHttpClient(ClientConfiguration config, HttpClientHandler httpClientHandler)
+        }
+
+
+        protected virtual HttpClient BuildHttpClient(ClientConfiguration config, HttpClientHandler httpClientHandler)
         {
             if (httpClientHandler == null)
             {
@@ -121,7 +128,6 @@ namespace Morph.Server.Sdk.Client
             }
 
             var client = new HttpClient(httpClientHandler, true);
-            client.BaseAddress = new Uri(config.ApiUri, new Uri(_api_v1, UriKind.Relative));
 
             client.DefaultRequestHeaders.Accept.Clear();
             client.DefaultRequestHeaders.Accept.Add(
@@ -137,7 +143,7 @@ namespace Morph.Server.Sdk.Client
             client.DefaultRequestHeaders.Add("Connection", "Keep-Alive");
             client.DefaultRequestHeaders.Add("Keep-Alive", "timeout=120");
 
-            client.MaxResponseContentBufferSize = 100 * 1024;
+            
             client.DefaultRequestHeaders.CacheControl = new CacheControlHeaderValue
             {
                 NoCache = true,
@@ -425,8 +431,7 @@ namespace Morph.Server.Sdk.Client
         }
 
 
-
-       
+        public HttpSecurityState HttpSecurityState => RestClient.HttpSecurityState;
 
         /// <summary>
         /// Returns server status. May raise exception if server is unreachable
@@ -658,7 +663,7 @@ namespace Morph.Server.Sdk.Client
                         new OpenSessionAuthenticatorContext(
                             _lowLevelApiClient,
                             this as ICanCloseSession,
-                            (handler) => ConstructRestApiClient(BuildHttpClient(clientConfiguration, handler))),
+                            (handler) => ConstructRestApiClient(BuildHttpClient(clientConfiguration, handler), BuildBaseAddress(clientConfiguration), clientConfiguration)),
                         openSessionRequest, cancellationToken);
 
                     return session;

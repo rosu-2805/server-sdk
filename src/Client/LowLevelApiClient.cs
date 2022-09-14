@@ -241,19 +241,19 @@ namespace Morph.Server.Sdk.Client
             //  http ok or http no content means that file exists
             if (apiResult.IsSucceed)
             {
-                return ApiResult<bool>.Ok(true);
+                return ApiResult<bool>.Ok(true, apiResult.ResponseHeaders);
             }
             else
             {
                 // if not found, return Ok with false result
                 if(apiResult.Error is MorphApiNotFoundException)
                 {
-                    return ApiResult<bool>.Ok(false);
+                    return ApiResult<bool>.Ok(false, apiResult.ResponseHeaders);
                 }
                 else
                 {
                     // some error occured - return internal error from api result
-                    return ApiResult<bool>.Fail(apiResult.Error);
+                    return ApiResult<bool>.Fail(apiResult.Error, apiResult.ResponseHeaders);
 
                 }
             }

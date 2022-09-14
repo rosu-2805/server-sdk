@@ -14,7 +14,7 @@ namespace Morph.Server.Sdk.Helper
     
     internal class ProgressStreamContent : HttpContent
     {
-        private const int DefBufferSize = 4096;
+        private const int DefBufferSize = 81920;
 
         private Stream _stream;
         private int _bufSize;
@@ -52,7 +52,7 @@ namespace Morph.Server.Sdk.Helper
                     await stream.WriteAsync(buffer, 0, length);
                     processed += length;                    
 
-                    if (DateTime.Now - _lastUpdate > TimeSpan.FromMilliseconds(500))
+                    if (DateTime.Now - _lastUpdate > TimeSpan.FromMilliseconds(750))
                     {
                         _fileProgress.SetProcessedBytes(processed);                        
                         _lastUpdate = DateTime.Now;

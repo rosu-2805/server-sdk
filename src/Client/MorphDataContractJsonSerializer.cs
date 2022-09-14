@@ -1,20 +1,15 @@
-﻿using Morph.Server.Sdk.Dto;
-using Morph.Server.Sdk.Dto.Commands;
-using Morph.Server.Sdk.Exceptions;
-using System;
-using System.Collections.Generic;
+﻿using System;
 using System.IO;
-using System.Linq;
-using System.Net.Http;
 using System.Runtime.Serialization.Json;
 using System.Text;
-using System.Threading.Tasks;
+using Morph.Server.Sdk.Dto;
+using Morph.Server.Sdk.Exceptions;
 
-namespace Morph.Server.Sdk.Helper
+namespace Morph.Server.Sdk.Client
 {
-    public static class JsonSerializationHelper
+    public class MorphDataContractJsonSerializer: IJsonSerializer
     {
-        public static T Deserialize<T>(string input)
+        public T Deserialize<T>(string input)
             where T: new()
         {
             try
@@ -24,7 +19,8 @@ namespace Morph.Server.Sdk.Helper
                 {
                     return new T();
                 }
-                var serializer = new DataContractJsonSerializer(typeof(T));
+                var serializer = new DataContractJsonSerializer(typeof(T), 
+                    new DataContractJsonSerializerSettings() { UseSimpleDictionaryFormat = true });
                 var d = Encoding.UTF8.GetBytes(input);
                 using (var ms = new MemoryStream(d))
                 {
@@ -37,7 +33,7 @@ namespace Morph.Server.Sdk.Helper
                 throw new ResponseParseException("An error occurred while deserializing the response: "+ ex.Message, input);                
             }
         }
-        public static string Serialize<T>(T obj)
+        public string Serialize<T>(T obj)
         {
 
             var serializer = new DataContractJsonSerializer(typeof(T));            

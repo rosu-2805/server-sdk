@@ -56,6 +56,7 @@ namespace Morph.Server.Sdk.Client
         /// </summary>
         public static bool AutoDisposeClientOnSessionClose { get; set; } = true;
 
+
         static MorphServerApiClientGlobalConfig()
         {
             // set sdk version string 

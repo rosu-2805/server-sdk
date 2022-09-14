@@ -11,7 +11,9 @@ namespace Morph.Server.Sdk.Client
 {
     public interface IRestClient : IDisposable
     {
-        HttpClient HttpClient { get; set; }
+
+        HttpSecurityState HttpSecurityState { get; }
+        HttpClient HttpClient { get; }
         Task<ApiResult<TResult>> GetAsync<TResult>(string url, NameValueCollection urlParameters, HeadersCollection headersCollection, CancellationToken cancellationToken)
           where TResult : new();
         Task<ApiResult<TResult>> HeadAsync<TResult>(string url, NameValueCollection urlParameters, HeadersCollection headersCollection, CancellationToken cancellationToken)

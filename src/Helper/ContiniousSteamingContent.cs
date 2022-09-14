@@ -32,7 +32,7 @@ namespace Morph.Server.Sdk.Helper
             Exception
         }
 
-        private const int DefBufferSize = 4096;
+        private const int DefBufferSize = 81920;
         private readonly CancellationToken mainCancellation;
 
 
