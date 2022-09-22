@@ -24,13 +24,13 @@ namespace Morph.Server.Sdk.Mappers
         private static ServerStatusCode Parse(string value)
         {            
             if (value == null)
-                return ServerStatusCode.Unknown;
+                return ServerStatusCode.OK;
             ServerStatusCode status;
             if(Enum.TryParse(value, out status))
             {
                 return status;
             }
-            return ServerStatusCode.Unknown;
+            return ServerStatusCode.OK;
         }
         
     }

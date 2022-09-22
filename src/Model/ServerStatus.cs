@@ -29,10 +29,9 @@ namespace Morph.Server.Sdk.Model
 
 
     public enum ServerStatusCode
-    {
-        Unknown,
+    {        
         OK,
-        NoLicense
+        Initializing
     }
   
 
