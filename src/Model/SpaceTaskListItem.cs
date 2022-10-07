@@ -9,6 +9,8 @@ namespace Morph.Server.Sdk.Model
         public string TaskName { get; internal set; } = string.Empty;
         public string ProjectPath { get; internal set; } = string.Empty;
         public string Note { get; internal set; } = string.Empty;
+
+        public TaskSchedule[] Schedules { get; internal set; } = Array.Empty<TaskSchedule>();
         //public List<TaskParameter> TaskParameters { get; internal set; } = new List<TaskParameter>();
         //public string StatusText { get; internal set; } = string.Empty;
         public bool Enabled { get; internal set; } = false;
@@ -19,5 +21,12 @@ namespace Morph.Server.Sdk.Model
     public sealed class SpaceTask : SpaceTasksListItem
     {
         public List<TaskParameterBase> TaskParameters { get; internal set; } = new List<TaskParameterBase>();
+    }
+
+    public sealed class TaskSchedule
+    {
+        public string ScheduleType { get; internal set; } = string.Empty;
+
+        public string ScheduleDescription { get; internal set; } = String.Empty;
     }
 }

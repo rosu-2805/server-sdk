@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Runtime.Serialization;
 
 namespace Morph.Server.Sdk.Dto
@@ -14,7 +15,10 @@ namespace Morph.Server.Sdk.Dto
         
         [DataMember(Name = "note")]
         public string Note { get; set; } = string.Empty;
-        
+
+        [DataMember(Name = "schedules")]
+        public ScheduleBaseDto[] Schedules { get; set; } = Array.Empty<ScheduleBaseDto>();
+
         [DataMember(Name = "enabled")]
         public bool Enabled { get; set; } = false;
         [DataMember(Name = "status")]
