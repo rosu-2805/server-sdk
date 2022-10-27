@@ -559,10 +559,83 @@ namespace Morph.Server.Sdk.Client
 
         }
 
+        /// <summary>
+        ///     Deletes folder
+        /// </summary>
+        /// <param name="apiSession">api session</param>
+        /// <param name="serverFolderPath">Path to server folder like /path/to/folder</param>
+        /// <param name="failIfNotExists">Fails with error if folder does not exist</param>
+        /// <param name="cancellationToken"></param>
+        /// <returns></returns>
+        /// <exception cref="ArgumentNullException"></exception>
+        public Task SpaceDeleteFolderAsync(ApiSession apiSession, string serverFolderPath, bool failIfNotExists, CancellationToken cancellationToken)
+        {
+            if (apiSession == null)
+            {
+                throw new ArgumentNullException(nameof(apiSession));
+            }
 
+            return Wrapped(async (token) =>
+            {
+                var apiResult = await _lowLevelApiClient.WebFilesDeleteFolderAsync(apiSession, serverFolderPath, failIfNotExists, token);
+                FailIfError(apiResult);
+                return Task.FromResult(0);
+            }, cancellationToken, OperationType.ShortOperation);
+        }
 
+        /// <summary>
+        ///     Creates a folder
+        /// </summary>
+        /// <param name="apiSession">api session</param>
+        /// <param name="parentFolderPath">Path to server folder like /path/to/folder</param>
+        /// <param name="folderName"></param>
+        /// <param name="failIfExists">Fails with error if target folder exists already</param>
+        /// <param name="cancellationToken"></param>
+        /// <returns></returns>
+        /// <exception cref="ArgumentNullException"></exception>
+        public Task SpaceCreateFolderAsync(ApiSession apiSession, string parentFolderPath, string folderName,
+            bool failIfExists, CancellationToken cancellationToken)
+        {
+            if (apiSession == null)
+            {
+                throw new ArgumentNullException(nameof(apiSession));
+            }
 
+            return Wrapped(async (token) =>
+            {
+                var apiResult = await _lowLevelApiClient.WebFilesCreateFolderAsync(apiSession, parentFolderPath, folderName, failIfExists, token);
+                FailIfError(apiResult);
+                return Task.FromResult(0);
+            }, cancellationToken, OperationType.ShortOperation);
+        }
 
+        /// <summary>
+        ///     Renames a folder
+        /// </summary>
+        /// <param name="apiSession">api session</param>
+        /// <param name="parentFolderPath">Path to containing server folder like /path/to/folder</param>
+        /// <param name="oldFolderName">Old folder name</param>
+        /// <param name="newFolderName">New folder name</param>
+        /// <param name="failIfExists">Fails with error if target folder exists already</param>
+        /// <param name="cancellationToken"></param>
+        /// <returns></returns>
+        /// <exception cref="ArgumentNullException"></exception>
+        public Task SpaceRenameFolderAsync(ApiSession apiSession, string parentFolderPath, string oldFolderName, string newFolderName,
+            bool failIfExists, CancellationToken cancellationToken)
+        {
+            if (apiSession == null)
+            {
+                throw new ArgumentNullException(nameof(apiSession));
+            }
+
+            return Wrapped(async (token) =>
+            {
+                var apiResult = await _lowLevelApiClient.WebFilesRenameFolderAsync(apiSession, parentFolderPath, oldFolderName, newFolderName,
+                    failIfExists, token);
+                FailIfError(apiResult);
+                return Task.FromResult(0);
+            }, cancellationToken, OperationType.ShortOperation);
+        }
 
         /// <summary>
         /// Validate tasks. Checks that there are no missing parameters in the tasks. 
