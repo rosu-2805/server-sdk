@@ -151,5 +151,17 @@ string.IsNullOrWhiteSpace(_spaceName) ? _defaultSpaceName : _spaceName.ToLower()
 
             }
         }
+
+        /// <summary>
+        ///     Import authentication data from other token
+        /// </summary>
+        /// <param name="freshSession">Session to import from</param>
+        /// <exception cref="ArgumentNullException"><see cref="freshSession"/> is null</exception>
+        public void FillFrom(ApiSession freshSession)
+        {
+            if (freshSession == null) throw new ArgumentNullException(nameof(freshSession));
+
+            AuthToken = freshSession.AuthToken;
+        }
     }
 }

@@ -108,7 +108,9 @@ namespace Morph.Server.Sdk.Client
                 throw new ArgumentNullException(nameof(httpClient));
             }
 
-            return new MorphServerRestClient(httpClient, baseAddress, clientConfiguration.HttpSecurityState);
+            return new MorphServerRestClient(httpClient, baseAddress,
+                clientConfiguration.SessionRefresher,
+                clientConfiguration.HttpSecurityState);
         }
 
 
@@ -659,14 +661,10 @@ namespace Morph.Server.Sdk.Client
                     {
                         throw new Exception($"Unable to open session. Server has no space '{openSessionRequest.SpaceName}'");
                     }
-                    var session = await MorphServerAuthenticator.OpenSessionMultiplexedAsync(desiredSpace,
-                        new OpenSessionAuthenticatorContext(
-                            _lowLevelApiClient,
-                            this as ICanCloseSession,
-                            (handler) => ConstructRestApiClient(BuildHttpClient(clientConfiguration, handler), BuildBaseAddress(clientConfiguration), clientConfiguration)),
-                        openSessionRequest, cancellationToken);
 
-                    return session;
+                    var authenticator = CreateAuthenticator(openSessionRequest, desiredSpace);
+
+                    return await authenticator(cancellationToken);
                 }
                 catch (OperationCanceledException) when (!ct.IsCancellationRequested && linkedTokenSource.IsCancellationRequested)
                 {
@@ -676,7 +674,28 @@ namespace Morph.Server.Sdk.Client
 
         }
 
+        private Authenticator CreateAuthenticator(OpenSessionRequest openSessionRequest, SpaceEnumerationItem desiredSpace)
+        {
+            var requestClone = openSessionRequest.Clone();
 
+            return async ctoken =>
+            {
+                var response = await MorphServerAuthenticator.OpenSessionMultiplexedAsync(desiredSpace,
+                    new OpenSessionAuthenticatorContext(_lowLevelApiClient,
+                        this,
+                        (handler) =>
+                            ConstructRestApiClient(
+                                BuildHttpClient(clientConfiguration, handler),
+                                BuildBaseAddress(clientConfiguration), clientConfiguration)),
+                    requestClone,
+                    ctoken);
+
+                if(!string.IsNullOrWhiteSpace(response?.AuthToken))
+                    Config.SessionRefresher.AssociateAuthenticator(response, CreateAuthenticator(requestClone, desiredSpace));
+
+                return response;
+            };
+        }
 
 
         public Task<SpaceTasksList> GetTasksListAsync(ApiSession apiSession, CancellationToken cancellationToken)
@@ -805,5 +824,3 @@ namespace Morph.Server.Sdk.Client
     }
 
 }
-
-

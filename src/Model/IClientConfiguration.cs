@@ -16,7 +16,9 @@ namespace Morph.Server.Sdk.Model
         string ClientId { get; }
         string ClientType { get; }
 
-        bool AutoDisposeClientOnSessionClose { get; }        
+        bool AutoDisposeClientOnSessionClose { get; }
+
+        IApiSessionRefresher SessionRefresher { get; }
 
         Uri ApiUri { get; }
         HttpSecurityState HttpSecurityState { get; }
@@ -26,5 +28,3 @@ namespace Morph.Server.Sdk.Model
 #endif
     }
 }
-
-

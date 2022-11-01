@@ -25,6 +25,9 @@ namespace Morph.Server.Sdk.Client
     public class MorphServerRestClient : IRestClient
     {
         protected readonly IJsonSerializer jsonSerializer;
+
+        private IApiSessionRefresher SessionRefresher { get; }
+
         private static string HttpsSchemeConstant = "https";
         private static string HttpStateDetectionEndpoint = "server/status";
 
@@ -32,13 +35,17 @@ namespace Morph.Server.Sdk.Client
         public Uri BaseAddress { get; protected set; }
 
         private HttpClient httpClient;
+
         public HttpClient HttpClient { get => httpClient; set => httpClient = value; }
 
         public HttpSecurityState HttpSecurityState { get; protected set; } = HttpSecurityState.NotEvaluated;
 
-        public MorphServerRestClient(HttpClient httpClient, Uri baseAddress, IJsonSerializer jsonSerializer, HttpSecurityState httpSecurityState = HttpSecurityState.NotEvaluated)
+        public MorphServerRestClient(HttpClient httpClient, Uri baseAddress, IJsonSerializer jsonSerializer,
+            IApiSessionRefresher sessionRefresher,
+            HttpSecurityState httpSecurityState = HttpSecurityState.NotEvaluated)
         {
             this.jsonSerializer = jsonSerializer ?? throw new ArgumentNullException(nameof(jsonSerializer));
+            SessionRefresher = sessionRefresher;
             this.BaseAddress = baseAddress ?? throw new ArgumentNullException(nameof(baseAddress));
             HttpSecurityState = httpSecurityState;
             HttpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
@@ -48,12 +55,11 @@ namespace Morph.Server.Sdk.Client
             {
                 UpgradeToForcedHttps();
             }
-
-
         }
 
-        public MorphServerRestClient(HttpClient httpClient, Uri baseAddress, HttpSecurityState httpSecurityState = HttpSecurityState.NotEvaluated) :
-            this(httpClient, baseAddress, new MorphDataContractJsonSerializer(), httpSecurityState)
+        public MorphServerRestClient(HttpClient httpClient, Uri baseAddress, IApiSessionRefresher sessionRefresher,
+            HttpSecurityState httpSecurityState = HttpSecurityState.NotEvaluated) :
+            this(httpClient, baseAddress, new MorphDataContractJsonSerializer(),sessionRefresher,  httpSecurityState)
         {
 
         }
@@ -194,20 +200,40 @@ namespace Morph.Server.Sdk.Client
                     httpCompletionOption,
                     cancellationToken);
             }
-            else
-            {
-                return await _SendAsyncAsIs(httpMethod,
-                    path,
-                    httpContent,
-                    urlParameters,
-                    headersCollection,
-                    httpCompletionOption,
-                    cancellationToken);
 
+            var response = await _SendAsyncAsIs(httpMethod,
+                path,
+                httpContent,
+                urlParameters,
+                headersCollection,
+                httpCompletionOption,
+                cancellationToken);
+
+            try
+            {
+                if (!await SessionRefresher.IsSessionLostResponse(headersCollection, path, httpContent, response))
+                    return response;
+
+                if (!await SessionRefresher.RefreshSessionAsync(headersCollection, cancellationToken))
+                    return response;
+            }
+            catch (Exception)
+            {
+                //Don't lose the original response if somebody throws an exception in the session refresher
+                response?.Dispose();
+                throw;
             }
 
+            //At this point original response will not be seen by method invoker, so we should dispose it
+            response?.Dispose();
 
-
+            return await _SendAsyncAsIs(httpMethod,
+                path,
+                httpContent,
+                urlParameters,
+                headersCollection,
+                httpCompletionOption,
+                cancellationToken);
         }
 
 
@@ -423,6 +449,8 @@ namespace Morph.Server.Sdk.Client
             HttpContentHeaders httpResponseHeaders = null;
             try
             {
+                await EnsureSessionValid(headersCollection, cancellationToken);
+
                 string boundary = "MorphRestClient-Streaming--------" + Guid.NewGuid().ToString("N");
 
                 var content = new MultipartFormDataContent(boundary);
@@ -498,6 +526,15 @@ namespace Morph.Server.Sdk.Client
             }
         }
 
+        private async Task EnsureSessionValid(HeadersCollection headersCollection, CancellationToken cancellationToken)
+        {
+            //This is anonymous request
+            if (!headersCollection.Contains(ApiSession.AuthHeaderName))
+                return;
+
+            await SessionRefresher.EnsureSessionValid(this, headersCollection, cancellationToken);
+        }
+
 
         public virtual async Task<ApiResult<TResult>> SendFileStreamAsync<TResult>(
             HttpMethod httpMethod, string path, SendFileStreamData sendFileStreamData,
@@ -509,6 +546,7 @@ namespace Morph.Server.Sdk.Client
             HttpContentHeaders httpResponseHeaders = null;
             try
             {
+                await EnsureSessionValid(headersCollection, cancellationToken);
 
                 string boundary = "MorphRestClient--------" + Guid.NewGuid().ToString("N");
 
