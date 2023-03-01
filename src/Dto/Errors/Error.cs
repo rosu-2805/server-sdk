@@ -33,7 +33,7 @@ namespace Morph.Server.Sdk.Dto.Errors
         /// An array of details about specific errors that led to this reported error.
         /// </summary>
         [DataMember]
-        public List<Error> detais { get; set; }
+        public List<Error> details { get; set; }
         [DataMember]
         public InnerError innererror { get; set; }
 

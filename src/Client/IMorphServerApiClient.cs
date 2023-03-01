@@ -62,6 +62,16 @@ namespace Morph.Server.Sdk.Client
 
         Task<SpaceBrowsingInfo> SpaceBrowseAsync(ApiSession apiSession, string folderPath, CancellationToken cancellationToken);
         Task SpaceDeleteFileAsync(ApiSession apiSession, string remoteFilePath, CancellationToken cancellationToken);
+
+        Task SpaceDeleteFolderAsync(ApiSession apiSession, string serverFolderPath, bool failIfNotExists,
+            CancellationToken cancellationToken);
+
+        Task SpaceCreateFolderAsync(ApiSession apiSession, string parentFolderPath,
+            string folderName, bool failIfExists, CancellationToken cancellationToken);
+
+        Task SpaceRenameFolderAsync(ApiSession apiSession, string parentFolderPath, string oldFolderName, string newFolderName,
+            bool failIfExists, CancellationToken cancellationToken);
+
         Task<bool> SpaceFileExistsAsync(ApiSession apiSession, string remoteFilePath, CancellationToken cancellationToken);
 
         Task<ServerStreamingData> SpaceOpenStreamingDataAsync(ApiSession apiSession, string remoteFilePath, CancellationToken cancellationToken);

@@ -15,13 +15,13 @@ namespace Morph.Server.Sdk.Mappers
     {
         public static List<FieldError> MapFromDto(Error error)
         {
-            var result = error.detais.Select(x => new FieldError
+            var result = error.details?.Select(x => new FieldError
             {
                 Field = x.target,
                 Message = x.message,
                 FieldErrorType = ParseFieldErrorType(x.code)
             });
-            return result.ToList();
+            return result?.ToList() ?? new List<FieldError>();
         }
 
         private static FieldErrorType ParseFieldErrorType(string code)

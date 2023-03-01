@@ -10,5 +10,11 @@ namespace Morph.Server.Sdk.Model
     {
         public string SpaceName{ get; set; }
         public string Password { get; set; }
+
+        /// <summary>
+        /// Create cloned request instance
+        /// </summary>
+        /// <returns>Memberwise clone</returns>
+        public OpenSessionRequest Clone() => (OpenSessionRequest)MemberwiseClone();
     }
 }

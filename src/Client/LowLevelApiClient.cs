@@ -200,6 +200,62 @@ namespace Morph.Server.Sdk.Client
             return apiClient.DeleteAsync<NoContentResult>(url, null, apiSession.ToHeadersCollection(), cancellationToken);
         }
 
+        public Task<ApiResult<NoContentResult>> WebFilesDeleteFolderAsync(ApiSession apiSession, string serverFilePath,
+            bool failIfNotExists, CancellationToken cancellationToken)
+        {
+            var spaceName = apiSession.SpaceName;
+
+            return apiClient.PostAsync<FolderDeleteRequestDto, NoContentResult>(
+                url: UrlHelper.JoinUrl("space", spaceName, "foldersops", "delete"),
+                model: new FolderDeleteRequestDto
+                {
+                    FolderPath = serverFilePath,
+                    FailIfNotFound = failIfNotExists
+                },
+                urlParameters: null,
+                apiSession.ToHeadersCollection(),
+                cancellationToken);
+        }
+
+        public Task<ApiResult<NoContentResult>> WebFilesCreateFolderAsync(ApiSession apiSession, string parentFolderPath,
+            string folderName,
+            bool failIfExists, CancellationToken cancellationToken)
+        {
+            var spaceName = apiSession.SpaceName;
+
+            return apiClient.PostAsync<FolderCreateRequestDto, NoContentResult>(
+                url: UrlHelper.JoinUrl("space", spaceName, "foldersops", "create"),
+                model: new FolderCreateRequestDto
+                {
+                    FolderPath = parentFolderPath,
+                    FolderName = folderName,
+                    FailIfExists = failIfExists,
+                },
+                urlParameters: null,
+                apiSession.ToHeadersCollection(),
+                cancellationToken);
+        }
+
+        public Task<ApiResult<NoContentResult>> WebFilesRenameFolderAsync(ApiSession apiSession, string parentFolderPath,
+            string oldFolderName, string newFolderName,
+            bool failIfExists, CancellationToken cancellationToken)
+        {
+            var spaceName = apiSession.SpaceName;
+
+            return apiClient.PostAsync<FolderRenameRequestDto, NoContentResult>(
+                url: UrlHelper.JoinUrl("space", spaceName, "foldersops", "rename"),
+                model: new FolderRenameRequestDto
+                {
+                    FolderPath = parentFolderPath,
+                    Name = oldFolderName,
+                    NewName = newFolderName,
+                    FailIfExists = failIfExists,
+                },
+                urlParameters: null,
+                apiSession.ToHeadersCollection(),
+                cancellationToken);
+        }
+
         public Task<ApiResult<LoginResponseDto>> AuthLoginPasswordAsync(LoginRequestDto loginRequestDto, CancellationToken cancellationToken)
         {
             var url = "auth/login";
@@ -322,6 +378,3 @@ namespace Morph.Server.Sdk.Client
        
     }
 }
-
-
-

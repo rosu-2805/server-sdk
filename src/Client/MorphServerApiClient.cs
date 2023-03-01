@@ -108,7 +108,9 @@ namespace Morph.Server.Sdk.Client
                 throw new ArgumentNullException(nameof(httpClient));
             }
 
-            return new MorphServerRestClient(httpClient, baseAddress, clientConfiguration.HttpSecurityState);
+            return new MorphServerRestClient(httpClient, baseAddress,
+                clientConfiguration.SessionRefresher,
+                clientConfiguration.HttpSecurityState);
         }
 
 
@@ -557,10 +559,83 @@ namespace Morph.Server.Sdk.Client
 
         }
 
+        /// <summary>
+        ///     Deletes folder
+        /// </summary>
+        /// <param name="apiSession">api session</param>
+        /// <param name="serverFolderPath">Path to server folder like /path/to/folder</param>
+        /// <param name="failIfNotExists">Fails with error if folder does not exist</param>
+        /// <param name="cancellationToken"></param>
+        /// <returns></returns>
+        /// <exception cref="ArgumentNullException"></exception>
+        public Task SpaceDeleteFolderAsync(ApiSession apiSession, string serverFolderPath, bool failIfNotExists, CancellationToken cancellationToken)
+        {
+            if (apiSession == null)
+            {
+                throw new ArgumentNullException(nameof(apiSession));
+            }
 
+            return Wrapped(async (token) =>
+            {
+                var apiResult = await _lowLevelApiClient.WebFilesDeleteFolderAsync(apiSession, serverFolderPath, failIfNotExists, token);
+                FailIfError(apiResult);
+                return Task.FromResult(0);
+            }, cancellationToken, OperationType.ShortOperation);
+        }
 
+        /// <summary>
+        ///     Creates a folder
+        /// </summary>
+        /// <param name="apiSession">api session</param>
+        /// <param name="parentFolderPath">Path to server folder like /path/to/folder</param>
+        /// <param name="folderName"></param>
+        /// <param name="failIfExists">Fails with error if target folder exists already</param>
+        /// <param name="cancellationToken"></param>
+        /// <returns></returns>
+        /// <exception cref="ArgumentNullException"></exception>
+        public Task SpaceCreateFolderAsync(ApiSession apiSession, string parentFolderPath, string folderName,
+            bool failIfExists, CancellationToken cancellationToken)
+        {
+            if (apiSession == null)
+            {
+                throw new ArgumentNullException(nameof(apiSession));
+            }
 
+            return Wrapped(async (token) =>
+            {
+                var apiResult = await _lowLevelApiClient.WebFilesCreateFolderAsync(apiSession, parentFolderPath, folderName, failIfExists, token);
+                FailIfError(apiResult);
+                return Task.FromResult(0);
+            }, cancellationToken, OperationType.ShortOperation);
+        }
 
+        /// <summary>
+        ///     Renames a folder
+        /// </summary>
+        /// <param name="apiSession">api session</param>
+        /// <param name="parentFolderPath">Path to containing server folder like /path/to/folder</param>
+        /// <param name="oldFolderName">Old folder name</param>
+        /// <param name="newFolderName">New folder name</param>
+        /// <param name="failIfExists">Fails with error if target folder exists already</param>
+        /// <param name="cancellationToken"></param>
+        /// <returns></returns>
+        /// <exception cref="ArgumentNullException"></exception>
+        public Task SpaceRenameFolderAsync(ApiSession apiSession, string parentFolderPath, string oldFolderName, string newFolderName,
+            bool failIfExists, CancellationToken cancellationToken)
+        {
+            if (apiSession == null)
+            {
+                throw new ArgumentNullException(nameof(apiSession));
+            }
+
+            return Wrapped(async (token) =>
+            {
+                var apiResult = await _lowLevelApiClient.WebFilesRenameFolderAsync(apiSession, parentFolderPath, oldFolderName, newFolderName,
+                    failIfExists, token);
+                FailIfError(apiResult);
+                return Task.FromResult(0);
+            }, cancellationToken, OperationType.ShortOperation);
+        }
 
         /// <summary>
         /// Validate tasks. Checks that there are no missing parameters in the tasks. 
@@ -659,14 +734,10 @@ namespace Morph.Server.Sdk.Client
                     {
                         throw new Exception($"Unable to open session. Server has no space '{openSessionRequest.SpaceName}'");
                     }
-                    var session = await MorphServerAuthenticator.OpenSessionMultiplexedAsync(desiredSpace,
-                        new OpenSessionAuthenticatorContext(
-                            _lowLevelApiClient,
-                            this as ICanCloseSession,
-                            (handler) => ConstructRestApiClient(BuildHttpClient(clientConfiguration, handler), BuildBaseAddress(clientConfiguration), clientConfiguration)),
-                        openSessionRequest, cancellationToken);
 
-                    return session;
+                    var authenticator = CreateAuthenticator(openSessionRequest, desiredSpace);
+
+                    return await authenticator(cancellationToken);
                 }
                 catch (OperationCanceledException) when (!ct.IsCancellationRequested && linkedTokenSource.IsCancellationRequested)
                 {
@@ -676,7 +747,28 @@ namespace Morph.Server.Sdk.Client
 
         }
 
+        private Authenticator CreateAuthenticator(OpenSessionRequest openSessionRequest, SpaceEnumerationItem desiredSpace)
+        {
+            var requestClone = openSessionRequest.Clone();
 
+            return async ctoken =>
+            {
+                var response = await MorphServerAuthenticator.OpenSessionMultiplexedAsync(desiredSpace,
+                    new OpenSessionAuthenticatorContext(_lowLevelApiClient,
+                        this,
+                        (handler) =>
+                            ConstructRestApiClient(
+                                BuildHttpClient(clientConfiguration, handler),
+                                BuildBaseAddress(clientConfiguration), clientConfiguration)),
+                    requestClone,
+                    ctoken);
+
+                if(!string.IsNullOrWhiteSpace(response?.AuthToken))
+                    Config.SessionRefresher.AssociateAuthenticator(response, CreateAuthenticator(requestClone, desiredSpace));
+
+                return response;
+            };
+        }
 
 
         public Task<SpaceTasksList> GetTasksListAsync(ApiSession apiSession, CancellationToken cancellationToken)
@@ -805,5 +897,3 @@ namespace Morph.Server.Sdk.Client
     }
 
 }
-
-

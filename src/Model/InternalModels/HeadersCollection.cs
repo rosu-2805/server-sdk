@@ -39,10 +39,34 @@ namespace Morph.Server.Sdk.Model.InternalModels
                 reqestHeaders.Add(item.Key, item.Value);
             }
         }
+
+        /// <summary>
+        /// Gets the value of the header with the specified name.
+        /// </summary>
+        /// <param name="headerName"></param>
+        /// <returns></returns>
+        public string GetValueOrDefault(string headerName) => _headers.TryGetValue(headerName, out var value) ? value : null;
+
+        /// <summary>
+        /// Sets the value of the header with the specified name.
+        /// </summary>
+        /// <param name="headerName">Header name.</param>
+        /// <param name="headerValue">Header value.</param>
+        public void Set(string headerName, string headerValue)
+        {
+            _headers[headerName] = headerValue;
+        }
+
+        /// <summary>
+        ///  Checks if the header with the specified name exists.
+        /// </summary>
+        /// <param name="header">Header name.</param>
+        /// <returns></returns>
+        public bool Contains(string header)
+        {
+            return _headers.ContainsKey(header);
+        }
     }
 
 
 }
-
-
-
