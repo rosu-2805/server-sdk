@@ -8,7 +8,11 @@ namespace Morph.Server.Sdk.Mappers
 {
     internal static class SpaceTaskMapper
     {
-
+        private static readonly TaskSchedule NoSchedule = new TaskSchedule
+        {
+            ScheduleType = "NoSchedule",
+            ScheduleDescription = "Not scheduled"
+        };
        
         public static SpaceTasksListItem MapItem(TaskShortDto dto)
         {
@@ -18,7 +22,10 @@ namespace Morph.Server.Sdk.Mappers
                 Id = Guid.Parse(dto.Id),
                 TaskName = dto.Name,
                 Note = dto.Note,
-                ProjectPath = dto.ProjectFile
+                ProjectPath = dto.ProjectFile,
+                Schedules = dto.Schedules?
+                    .Select(sdto => new TaskSchedule { ScheduleType = sdto.ScheduleType, ScheduleDescription = sdto.ScheduleAsText })
+                    .ToArray() ?? new[] { NoSchedule }
             };
         }
 
