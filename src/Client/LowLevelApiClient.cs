@@ -200,6 +200,29 @@ namespace Morph.Server.Sdk.Client
             return apiClient.DeleteAsync<NoContentResult>(url, null, apiSession.ToHeadersCollection(), cancellationToken);
         }
 
+        public Task<ApiResult<NoContentResult>> WebFilesRenameFileAsync(ApiSession apiSession, string parentFolderPath, string oldFileName,
+            string newFileName, CancellationToken cancellationToken)
+        {
+            if (apiSession == null) throw new ArgumentNullException(nameof(apiSession));
+            if (parentFolderPath == null) throw new ArgumentNullException(nameof(parentFolderPath));
+            if (oldFileName == null) throw new ArgumentNullException(nameof(oldFileName));
+            if (newFileName == null) throw new ArgumentNullException(nameof(newFileName));
+
+            var spaceName = apiSession.SpaceName;
+
+            return apiClient.PostAsync<FileRenameRequestDto, NoContentResult>(
+                url: UrlHelper.JoinUrl("space", spaceName, "filesops", "rename"),
+                model: new FileRenameRequestDto
+                {
+                    FolderPath = parentFolderPath,
+                    OldName = oldFileName,
+                    NewName = newFileName,
+                },
+                urlParameters: null,
+                apiSession.ToHeadersCollection(),
+                cancellationToken);
+        }
+
         public Task<ApiResult<NoContentResult>> WebFilesDeleteFolderAsync(ApiSession apiSession, string serverFilePath,
             bool failIfNotExists, CancellationToken cancellationToken)
         {

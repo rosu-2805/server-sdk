@@ -69,6 +69,9 @@ namespace Morph.Server.Sdk.Client
         Task SpaceCreateFolderAsync(ApiSession apiSession, string parentFolderPath,
             string folderName, bool failIfExists, CancellationToken cancellationToken);
 
+        Task SpaceRenameFileAsync(ApiSession apiSession, string parentFolderPath, string oldFileName, string newFileName,
+            CancellationToken cancellationToken);
+
         Task SpaceRenameFolderAsync(ApiSession apiSession, string parentFolderPath, string oldFolderName, string newFolderName,
             bool failIfExists, CancellationToken cancellationToken);
 

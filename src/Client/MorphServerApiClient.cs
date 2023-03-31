@@ -559,6 +559,35 @@ namespace Morph.Server.Sdk.Client
 
         }
 
+
+
+        /// <summary>
+        ///  Performs file renaming
+        /// </summary>
+        /// <param name="apiSession">API session</param>
+        /// <param name="parentFolderPath"> parent folder path like /path/to/folder</param>
+        /// <param name="oldFileName"> old file name</param>
+        /// <param name="newFileName"> new file name</param>
+        /// <param name="cancellationToken"> cancellation token</param>
+        /// <exception cref="ArgumentNullException"> if apiSession is null</exception>
+        public Task SpaceRenameFileAsync(ApiSession apiSession, string parentFolderPath, string oldFileName, string newFileName,
+            CancellationToken cancellationToken)
+        {
+            if (apiSession == null)
+            {
+                throw new ArgumentNullException(nameof(apiSession));
+            }
+
+            return Wrapped(async (token) =>
+            {
+                var apiResult = await _lowLevelApiClient.WebFilesRenameFileAsync(apiSession, parentFolderPath, oldFileName, newFileName, token);
+                FailIfError(apiResult);
+                return Task.FromResult(0);
+
+            }, cancellationToken, OperationType.ShortOperation);
+
+        }
+
         /// <summary>
         ///     Deletes folder
         /// </summary>

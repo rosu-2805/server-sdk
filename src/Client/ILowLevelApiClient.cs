@@ -58,6 +58,8 @@ namespace Morph.Server.Sdk.Client
         Task<ApiResult<SpaceBrowsingResponseDto>> WebFilesBrowseSpaceAsync(ApiSession apiSession, string folderPath, CancellationToken cancellationToken);
         Task<ApiResult<bool>> WebFileExistsAsync(ApiSession apiSession, string serverFilePath, CancellationToken cancellationToken);
         Task<ApiResult<NoContentResult>> WebFilesDeleteFileAsync(ApiSession apiSession, string serverFilePath, CancellationToken cancellationToken);
+        Task<ApiResult<NoContentResult>> WebFilesRenameFileAsync(ApiSession apiSession, string parentFolderPath, string oldFileName, string newFileName,
+            CancellationToken cancellationToken);
 
         Task<ApiResult<NoContentResult>> WebFilesDeleteFolderAsync(ApiSession apiSession, string serverFilePath,
             bool failIfNotExists,
