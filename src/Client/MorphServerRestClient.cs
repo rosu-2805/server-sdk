@@ -633,60 +633,46 @@ namespace Morph.Server.Sdk.Client
                     // FileNameStar contains file name encoded in UTF8
                     var realFileName = (contentDisposition.FileNameStar ?? contentDisposition.FileName).TrimStart('\"').TrimEnd('\"');
                     var contentLength = response.Content.Headers.ContentLength;
-                    if (!contentLength.HasValue)
-                    {
-                        throw new Exception("Response content length header is not set by the server.");
-                    }
 
-                    FileProgress downloadProgress = null;
-
-                    if (contentLength.HasValue)
-                    {
-                        downloadProgress = new FileProgress(realFileName, contentLength.Value, onReceiveProgress);
-                    }
-                    downloadProgress?.ChangeState(FileProgressState.Starting);
+                    FileProgress downloadProgress = new FileProgress(realFileName, contentLength, onReceiveProgress);
+                    
+                    downloadProgress.ChangeState(FileProgressState.Starting);
+                    
                     long totalProcessedBytes = 0;
 
-                    {
-                        // stream must be disposed by a caller
-                        Stream streamToReadFrom = await response.Content.ReadAsStreamAsync();
-
-
-                        var streamWithProgress = new StreamWithProgress(streamToReadFrom, contentLength.Value, cancellationToken,
-                            e =>
-                            {
-                                // on read progress handler
-                                if (downloadProgress != null)
-                                {
-                                    totalProcessedBytes = e.TotalBytesRead;
-                                    downloadProgress.SetProcessedBytes(totalProcessedBytes);
-                                }
-                            },
-                        () =>
+                    // stream must be disposed by a caller
+                    Stream streamToReadFrom = await response.Content.ReadAsStreamAsync();
+                    
+                    var streamWithProgress = new StreamWithProgress(streamToReadFrom, contentLength, cancellationToken,
+                        onReadProgress: e =>
+                        {
+                            // on read progress handler
+                            totalProcessedBytes = e.TotalBytesRead;
+                            downloadProgress.SetProcessedBytes(totalProcessedBytes);
+                        },
+                        onDisposed: () =>
                         {
                             // on disposed handler
-                            if (downloadProgress != null && downloadProgress.ProcessedBytes != totalProcessedBytes)
+                            if (downloadProgress.ProcessedBytes != totalProcessedBytes)
                             {
                                 downloadProgress.ChangeState(FileProgressState.Cancelled);
                             }
+
                             response.Dispose();
                         },
-                        (tokenCancellationReason, token) =>
+                        onTokenCancelled: (tokenCancellationReason, token) =>
                         {
                             // on tokenCancelled
                             if (tokenCancellationReason == TokenCancellationReason.HttpTimeoutToken)
-                            {
                                 throw new Exception("Timeout");
-                            }
+
                             if (tokenCancellationReason == TokenCancellationReason.OperationCancellationToken)
-                            {
                                 throw new OperationCanceledException(token);
-                            }
-
                         });
-                        return ApiResult<FetchFileStreamData>.Ok(new FetchFileStreamData(streamWithProgress, realFileName, contentLength), response.Content.Headers);
-
-                    }
+                    
+                    return ApiResult<FetchFileStreamData>.Ok(
+                        new FetchFileStreamData(streamWithProgress, realFileName, contentLength),
+                        response.Content.Headers);
                 }
                 else
                 {

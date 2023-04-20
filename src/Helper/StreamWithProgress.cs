@@ -14,7 +14,7 @@ namespace Morph.Server.Sdk.Helper
         }
 
         private readonly Stream stream;
-        private readonly long streamLength;
+        private readonly long? streamLength;
         private readonly Action<StreamProgressEventArgs> onReadProgress;
         private readonly Action<StreamProgressEventArgs> onWriteProgress = null;
         private readonly Action onDisposed;
@@ -24,16 +24,13 @@ namespace Morph.Server.Sdk.Helper
         private long _readPosition = 0;
 
         private bool _disposed = false;
-
-
+        
         public StreamWithProgress(Stream httpStream,
-            long streamLength,
+            long? streamLength,
             CancellationToken mainTokem,
             Action<StreamProgressEventArgs> onReadProgress = null,
             Action onDisposed = null,
-            Action<TokenCancellationReason, CancellationToken> onTokenCancelled = null
-
-            )
+            Action<TokenCancellationReason, CancellationToken> onTokenCancelled = null)
         {
             this.stream = httpStream ?? throw new ArgumentNullException(nameof(httpStream));
             this.streamLength = streamLength;
@@ -43,13 +40,15 @@ namespace Morph.Server.Sdk.Helper
             this.onTokenCancelled = onTokenCancelled;
             this.httpTimeoutToken = mainTokem;
         }
+        
+        
         public override bool CanRead => stream.CanRead;
 
         public override bool CanSeek => stream.CanSeek;
 
         public override bool CanWrite => stream.CanWrite;
 
-        public override long Length => streamLength;
+        public override long Length => streamLength ?? 1;
 
         public override long Position { get => _readPosition; set => throw new NotImplementedException(); }
 
