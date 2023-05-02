@@ -44,11 +44,11 @@ namespace Morph.Server.Sdk.Helper
         
         public override bool CanRead => stream.CanRead;
 
-        public override bool CanSeek => stream.CanSeek;
+        public override bool CanSeek => streamLength.HasValue && stream.CanSeek;
 
         public override bool CanWrite => stream.CanWrite;
 
-        public override long Length => streamLength ?? 1;
+        public override long Length => streamLength.HasValue? streamLength.Value : throw new NotSupportedException();
 
         public override long Position { get => _readPosition; set => throw new NotImplementedException(); }
 
