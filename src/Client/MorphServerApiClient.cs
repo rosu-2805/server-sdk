@@ -923,6 +923,22 @@ namespace Morph.Server.Sdk.Client
 
             }, cancellationToken, OperationType.FileTransfer);
         }
+
+        public Task<SpaceFilesQuickSearchResponse> SpaceFilesQuickSearchAsync(ApiSession apiSession, SpaceFilesQuickSearchRequest request, CancellationToken cancellationToken, int? offset = null, int? limit = null)
+        {
+            if (request is null)
+            {
+                throw new ArgumentNullException(nameof(request));
+            }
+
+            return Wrapped(async (token) =>
+            {
+                var requestDto = SpaceFilesQuickSearchRequestMapper.ToDto(request);
+                var apiResult = await _lowLevelApiClient.WebFilesQuickSearchSpaceAsync(apiSession, requestDto, offset, limit,  token);
+                return MapOrFail(apiResult, (dto) => SpaceFilesQuickSearchResponseMapper.MapFromDto(dto));
+
+            }, cancellationToken, OperationType.ShortOperation);
+        }
     }
 
 }

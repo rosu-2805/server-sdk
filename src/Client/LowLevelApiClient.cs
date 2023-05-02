@@ -13,6 +13,8 @@ using Morph.Server.Sdk.Model.InternalModels;
 using Morph.Server.Sdk.Helper;
 using Morph.Server.Sdk.Events;
 using System.Net.Http;
+using Morph.Server.Sdk.Dto.SpaceFilesSearch;
+using System.Collections.Specialized;
 
 namespace Morph.Server.Sdk.Client
 {
@@ -398,6 +400,23 @@ namespace Morph.Server.Sdk.Client
             return apiClient.PushContiniousStreamingDataAsync<NoContentResult>(HttpMethod.Put, url, new ContiniousStreamingRequest(fileName), null, apiSession.ToHeadersCollection(), cancellationToken);
         }
 
-       
+        public Task<ApiResult<SpaceFilesQuickSearchResponseDto>> WebFilesQuickSearchSpaceAsync(ApiSession apiSession, SpaceFilesQuickSearchRequestDto request, int? offset, int? limit, CancellationToken cancellationToken)
+        {
+            var spaceName = apiSession.SpaceName;
+
+            var urlParameters = new NameValueCollection();
+            if (offset.HasValue)
+                urlParameters.Add("offset", offset.Value.ToString());
+            if (limit.HasValue)
+                urlParameters.Add("limit", limit.Value.ToString());
+
+            var url = UrlHelper.JoinUrl("space", spaceName, "files-search", "quick");
+            return apiClient.PostAsync<SpaceFilesQuickSearchRequestDto, SpaceFilesQuickSearchResponseDto>(
+                url:url, 
+                model: request ,
+                urlParameters :urlParameters,
+                headersCollection: apiSession.ToHeadersCollection(),
+                cancellationToken: cancellationToken);
+        }
     }
 }

@@ -7,6 +7,7 @@ using Morph.Server.Sdk.Dto.Commands;
 using System.Collections.Generic;
 using Morph.Server.Sdk.Model.InternalModels;
 using Morph.Server.Sdk.Events;
+using Morph.Server.Sdk.Dto.SpaceFilesSearch;
 
 namespace Morph.Server.Sdk.Client
 {
@@ -55,6 +56,9 @@ namespace Morph.Server.Sdk.Client
         Task<ApiResult<SpaceStatusDto>> SpacesGetSpaceStatusAsync(ApiSession apiSession, string spaceName, CancellationToken cancellationToken);
 
         // WEB FILES
+        Task<ApiResult<SpaceFilesQuickSearchResponseDto>> WebFilesQuickSearchSpaceAsync(ApiSession apiSession,
+            SpaceFilesQuickSearchRequestDto request, 
+            int? offset, int? limit, CancellationToken cancellationToken);
         Task<ApiResult<SpaceBrowsingResponseDto>> WebFilesBrowseSpaceAsync(ApiSession apiSession, string folderPath, CancellationToken cancellationToken);
         Task<ApiResult<bool>> WebFileExistsAsync(ApiSession apiSession, string serverFilePath, CancellationToken cancellationToken);
         Task<ApiResult<NoContentResult>> WebFilesDeleteFileAsync(ApiSession apiSession, string serverFilePath, CancellationToken cancellationToken);
