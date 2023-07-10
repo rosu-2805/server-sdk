@@ -9,7 +9,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("EasyMorph Inc.")]
 [assembly: AssemblyProduct("Morph.Server.Sdk")]
-[assembly: AssemblyCopyright("Copyright © EasyMorph Inc. 2017-2022")]
+[assembly: AssemblyCopyright("Copyright © EasyMorph Inc. 2017-2023")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
