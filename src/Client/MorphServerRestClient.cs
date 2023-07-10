@@ -133,11 +133,14 @@ namespace Morph.Server.Sdk.Client
         protected virtual async Task<ApiResult<TResult>> SendAsyncApiResult<TResult, TModel>(HttpMethod httpMethod, string path, TModel model, NameValueCollection urlParameters, HeadersCollection headersCollection, CancellationToken cancellationToken)
               where TResult : new()
         {
-            StringContent stringContent = null;
-            if (model != null)
+            Task<HttpContent> CreateStringContent(CancellationToken ct)
             {
-                var serialized = jsonSerializer.Serialize<TModel>(model);
-                stringContent = new StringContent(serialized, Encoding.UTF8, "application/json");
+                if (model == null)
+                    return Task.FromResult<HttpContent>(null);
+
+                var serialized = jsonSerializer.Serialize(model);
+
+                return Task.FromResult<HttpContent>(new StringContent(serialized, Encoding.UTF8, "application/json"));
             }
 
             // for model binding request read and buffer full server response
@@ -147,7 +150,7 @@ namespace Morph.Server.Sdk.Client
             using (var response = await SendAsyncWithDiscoveryAndAutoUpgrade(
                        httpMethod,
                        path,
-                       stringContent,
+                       CreateStringContent,
                        urlParameters,
                        headersCollection,
                        httpCompletionOption,
@@ -161,20 +164,20 @@ namespace Morph.Server.Sdk.Client
 
 
 
-        protected virtual async Task<HttpResponseMessage> SendAsyncWithDiscoveryAndAutoUpgrade(
-            HttpMethod httpMethod,
+        protected virtual async Task<HttpResponseMessage> SendAsyncWithDiscoveryAndAutoUpgrade(HttpMethod httpMethod,
             string path,
-            HttpContent httpContent,
+            Func<CancellationToken, Task<HttpContent>> httpContentFactory,
             NameValueCollection urlParameters,
             HeadersCollection headersCollection,
             HttpCompletionOption httpCompletionOption,
-            CancellationToken cancellationToken
-        )
+            CancellationToken cancellationToken)
         {
 
-            // detect current http/https and upgrade if necessary 
+            var originalHttpContent = await httpContentFactory(cancellationToken);
 
-            if (httpContent != null && HttpSecurityState == HttpSecurityState.NotEvaluated)
+            // detect current http/https and upgrade if necessary
+
+            if (originalHttpContent != null && HttpSecurityState == HttpSecurityState.NotEvaluated)
             {
                 using (await _SendAsyncInDisсoveryMode(
                            HttpMethod.Get,
@@ -189,12 +192,11 @@ namespace Morph.Server.Sdk.Client
                 }
             }
 
-
             if (HttpSecurityState == HttpSecurityState.NotEvaluated)
             {
                 return await _SendAsyncInDisсoveryMode(httpMethod,
                     path,
-                    httpContent,
+                    originalHttpContent,
                     urlParameters,
                     headersCollection,
                     httpCompletionOption,
@@ -203,7 +205,7 @@ namespace Morph.Server.Sdk.Client
 
             var response = await _SendAsyncAsIs(httpMethod,
                 path,
-                httpContent,
+                originalHttpContent,
                 urlParameters,
                 headersCollection,
                 httpCompletionOption,
@@ -211,7 +213,7 @@ namespace Morph.Server.Sdk.Client
 
             try
             {
-                if (!await SessionRefresher.IsSessionLostResponse(headersCollection, path, httpContent, response))
+                if (!await SessionRefresher.IsSessionLostResponse(headersCollection, path, originalHttpContent, response))
                     return response;
 
                 if (!await SessionRefresher.RefreshSessionAsync(headersCollection, cancellationToken))
@@ -224,12 +226,30 @@ namespace Morph.Server.Sdk.Client
                 throw;
             }
 
+            HttpContent recreatedHttpContent = null;
+
+            if (originalHttpContent != null)
+            {
+                originalHttpContent.Dispose();
+
+                //We started with non-null http content, but likely it was disposed after the failed attempt.
+                //Try to re-create httpContent after session refresh to send request again.
+
+                recreatedHttpContent = await httpContentFactory(cancellationToken);
+
+                if (null == recreatedHttpContent)
+                {
+                    // We can't re-create httpContent, so we should fail with original response
+                    return response;
+                }
+            }
+
             //At this point original response will not be seen by method invoker, so we should dispose it
             response?.Dispose();
 
             return await _SendAsyncAsIs(httpMethod,
                 path,
-                httpContent,
+                recreatedHttpContent,
                 urlParameters,
                 headersCollection,
                 httpCompletionOption,
@@ -460,18 +480,18 @@ namespace Morph.Server.Sdk.Client
                 var serverPushStreaming = new ServerPushStreaming(streamContent);
                 content.Add(streamContent, "files", Path.GetFileName(startContiniousStreamingRequest.FileName));
 
-              
+
 
                 new Task(async () =>
-                  {
-                      try
-                      {
-                          try
-                          {
+                {
+                    try
+                    {
+                        try
+                        {
                               using (var response = await SendAsyncWithDiscoveryAndAutoUpgrade(
                                          httpMethod,
                                          path,
-                                         content,
+                                         OnceFactory<HttpContent>.Create(content),
                                          urlParameters,
                                          headersCollection,
                                          HttpCompletionOption.ResponseHeadersRead,
@@ -560,11 +580,10 @@ namespace Morph.Server.Sdk.Client
                         {
                             content.Add(streamContent, "files", Path.GetFileName(sendFileStreamData.FileName));
 
-
                             using (var response = await SendAsyncWithDiscoveryAndAutoUpgrade(
                                        httpMethod,
                                        path,
-                                       content,
+                                       OnceFactory<HttpContent>.Create(content),
                                        urlParameters,
                                        headersCollection,
                                        HttpCompletionOption.ResponseHeadersRead,
@@ -600,11 +619,11 @@ namespace Morph.Server.Sdk.Client
             var response = await SendAsyncWithDiscoveryAndAutoUpgrade(
                 httpMethod,
                 path,
-                null,
-                urlParameters,
-                headersCollection,
-                HttpCompletionOption.ResponseHeadersRead,
-                cancellationToken);
+                httpContentFactory: _ => Task.FromResult<HttpContent>(null),
+                urlParameters: urlParameters,
+                headersCollection: headersCollection,
+                httpCompletionOption: HttpCompletionOption.ResponseHeadersRead,
+                cancellationToken: cancellationToken);
 
             {
                 if (response.IsSuccessStatusCode)
@@ -614,60 +633,46 @@ namespace Morph.Server.Sdk.Client
                     // FileNameStar contains file name encoded in UTF8
                     var realFileName = (contentDisposition.FileNameStar ?? contentDisposition.FileName).TrimStart('\"').TrimEnd('\"');
                     var contentLength = response.Content.Headers.ContentLength;
-                    if (!contentLength.HasValue)
-                    {
-                        throw new Exception("Response content length header is not set by the server.");
-                    }
 
-                    FileProgress downloadProgress = null;
-
-                    if (contentLength.HasValue)
-                    {
-                        downloadProgress = new FileProgress(realFileName, contentLength.Value, onReceiveProgress);
-                    }
-                    downloadProgress?.ChangeState(FileProgressState.Starting);
+                    FileProgress downloadProgress = new FileProgress(realFileName, contentLength, onReceiveProgress);
+                    
+                    downloadProgress.ChangeState(FileProgressState.Starting);
+                    
                     long totalProcessedBytes = 0;
 
-                    {
-                        // stream must be disposed by a caller
-                        Stream streamToReadFrom = await response.Content.ReadAsStreamAsync();
-
-
-                        var streamWithProgress = new StreamWithProgress(streamToReadFrom, contentLength.Value, cancellationToken,
-                            e =>
-                            {
-                                // on read progress handler
-                                if (downloadProgress != null)
-                                {
-                                    totalProcessedBytes = e.TotalBytesRead;
-                                    downloadProgress.SetProcessedBytes(totalProcessedBytes);
-                                }
-                            },
-                        () =>
+                    // stream must be disposed by a caller
+                    Stream streamToReadFrom = await response.Content.ReadAsStreamAsync();
+                    
+                    var streamWithProgress = new StreamWithProgress(streamToReadFrom, contentLength, cancellationToken,
+                        onReadProgress: e =>
+                        {
+                            // on read progress handler
+                            totalProcessedBytes = e.TotalBytesRead;
+                            downloadProgress.SetProcessedBytes(totalProcessedBytes);
+                        },
+                        onDisposed: () =>
                         {
                             // on disposed handler
-                            if (downloadProgress != null && downloadProgress.ProcessedBytes != totalProcessedBytes)
+                            if (downloadProgress.ProcessedBytes != totalProcessedBytes)
                             {
                                 downloadProgress.ChangeState(FileProgressState.Cancelled);
                             }
+
                             response.Dispose();
                         },
-                        (tokenCancellationReason, token) =>
+                        onTokenCancelled: (tokenCancellationReason, token) =>
                         {
                             // on tokenCancelled
                             if (tokenCancellationReason == TokenCancellationReason.HttpTimeoutToken)
-                            {
                                 throw new Exception("Timeout");
-                            }
+
                             if (tokenCancellationReason == TokenCancellationReason.OperationCancellationToken)
-                            {
                                 throw new OperationCanceledException(token);
-                            }
-
                         });
-                        return ApiResult<FetchFileStreamData>.Ok(new FetchFileStreamData(streamWithProgress, realFileName, contentLength), response.Content.Headers);
-
-                    }
+                    
+                    return ApiResult<FetchFileStreamData>.Ok(
+                        new FetchFileStreamData(streamWithProgress, realFileName, contentLength),
+                        response.Content.Headers);
                 }
                 else
                 {

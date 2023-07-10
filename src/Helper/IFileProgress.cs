@@ -12,7 +12,7 @@ namespace Morph.Server.Sdk.Helper
     {
         // event EventHandler<FileTransferProgressEventArgs> StateChanged;
         FileProgressState State { get; }
-        long FileSize { get; }
+        long? FileSize { get; }
         string FileName { get; }
         void SetProcessedBytes(long np);
         void ChangeState(FileProgressState state);

@@ -8,7 +8,8 @@ using System.Threading.Tasks;
 
 namespace Morph.Server.Sdk.Model
 {
-    
+
+
     public class SpaceBrowsingInfo
     {
         public ulong FreeSpaceBytes { get; set; }

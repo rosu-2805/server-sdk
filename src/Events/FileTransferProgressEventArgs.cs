@@ -7,23 +7,25 @@ namespace Morph.Server.Sdk.Events
     {
         public FileProgressState State { get; set; }
         public long ProcessedBytes { get; set; }
-        public long FileSize { get; set; }
-        //public Guid? Guid { get; set; }
+        public long? FileSize { get; set; }
         public string FileName { get; set; }
-        public double Percent
+        
+        public double? Percent
         {
             get
             {
-                if (FileSize == 0)
+                var fileSize = FileSize;
+                
+                if (null == fileSize)
+                    return null;
+                
+                if (fileSize == 0)
                     return 0;
-                return Math.Round((ProcessedBytes * 100.0 / FileSize), 2);
+                
+                var percent =  Math.Round(ProcessedBytes * 100.0 / fileSize.Value, 2);
+
+                return Math.Max(100, percent);
             }
         }
-        public FileTransferProgressEventArgs()
-        {
-
-
-        }
-
     }
 }
