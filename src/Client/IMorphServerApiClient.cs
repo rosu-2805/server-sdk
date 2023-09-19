@@ -85,6 +85,13 @@ namespace Morph.Server.Sdk.Client
         Task<Stream> SpaceOpenDataStreamAsync(ApiSession apiSession, string remoteFilePath, CancellationToken cancellationToken);
 
         Task SpaceUploadDataStreamAsync(ApiSession apiSession, SpaceUploadDataStreamRequest spaceUploadFileRequest, CancellationToken cancellationToken);
+
+        Task SpaceUploadPushDataStreamAsync(ApiSession apiSession,
+            SpaceUploadContiniousStreamRequest continuousStreamRequest, PushStreamCallback pushStreamCallback,
+            CancellationToken cancellationToken);
+
+        
+        [Obsolete("Obsolete due to flaw in response checking. Use SpaceUploadPushDataStreamAsync instead.")]
         Task<ContiniousStreamingConnection> SpaceUploadContiniousStreamingAsync(ApiSession apiSession, SpaceUploadContiniousStreamRequest continiousStreamRequest, CancellationToken cancellationToken);
 
     }

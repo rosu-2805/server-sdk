@@ -15,6 +15,12 @@ namespace Morph.Server.Sdk.Model.InternalModels
         public Stream Stream { get; }
         public string FileName { get; }
         public long FileSize { get; }
+
+        /// <summary>
+        /// Optional Tag with properties to check with optimistic concurrency control.
+        /// If null, then no concurrency control is used.
+        /// </summary>
+        public ETag IfMatch { get; set; } = null;
     }
 
     

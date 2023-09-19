@@ -40,6 +40,8 @@ namespace Morph.Server.Sdk.Dto
         public long FileSizeBytes { get; set; }
         [DataMember(Name = "lastModified")]
         public string LastModified { get; set; }
+        [DataMember(Name = "lastModifiedTimestamp")]
+        public long? LastModifiedTimestamp { get; set; }
     }
 
     [DataContract]

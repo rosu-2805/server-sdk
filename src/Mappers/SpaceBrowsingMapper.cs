@@ -34,6 +34,7 @@ namespace Morph.Server.Sdk.Mappers
                 Extension = dto.Extension,
                 FileSizeBytes = dto.FileSizeBytes,
                 LastModified = DateTime.Parse(dto.LastModified),
+                LastModifiedTimestamp = dto.LastModifiedTimestamp,
                 Name = dto.Name
             };
         }

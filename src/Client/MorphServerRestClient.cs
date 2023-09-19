@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Net;
 using System.Collections.Specialized;
+using System.Diagnostics.CodeAnalysis;
 using Morph.Server.Sdk.Mappers;
 using Morph.Server.Sdk.Dto.Errors;
 using System.IO;
@@ -17,12 +18,16 @@ using System.Text.RegularExpressions;
 using Morph.Server.Sdk.Model;
 using Morph.Server.Sdk.Model.InternalModels;
 using Morph.Server.Sdk.Dto;
+using Morph.Server.Sdk.Dto.Upload;
 using Morph.Server.Sdk.Events;
 using static Morph.Server.Sdk.Helper.StreamWithProgress;
 
 namespace Morph.Server.Sdk.Client
 {
-    public class MorphServerRestClient : IRestClient
+    /// <summary>
+    /// Morph rest client
+    /// </summary>
+    public partial class MorphServerRestClient : IRestClient
     {
         protected readonly IJsonSerializer jsonSerializer;
 
@@ -457,94 +462,7 @@ namespace Morph.Server.Sdk.Client
                 HttpClient = null;
             }
         }
-
-
-
-
-        public virtual async Task<ApiResult<ServerPushStreaming>> PushContiniousStreamingDataAsync<TResult>(
-            HttpMethod httpMethod, string path, ContiniousStreamingRequest startContiniousStreamingRequest, NameValueCollection urlParameters, HeadersCollection headersCollection,
-            CancellationToken cancellationToken)
-            where TResult : new()
-        {
-            HttpContentHeaders httpResponseHeaders = null;
-            try
-            {
-                await EnsureSessionValid(headersCollection, cancellationToken);
-
-                string boundary = "MorphRestClient-Streaming--------" + Guid.NewGuid().ToString("N");
-
-                var content = new MultipartFormDataContent(boundary);
-
-
-                var streamContent = new ContiniousSteamingHttpContent(cancellationToken);
-                var serverPushStreaming = new ServerPushStreaming(streamContent);
-                content.Add(streamContent, "files", Path.GetFileName(startContiniousStreamingRequest.FileName));
-
-
-
-                new Task(async () =>
-                {
-                    try
-                    {
-                        try
-                        {
-                              using (var response = await SendAsyncWithDiscoveryAndAutoUpgrade(
-                                         httpMethod,
-                                         path,
-                                         OnceFactory<HttpContent>.Create(content),
-                                         urlParameters,
-                                         headersCollection,
-                                         HttpCompletionOption.ResponseHeadersRead,
-                                         cancellationToken))
-                              {
-                                  var result = await HandleResponse<TResult>(response);
-                                  httpResponseHeaders = response.Content.Headers;
-                                  serverPushStreaming.SetApiResult(result);
-                              }
-
-                          }
-                          catch (Exception ex) when (ex.InnerException != null &&
-                                                     ex.InnerException is WebException web &&
-                                                     web.Status == WebExceptionStatus.ConnectionClosed)
-                          {
-                              serverPushStreaming.SetApiResult(ApiResult<TResult>.Fail(
-                                  new MorphApiNotFoundException("Specified folder not found"), httpResponseHeaders));
-                          }
-                          catch (Exception e)
-                          {
-                              serverPushStreaming.SetApiResult(ApiResult<TResult>.Fail(e, httpResponseHeaders));
-                          }
-                          finally
-                          {
-                              //requestMessage.Dispose();
-                              streamContent.Dispose();
-                              content.Dispose();
-                          }
-                      }
-                      catch (Exception)
-                      {
-                          //  nothing
-                      }
-
-                  }).Start();
-                return ApiResult<ServerPushStreaming>.Ok(serverPushStreaming, httpResponseHeaders);
-
-
-
-
-
-            }
-            catch (Exception ex) when (ex.InnerException != null &&
-                    ex.InnerException is WebException web &&
-                    web.Status == WebExceptionStatus.ConnectionClosed)
-            {
-                return ApiResult<ServerPushStreaming>.Fail(new MorphApiNotFoundException("Specified folder not found"), httpResponseHeaders);
-            }
-            catch (Exception e)
-            {
-                return ApiResult<ServerPushStreaming>.Fail(e, httpResponseHeaders);
-            }
-        }
+        
 
         private async Task EnsureSessionValid(HeadersCollection headersCollection, CancellationToken cancellationToken)
         {
@@ -578,6 +496,8 @@ namespace Morph.Server.Sdk.Client
                     {
                         using (var streamContent = new ProgressStreamContent(sendFileStreamData.Stream, uploadProgress))
                         {
+                            // Note: file-metadata should come before file section to be picked up by server first.
+                            MaybeAddIfMatchSection(content, "files-metadata", sendFileStreamData.IfMatch);
                             content.Add(streamContent, "files", Path.GetFileName(sendFileStreamData.FileName));
 
                             using (var response = await SendAsyncWithDiscoveryAndAutoUpgrade(
@@ -727,6 +647,117 @@ namespace Morph.Server.Sdk.Client
             urlParameters.Add("_", DateTime.Now.Ticks.ToString());
             return SendAsyncApiResult<TResult, NoContentRequest>(HttpMethod.Head, url, null, urlParameters, headersCollection, cancellationToken);
         }
+        
+        public async Task<ApiResult<TResult>> PushStreamAsync<TResult>(HttpMethod httpMethod, string path,
+            PushFileStreamData pushFileStreamData, NameValueCollection urlParameters,
+            HeadersCollection headersCollection, CancellationToken cancellationToken) where TResult : new()
+        {
+            HttpContentHeaders httpResponseHeaders = null;
+
+            await EnsureSessionValid(headersCollection, cancellationToken);
+
+            string boundary = $"MorphRestClient-Streaming--------{Guid.NewGuid():N}";
+
+            using (var content = new MultipartFormDataContent(boundary))
+            using (var streamContent = new ContiniousSteamingHttpContent(cancellationToken))
+            {
+                // Note: file-metadata should come before file section to be picked up by server first.
+                MaybeAddIfMatchSection(content, "files-metadata", pushFileStreamData.IfMatch);
+                content.Add(streamContent, "files", Path.GetFileName(pushFileStreamData.FileName));
+                
+                // Begin concurrently pushing stream. 
+                // Note that this pushStreamTask must be awaited before streamContent is disposed.
+
+                var pushCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+
+                var pushStreamTask = Task.Run(async () =>
+                {
+                    // ReSharper disable once AccessToDisposedClosure
+                    // Reason: pushStreamTask is awaited before streamContent is disposed.
+                    using (var connection = new PushStreamingConnection(streamContent))
+                    {
+                        try
+                        {
+                            await pushFileStreamData.PushCallback(connection, pushCancellation.Token);
+
+                            // Just return 'Ok', meaning that push sequence didnt result in error and actual response
+                            // should be obtained from server in the logic below.
+                            return ApiResult<TResult>.Ok(default, httpResponseHeaders);
+                        }
+                        catch (Exception e)
+                        {
+                            // If anything bad happens on the push side, capture the exception and return it.
+                            return ApiResult<TResult>.Fail(e, httpResponseHeaders);
+                        }
+                    }
+                }, pushCancellation.Token);
+
+                // Actual interaction with server happens here
+
+                try
+                {
+                    using (var response = await SendAsyncWithDiscoveryAndAutoUpgrade(
+                               httpMethod,
+                               path,
+                               OnceFactory<HttpContent>.Create(content),
+                               urlParameters,
+                               headersCollection,
+                               HttpCompletionOption.ResponseHeadersRead,
+                               cancellationToken))
+                    {
+                        var result = await HandleResponse<TResult>(response);
+                        httpResponseHeaders = response.Content.Headers;
+
+                        // no need to push stream further in case we already have an error from server
+                        if (!result.IsSucceed)
+                            pushCancellation.Cancel();
+
+                        var pushResult = await pushStreamTask; // obtain result from push task (can be cancellation)
+
+                        // If we have an error from server, return it since it's likely more
+                        // informative than possible error from push.
+                        if (!result.IsSucceed)
+                            return result;
+
+                        // If we have an error from push, return it.
+                        if (!pushResult.IsSucceed && !(pushResult.Error is OperationCanceledException))
+                            return pushResult;
+
+                        // Happy path, just return server response.
+                        return result;
+                    }
+                }
+                catch (Exception ex) when (ex.InnerException is WebException web &&
+                                           web.Status == WebExceptionStatus.ConnectionClosed)
+                {
+                    return ApiResult<TResult>.Fail(new MorphApiNotFoundException("Specified folder not found"),
+                        httpResponseHeaders);
+                }
+                catch (Exception e)
+                {
+                    return ApiResult<TResult>.Fail(e, httpResponseHeaders);
+                }
+            }
+        }
+        
+        
+        private void MaybeAddIfMatchSection(MultipartFormDataContent content, string sectionName, ETag etag)
+        {
+            if (null == etag)
+                return;
+
+            var metadata = new UploadedFileMetadataDto
+            {
+                IfMatch = new UploadedFileETagDto
+                {
+                    Size = etag.Size,
+                    LastUpdatedUnixTime = etag.LastUpdatedUnixTime
+                }
+            };
+
+            content.Add(new StringContent(jsonSerializer.Serialize(metadata)), sectionName);
+        }
+
     }
 
 

@@ -46,6 +46,11 @@ namespace Morph.Server.Sdk.Model
         public long FileSizeBytes { get; set; }
         
         public DateTime LastModified { get; set; }
+        
+        /// <summary>
+        /// Timestamp in unix time, milliseconds
+        /// </summary>
+        public long? LastModifiedTimestamp { get; set; }
     }
 
     

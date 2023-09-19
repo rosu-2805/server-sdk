@@ -19,12 +19,7 @@ using Morph.Server.Sdk.Exceptions;
 
 namespace Morph.Server.Sdk.Client
 {
-
-
-    /// <summary>
-    /// Morph Server api client V1
-    /// </summary>
-    public class MorphServerApiClient : IMorphServerApiClient, IDisposable, ICanCloseSession
+    public partial class MorphServerApiClient : IMorphServerApiClient, IDisposable, ICanCloseSession
     {
 
         public event EventHandler<FileTransferProgressEventArgs> OnDataDownloadProgress;
@@ -869,32 +864,6 @@ namespace Morph.Server.Sdk.Client
             }, cancellationToken, OperationType.FileTransfer);
         }
 
-        public Task<ContiniousStreamingConnection> SpaceUploadContiniousStreamingAsync(ApiSession apiSession, SpaceUploadContiniousStreamRequest continiousStreamRequest, CancellationToken cancellationToken)
-        {
-            if (apiSession == null)
-            {
-                throw new ArgumentNullException(nameof(apiSession));
-            }
-
-            if (continiousStreamRequest == null)
-            {
-                throw new ArgumentNullException(nameof(continiousStreamRequest));
-            }
-
-            return Wrapped(async (token) =>
-            {
-                var apiResult =
-                  continiousStreamRequest.OverwriteExistingFile ?
-                    await _lowLevelApiClient.WebFilesOpenContiniousPutStreamAsync(apiSession, continiousStreamRequest.ServerFolder, continiousStreamRequest.FileName, token) :
-                    await _lowLevelApiClient.WebFilesOpenContiniousPostStreamAsync(apiSession, continiousStreamRequest.ServerFolder, continiousStreamRequest.FileName, token);
-
-                var connection = MapOrFail(apiResult, c => c);
-                return new ContiniousStreamingConnection(connection);
-
-            }, cancellationToken, OperationType.FileTransfer);
-
-        }
-
         public Task SpaceUploadDataStreamAsync(ApiSession apiSession, SpaceUploadDataStreamRequest spaceUploadFileRequest, CancellationToken cancellationToken)
         {
             if (apiSession == null)
@@ -938,6 +907,53 @@ namespace Morph.Server.Sdk.Client
                 return MapOrFail(apiResult, (dto) => SpaceFilesQuickSearchResponseMapper.MapFromDto(dto));
 
             }, cancellationToken, OperationType.ShortOperation);
+        }
+        
+        /// <summary>
+        /// Performs file upload using push callback
+        /// </summary>
+        /// <param name="apiSession">API session</param>
+        /// <param name="continuousStreamRequest">What to upload</param>
+        /// <param name="pushStreamCallback">Callback that has to provide data to upload</param>
+        /// <param name="cancellationToken">Cancellation token</param>
+        /// <returns></returns>
+        /// <exception cref="ArgumentNullException"></exception>
+        public Task SpaceUploadPushDataStreamAsync(ApiSession apiSession, 
+            SpaceUploadContiniousStreamRequest continuousStreamRequest,
+            PushStreamCallback pushStreamCallback, 
+            CancellationToken cancellationToken)
+        {
+            if (apiSession == null)
+                throw new ArgumentNullException(nameof(apiSession));
+            if (continuousStreamRequest == null)
+                throw new ArgumentNullException(nameof(continuousStreamRequest));
+            if(continuousStreamRequest.FileName == null)
+                throw new ArgumentNullException(nameof(continuousStreamRequest.FileName));
+            if (continuousStreamRequest.ServerFolder == null)
+                throw new ArgumentNullException(nameof(continuousStreamRequest.ServerFolder));
+            if (pushStreamCallback == null)
+                throw new ArgumentNullException(nameof(pushStreamCallback));
+
+            return Wrapped(async token =>
+            {
+                var request = new PushFileStreamData
+                {
+                    FileName = continuousStreamRequest.FileName,
+                    IfMatch = continuousStreamRequest.IfMatch,
+                    PushCallback = pushStreamCallback,
+                };
+                
+                var result =
+                    continuousStreamRequest.OverwriteExistingFile
+                        ? await _lowLevelApiClient.WebFilesPushPutFileStreamAsync(apiSession,
+                            continuousStreamRequest.ServerFolder, request, token)
+                        : await _lowLevelApiClient.WebFilesPushPostFileStreamAsync(apiSession,
+                            continuousStreamRequest.ServerFolder, request, token);
+
+                FailIfError(result);
+
+                return Task.CompletedTask;
+            }, cancellationToken, OperationType.FileTransfer);
         }
     }
 

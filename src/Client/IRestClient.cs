@@ -3,12 +3,15 @@ using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Collections.Specialized;
+using System.IO;
 using Morph.Server.Sdk.Model.InternalModels;
 using Morph.Server.Sdk.Events;
 using Morph.Server.Sdk.Model;
 
 namespace Morph.Server.Sdk.Client
 {
+    public delegate Task PushStreamCallback(PushStreamingConnection sink, CancellationToken token);
+    
     public interface IRestClient : IDisposable
     {
 
@@ -32,11 +35,18 @@ namespace Morph.Server.Sdk.Client
         Task<ApiResult<FetchFileStreamData>> RetrieveFileGetAsync(string url, NameValueCollection urlParameters, HeadersCollection headersCollection, Action<FileTransferProgressEventArgs> onReceiveProgress, CancellationToken cancellationToken);
 
 
+        Task<ApiResult<TResult>> PushStreamAsync<TResult>(HttpMethod httpMethod, string path,
+            PushFileStreamData pushFileStreamData, NameValueCollection urlParameters,
+            HeadersCollection headersCollection, CancellationToken cancellationToken)
+            where TResult : new();
+        
+        
+        [Obsolete("Obsolete due to flaw in response checking. Will be removed in the next major release.")]
         Task<ApiResult<ServerPushStreaming>> PushContiniousStreamingDataAsync<TResult>(
             HttpMethod httpMethod, string path, ContiniousStreamingRequest startContiniousStreamingRequest, NameValueCollection urlParameters, HeadersCollection headersCollection,
             CancellationToken cancellationToken)
             where TResult : new();
-            
+
 
     }
 
