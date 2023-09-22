@@ -647,10 +647,20 @@ namespace Morph.Server.Sdk.Client
             urlParameters.Add("_", DateTime.Now.Ticks.ToString());
             return SendAsyncApiResult<TResult, NoContentRequest>(HttpMethod.Head, url, null, urlParameters, headersCollection, cancellationToken);
         }
-        
+
+        public Task<ApiResult<TResult>> PushStreamAsync<TResult>(HttpMethod httpMethod, string path,
+            PushFileStreamData pushFileStreamData, NameValueCollection urlParameters,
+            HeadersCollection headersCollection, 
+            CancellationToken cancellationToken)
+            where TResult : new() =>
+            PushStreamAsync<TResult>(httpMethod, path, pushFileStreamData, urlParameters, headersCollection,
+                formValueData: null, cancellationToken: cancellationToken);
+
         public async Task<ApiResult<TResult>> PushStreamAsync<TResult>(HttpMethod httpMethod, string path,
             PushFileStreamData pushFileStreamData, NameValueCollection urlParameters,
-            HeadersCollection headersCollection, CancellationToken cancellationToken) where TResult : new()
+            HeadersCollection headersCollection, FormValueData formValueData,
+            CancellationToken cancellationToken)
+            where TResult : new()
         {
             HttpContentHeaders httpResponseHeaders = null;
 
@@ -661,9 +671,25 @@ namespace Morph.Server.Sdk.Client
             using (var content = new MultipartFormDataContent(boundary))
             using (var streamContent = new ContiniousSteamingHttpContent(cancellationToken))
             {
+                // Add extra sections, if present
+                if (formValueData != null)
+                {
+                    foreach (var section in formValueData.GetValues())
+                    {
+                        if(section.Payload == null)
+                            continue;
+                        
+                        content.Add(
+                            section.ShouldBeSerialized
+                                ? new StringContent(jsonSerializer.Serialize(section.Payload.GetType(), section.Payload))
+                                : new StringContent(section.Payload.ToString()), section.Name);
+                    }
+                }
+                
                 // Note: file-metadata should come before file section to be picked up by server first.
                 MaybeAddIfMatchSection(content, "files-metadata", pushFileStreamData.IfMatch);
                 content.Add(streamContent, "files", Path.GetFileName(pushFileStreamData.FileName));
+
                 
                 // Begin concurrently pushing stream. 
                 // Note that this pushStreamTask must be awaited before streamContent is disposed.

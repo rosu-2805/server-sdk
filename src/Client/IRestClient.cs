@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
@@ -11,6 +12,63 @@ using Morph.Server.Sdk.Model;
 namespace Morph.Server.Sdk.Client
 {
     public delegate Task PushStreamCallback(PushStreamingConnection sink, CancellationToken token);
+
+    /// <summary>
+    ///  Additional data for sending with file stream as multipart/form-data
+    /// </summary>
+    public class FormValueData
+    {
+        public class FormValueItem
+        {
+            public string Name { get; set; }
+            public bool ShouldBeSerialized { get; set; }
+            public object Payload { get; set; }
+        }
+        
+        private readonly List<FormValueItem> _values = new List<FormValueItem>();
+        
+        /// <summary>
+        /// Add string value to form data
+        /// </summary>
+        /// <param name="key"></param>
+        /// <param name="value"></param>
+        /// <exception cref="ArgumentException"></exception>
+        public FormValueData Add(string key, string value)
+        {
+            if (string.IsNullOrEmpty(key))
+                throw new ArgumentException("Value cannot be null or empty.", nameof(key));
+            
+            _values.Add(new FormValueItem { Name = key, ShouldBeSerialized = false, Payload = value });
+
+            return this;
+        }
+
+        /// <summary>
+        /// Add DTO to form data, will be serialized to json
+        /// </summary>
+        /// <param name="key"></param>
+        /// <param name="dto"></param>
+        /// <typeparam name="TDto"></typeparam>
+        /// <exception cref="ArgumentException"></exception>
+        public FormValueData AddDto<TDto>(string key, TDto dto)
+        {
+            if (string.IsNullOrEmpty(key))
+                throw new ArgumentException("Value cannot be null or empty.", nameof(key));
+            
+            _values.Add(new FormValueItem { Name = key, ShouldBeSerialized = true, Payload = dto });
+
+            return this;
+        }
+
+        /// <summary>
+        /// Get all values
+        /// </summary>
+        /// <returns></returns>
+        public IEnumerable<FormValueItem> GetValues() => _values;
+        
+        public static FormValueData OfDto<TDto>(string key, TDto value) => new FormValueData().AddDto(key, value);
+        public static FormValueData Of(string key, string value) => new FormValueData().Add(key, value);
+    }
     
     public interface IRestClient : IDisposable
     {
@@ -38,6 +96,12 @@ namespace Morph.Server.Sdk.Client
         Task<ApiResult<TResult>> PushStreamAsync<TResult>(HttpMethod httpMethod, string path,
             PushFileStreamData pushFileStreamData, NameValueCollection urlParameters,
             HeadersCollection headersCollection, CancellationToken cancellationToken)
+            where TResult : new();
+        
+        Task<ApiResult<TResult>> PushStreamAsync<TResult>(HttpMethod httpMethod, string path,
+            PushFileStreamData pushFileStreamData, NameValueCollection urlParameters,
+            HeadersCollection headersCollection, FormValueData formValueData,
+            CancellationToken cancellationToken)
             where TResult : new();
         
         

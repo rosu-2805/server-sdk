@@ -1,4 +1,5 @@
-﻿using Morph.Server.Sdk.Dto.Commands;
+﻿using System;
+using Morph.Server.Sdk.Dto.Commands;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
@@ -13,5 +14,7 @@ namespace Morph.Server.Sdk.Client
             where T : new ();
 
          string Serialize<T>(T obj);
+
+         string Serialize(Type type, object obj);
     }
 }
