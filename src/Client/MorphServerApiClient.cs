@@ -16,6 +16,7 @@ using Morph.Server.Sdk.Model.InternalModels;
 using Morph.Server.Sdk.Dto;
 using System.Collections.Concurrent;
 using Morph.Server.Sdk.Exceptions;
+using Morph.Server.Sdk.Model.SharedMemory;
 
 namespace Morph.Server.Sdk.Client
 {
@@ -814,6 +815,50 @@ namespace Morph.Server.Sdk.Client
                 return MapOrFail(apiResult, (dto) => SpaceTaskMapper.MapFull(dto));
 
             }, cancellationToken, OperationType.ShortOperation);
+        }
+
+
+        public Task<SharedMemoryValue> SharedMemoryRemember(ApiSession apiSession, string key, SharedMemoryValue value,
+            OverwriteBehavior overwriteBehavior,
+            CancellationToken token)
+        {
+            return Wrapped(async t =>
+            {
+                var valueDto = SharedMemoryValueMapper.MapToDto(value);
+
+                var apiResult =
+                    await _lowLevelApiClient.SharedMemoryRemember(apiSession, key, valueDto, overwriteBehavior, t);
+                return MapOrFail(apiResult, SharedMemoryValueMapper.MapFromDto);
+            }, token, OperationType.ShortOperation);
+        }
+
+        public async Task<SharedMemoryValue> SharedMemoryRecall(ApiSession apiSession, string key,
+            CancellationToken token)
+        {
+            return await Wrapped(async t =>
+            {
+                var apiResult = await _lowLevelApiClient.SharedMemoryRecall(apiSession, key, t);
+                return MapOrFail(apiResult, SharedMemoryValueMapper.MapFromDto);
+            }, token, OperationType.ShortOperation);
+        }
+
+        public async Task<SharedMemoryListResponse> SharedMemoryList(ApiSession apiSession, string startsWith,
+            int offset, int limit, CancellationToken token)
+        {
+            return await Wrapped(async t =>
+            {
+                var apiResult = await _lowLevelApiClient.SharedMemoryList(apiSession, startsWith, offset, limit, t);
+                return MapOrFail(apiResult, SharedMemoryValueMapper.MapFromDto);
+            }, token, OperationType.ShortOperation);
+        }
+
+        public async Task<int> SharedMemoryForget(ApiSession apiSession, string key, CancellationToken token)
+        {
+            return await Wrapped(async t =>
+            {
+                var apiResult = await _lowLevelApiClient.SharedMemoryForget(apiSession, key, t);
+                return MapOrFail(apiResult, dto => dto.DeletedCount);
+            }, token, OperationType.ShortOperation);
         }
 
 

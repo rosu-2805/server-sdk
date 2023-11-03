@@ -15,6 +15,8 @@ using Morph.Server.Sdk.Events;
 using System.Net.Http;
 using Morph.Server.Sdk.Dto.SpaceFilesSearch;
 using System.Collections.Specialized;
+using Morph.Server.Sdk.Dto.SharedMemory;
+using Morph.Server.Sdk.Model.SharedMemory;
 
 namespace Morph.Server.Sdk.Client
 {
@@ -420,5 +422,80 @@ namespace Morph.Server.Sdk.Client
             return await apiClient.PushStreamAsync<NoContentResult>(HttpMethod.Post, url, pushFileStreamData, urlParameters: null, apiSession.ToHeadersCollection(), 
                 cancellationToken);
         }
+
+        #region Shared memory
+
+        public async Task<ApiResult<SharedMemoryValueDto>> SharedMemoryRemember(ApiSession apiSession, string key,
+            SharedMemoryValueDto value, OverwriteBehavior overwriteBehavior, CancellationToken cancellationToken)
+        {
+            if (apiSession == null) throw new ArgumentNullException(nameof(apiSession));
+
+            var spaceName = apiSession.SpaceName;
+            var url = UrlHelper.JoinUrl("space", spaceName, "sharedmemory", "item");
+            
+            var setSharedMemoryValueDto = new SetSharedMemoryValueDto
+            {
+                Key = key,
+                Value = value,
+                OverwriteBehavior = SharedMemoryValueMapper.MapOverwriteBehavior(overwriteBehavior)
+            };
+            
+            return await apiClient.PutAsync<SetSharedMemoryValueDto, SharedMemoryValueDto>(url, 
+                setSharedMemoryValueDto, urlParameters: null, apiSession.ToHeadersCollection(), cancellationToken);
+        }
+
+        public async Task<ApiResult<SharedMemoryValueDto>> SharedMemoryRecall(ApiSession apiSession, string key,
+            CancellationToken cancellationToken)
+        {
+            if (apiSession == null) throw new ArgumentNullException(nameof(apiSession));
+
+            var spaceName = apiSession.SpaceName;
+            var url = UrlHelper.JoinUrl("space", spaceName, "sharedmemory", "item");
+            
+            var urlParameters = new NameValueCollection
+            {
+                { "key", key },
+            };
+            
+            return await apiClient.GetAsync<SharedMemoryValueDto>(url, urlParameters, apiSession.ToHeadersCollection(), cancellationToken);
+        }
+
+        public async Task<ApiResult<SharedMemoryListResponseDto>> SharedMemoryList(ApiSession apiSession,
+            string startsWith, int offset,
+            int limit, CancellationToken cancellationToken)
+        {
+            if (apiSession == null) throw new ArgumentNullException(nameof(apiSession));
+
+            var spaceName = apiSession.SpaceName;
+            var url = UrlHelper.JoinUrl("space", spaceName, "sharedmemory", "list");
+            
+            var urlParameters = new NameValueCollection
+            {
+                { "startsWith", startsWith },
+                { "offset", offset.ToString() },
+                { "limit", limit.ToString() }
+            };
+
+            return await apiClient.GetAsync<SharedMemoryListResponseDto>(url, urlParameters, apiSession.ToHeadersCollection(), cancellationToken);
+        }
+
+        public async Task<ApiResult<DeleteSharedMemoryResponseDto>> SharedMemoryForget(ApiSession apiSession, string key,
+            CancellationToken cancellationToken)
+        {
+            if (apiSession == null) throw new ArgumentNullException(nameof(apiSession));
+            
+            var spaceName = apiSession.SpaceName;
+            var url = UrlHelper.JoinUrl("space", spaceName, "sharedmemory", "item");
+            
+            var urlParameters = new NameValueCollection
+            {
+                { "key", key },
+            };
+            
+            return await apiClient.DeleteAsync<DeleteSharedMemoryResponseDto>(url, urlParameters, 
+                apiSession.ToHeadersCollection(), cancellationToken);
+        }
+
+        #endregion
     }
 }
