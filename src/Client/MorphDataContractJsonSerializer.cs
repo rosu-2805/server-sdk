@@ -33,6 +33,7 @@ namespace Morph.Server.Sdk.Client
                 throw new ResponseParseException("An error occurred while deserializing the response: "+ ex.Message, input);                
             }
         }
+        
         public string Serialize<T>(T obj)
         {
 
@@ -44,6 +45,17 @@ namespace Morph.Server.Sdk.Client
                 return Encoding.UTF8.GetString(json, 0, json.Length);
             }            
 
+        }
+        
+        public string Serialize(Type type, object obj)
+        {
+            var serializer = new DataContractJsonSerializer(type);            
+            using (var ms = new MemoryStream())
+            {
+                serializer.WriteObject(ms, obj);
+                byte[] json = ms.ToArray();
+                return Encoding.UTF8.GetString(json, 0, json.Length);
+            }            
         }
 
         

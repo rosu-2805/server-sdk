@@ -81,7 +81,17 @@ namespace Morph.Server.Sdk.Client
         Task<ApiResult<NoContentResult>> WebFilesPutFileStreamAsync(ApiSession apiSession, string serverFolder, SendFileStreamData sendFileStreamData, Action<FileTransferProgressEventArgs> onSendProgress, CancellationToken cancellationToken);
         Task<ApiResult<NoContentResult>> WebFilesPostFileStreamAsync(ApiSession apiSession, string serverFolder, SendFileStreamData sendFileStreamData, Action<FileTransferProgressEventArgs> onSendProgress, CancellationToken cancellationToken);
 
+        Task<ApiResult<NoContentResult>> WebFilesPushPutFileStreamAsync(ApiSession apiSession,
+            string serverFolder,
+            PushFileStreamData pushFileStreamData, CancellationToken cancellationToken);
+        Task<ApiResult<NoContentResult>> WebFilesPushPostFileStreamAsync(ApiSession apiSession,
+            string serverFolder,
+            PushFileStreamData pushFileStreamData, CancellationToken cancellationToken);
+
+        [Obsolete("Obsolete due to flaw in response checking. Use WebFilesPushPostFileStreamAsync instead. Will be removed in next major version.")]
         Task<ApiResult<ServerPushStreaming>> WebFilesOpenContiniousPostStreamAsync(ApiSession apiSession, string serverFolder, string fileName, CancellationToken cancellationToken);
+        
+        [Obsolete("Obsolete due to flaw in response checking. Use WebFilesPushPutFileStreamAsync instead. Will be removed in next major version.")]
         Task<ApiResult<ServerPushStreaming>> WebFilesOpenContiniousPutStreamAsync(ApiSession apiSession, string serverFolder, string fileName, CancellationToken cancellationToken);
 
     }

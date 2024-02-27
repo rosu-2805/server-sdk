@@ -18,8 +18,7 @@ using System.Collections.Specialized;
 
 namespace Morph.Server.Sdk.Client
 {
-
-    internal class LowLevelApiClient : ILowLevelApiClient
+    internal partial class LowLevelApiClient : ILowLevelApiClient
     {
         private readonly IRestClient apiClient;
 
@@ -376,30 +375,7 @@ namespace Morph.Server.Sdk.Client
 
             return apiClient.PostFileStreamAsync<NoContentResult>(url, sendFileStreamData, null, apiSession.ToHeadersCollection(), onSendProgress, cancellationToken);
         }
-        public Task<ApiResult<ServerPushStreaming>> WebFilesOpenContiniousPostStreamAsync(ApiSession apiSession, string serverFolder, string fileName, CancellationToken cancellationToken)
-        {
-            if (apiSession == null)
-            {
-                throw new ArgumentNullException(nameof(apiSession));
-            }
-            var spaceName = apiSession.SpaceName;
-            var url = UrlHelper.JoinUrl("space", spaceName, "files", serverFolder);
-
-            return apiClient.PushContiniousStreamingDataAsync<NoContentResult>(HttpMethod.Post, url, new ContiniousStreamingRequest(fileName), null, apiSession.ToHeadersCollection(), cancellationToken);
-        }
-
-        public Task<ApiResult<ServerPushStreaming>> WebFilesOpenContiniousPutStreamAsync(ApiSession apiSession, string serverFolder, string fileName, CancellationToken cancellationToken)
-        {
-            if (apiSession == null)
-            {
-                throw new ArgumentNullException(nameof(apiSession));
-            }
-            var spaceName = apiSession.SpaceName;
-            var url = UrlHelper.JoinUrl("space", spaceName, "files", serverFolder);
-
-            return apiClient.PushContiniousStreamingDataAsync<NoContentResult>(HttpMethod.Put, url, new ContiniousStreamingRequest(fileName), null, apiSession.ToHeadersCollection(), cancellationToken);
-        }
-
+        
         public Task<ApiResult<SpaceFilesQuickSearchResponseDto>> WebFilesQuickSearchSpaceAsync(ApiSession apiSession, SpaceFilesQuickSearchRequestDto request, int? offset, int? limit, CancellationToken cancellationToken)
         {
             var spaceName = apiSession.SpaceName;
@@ -417,6 +393,32 @@ namespace Morph.Server.Sdk.Client
                 urlParameters :urlParameters,
                 headersCollection: apiSession.ToHeadersCollection(),
                 cancellationToken: cancellationToken);
+        }
+        
+        public async Task<ApiResult<NoContentResult>> WebFilesPushPutFileStreamAsync(ApiSession apiSession,
+            string serverFolder,
+            PushFileStreamData pushFileStreamData, CancellationToken cancellationToken)
+        {
+            if (apiSession == null)  throw new ArgumentNullException(nameof(apiSession));
+            
+            var spaceName = apiSession.SpaceName;
+            var url = UrlHelper.JoinUrl("space", spaceName, "files", serverFolder);
+
+            return await apiClient.PushStreamAsync<NoContentResult>(HttpMethod.Put, url, pushFileStreamData, urlParameters: null, apiSession.ToHeadersCollection(), 
+                cancellationToken);
+        }
+
+        public async Task<ApiResult<NoContentResult>> WebFilesPushPostFileStreamAsync(ApiSession apiSession,
+            string serverFolder,
+            PushFileStreamData pushFileStreamData, CancellationToken cancellationToken)
+        {
+            if (apiSession == null)  throw new ArgumentNullException(nameof(apiSession));
+            
+            var spaceName = apiSession.SpaceName;
+            var url = UrlHelper.JoinUrl("space", spaceName, "files", serverFolder);
+
+            return await apiClient.PushStreamAsync<NoContentResult>(HttpMethod.Post, url, pushFileStreamData, urlParameters: null, apiSession.ToHeadersCollection(), 
+                cancellationToken);
         }
     }
 }
