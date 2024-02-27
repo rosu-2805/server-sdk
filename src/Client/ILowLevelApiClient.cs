@@ -5,9 +5,11 @@ using System.Threading;
 using System.Threading.Tasks;
 using Morph.Server.Sdk.Dto.Commands;
 using System.Collections.Generic;
+using Morph.Server.Sdk.Dto.SharedMemory;
 using Morph.Server.Sdk.Model.InternalModels;
 using Morph.Server.Sdk.Events;
 using Morph.Server.Sdk.Dto.SpaceFilesSearch;
+using Morph.Server.Sdk.Model.SharedMemory;
 
 namespace Morph.Server.Sdk.Client
 {
@@ -94,5 +96,11 @@ namespace Morph.Server.Sdk.Client
         [Obsolete("Obsolete due to flaw in response checking. Use WebFilesPushPutFileStreamAsync instead. Will be removed in next major version.")]
         Task<ApiResult<ServerPushStreaming>> WebFilesOpenContiniousPutStreamAsync(ApiSession apiSession, string serverFolder, string fileName, CancellationToken cancellationToken);
 
+        Task<ApiResult<SharedMemoryValueDto>> SharedMemoryRemember(ApiSession apiSession, string key,
+            SharedMemoryValueDto value, OverwriteBehavior overwriteBehavior, CancellationToken cancellationToken);
+        Task<ApiResult<SharedMemoryValueDto>> SharedMemoryRecall(ApiSession apiSession, string key, CancellationToken cancellationToken);
+        Task<ApiResult<SharedMemoryListResponseDto>> SharedMemoryList(ApiSession apiSession, string startsWith, int offset, int limit, CancellationToken cancellationToken);
+        Task<ApiResult<DeleteSharedMemoryResponseDto>> SharedMemoryForget(ApiSession apiSession, string key,
+            CancellationToken cancellationToken);
     }
 }
