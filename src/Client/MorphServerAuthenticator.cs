@@ -67,12 +67,8 @@ namespace Morph.Server.Sdk.Client
                 ClientCertificateOptions = ClientCertificateOption.Automatic,
                 // required for automatic NTML/Negotiate challenge
                 UseDefaultCredentials = true,
-#if NETSTANDARD2_0
-                ServerCertificateCustomValidationCallback = context.MorphServerApiClient.Config.ServerCertificateCustomValidationCallback        
-#endif
-
-
-    };
+                ServerCertificateCustomValidationCallback = context.MorphServerApiClient.Config.ServerCertificateCustomValidationCallback
+            };
 
             // build a new low level client based on specified handler
             using (var ntmlRestApiClient = context.BuildApiClient(aHandler))

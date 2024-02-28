@@ -25,13 +25,8 @@ namespace Morph.Server.Sdk.Model
         public HttpSecurityState HttpSecurityState { get; set; } = HttpSecurityState.NotEvaluated;
         internal string SDKVersionString { get; set; } = MorphServerApiClientGlobalConfig.SDKVersionString;
 
-
-
-#if NETSTANDARD2_0
         public Func<HttpRequestMessage, X509Certificate2, X509Chain, SslPolicyErrors, bool> ServerCertificateCustomValidationCallback { get; set; }
         = MorphServerApiClientGlobalConfig.ServerCertificateCustomValidationCallback;
-#endif
-
     }
 
 }
