@@ -23,8 +23,6 @@ namespace Morph.Server.Sdk.Model
         Uri ApiUri { get; }
         HttpSecurityState HttpSecurityState { get; }
 
-#if NETSTANDARD2_0
         Func<HttpRequestMessage, X509Certificate2, X509Chain, SslPolicyErrors, bool> ServerCertificateCustomValidationCallback { get; }
-#endif
     }
 }

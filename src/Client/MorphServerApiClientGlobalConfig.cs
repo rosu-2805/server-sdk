@@ -10,7 +10,6 @@ namespace Morph.Server.Sdk.Client
     public static class MorphServerApiClientGlobalConfig
     {
 
-#if NETSTANDARD2_0
         private static object obj = new object();
         public static Func<HttpRequestMessage, X509Certificate2, X509Chain, SslPolicyErrors, bool> ServerCertificateCustomValidationCallback { get; set; } =
             (httpRequestMessage, xcert, xchain, sslerror) =>
@@ -24,7 +23,6 @@ namespace Morph.Server.Sdk.Client
                     return false;
                 }
             };            
-#endif
 
         private const string DefaultClientType = "EMS-SDK";
 

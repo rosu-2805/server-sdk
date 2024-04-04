@@ -46,22 +46,13 @@ namespace Morph.Server.Sdk.Client
                 throw new ArgumentNullException(nameof(configuration));
             }
 
-#if NETSTANDARD2_0
             // handler will be disposed automatically
             HttpClientHandler aHandler = new HttpClientHandler()
             {
                 ClientCertificateOptions = ClientCertificateOption.Automatic,
                 ServerCertificateCustomValidationCallback = configuration.ServerCertificateCustomValidationCallback
             };
-#elif NETFRAMEWORK
-            // handler will be disposed automatically
-            HttpClientHandler aHandler = new HttpClientHandler()
-            {
-                ClientCertificateOptions = ClientCertificateOption.Automatic
-            };
-#else
-    Not implemented                        
-#endif
+
             var httpClient = BuildHttpClient(configuration, aHandler);
             var restClient = ConstructRestApiClient(httpClient, BuildBaseAddress(configuration), clientConfiguration);
             return new LowLevelApiClient(restClient);
